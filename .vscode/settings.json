@@ -1,0 +1,15 @@
+{
+  "liveServer.settings.port": 8080,
+  "liveServer.settings.root": "/",
+  "liveServer.settings.CustomBrowser": "chrome",
+  "liveServer.settings.donotShowInfoMsg": true,
+  "liveServer.settings.donotVerifyTags": true,
+  "liveServer.settings.host": "localhost",
+  "liveServer.settings.useLocalIp": false,
+  "liveServer.settings.https": {
+    "enable": false,
+    "cert": "",
+    "key": "",
+    "passphrase": ""
+  }
+}
