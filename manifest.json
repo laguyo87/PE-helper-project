@@ -1,0 +1,21 @@
+{
+  "name": "체육 수업 도우미",
+  "short_name": "체육 도우미",
+  "description": "리그전과 토너먼트 대진표를 관리하는 체육 수업 도우미입니다.",
+  "icons": [
+    {
+      "src": "https://placehold.co/192x192/1971c2/ffffff?text=P.E.",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://placehold.co/512x512/1971c2/ffffff?text=P.E.",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1971c2",
+  "background_color": "#ffffff"
+}
