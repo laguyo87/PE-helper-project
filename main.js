@@ -226,6 +226,12 @@
 
     async function updateProgressVisitorCount() {
         try {
+            // Firebase가 사용 가능한지 확인
+            if (!window.firebase || !window.firebase.db) {
+                console.log('Firebase를 사용할 수 없음, 방문자 수 업데이트 건너뜀');
+                return;
+            }
+            
             const visitorRef = window.firebase.doc(window.firebase.db, "stats", "visitors");
             const visitorSnap = await window.firebase.getDoc(visitorRef);
             
@@ -5208,8 +5214,9 @@
                 initialize_app();
             } else if (firebaseCheckCount >= maxFirebaseChecks) {
                 clearInterval(checkFirebase);
-                console.error('Firebase 초기화 시간 초과');
-                alert('Firebase 초기화에 실패했습니다. 페이지를 새로고침해주세요.');
+                console.error('Firebase 초기화 시간 초과, 로컬 모드로 시작');
+                // Firebase 초기화 실패해도 로컬 모드로 앱 시작
+                initialize_app();
             } else {
                 console.log(`Firebase 초기화 대기 중... (${firebaseCheckCount}/${maxFirebaseChecks})`);
             }
@@ -5235,7 +5242,9 @@
             if (checkFirebase) {
                 clearInterval(checkFirebase);
             }
-            alert('Firebase 초기화에 실패했습니다: ' + event.detail.message);
+            console.log('Firebase 초기화 실패, 로컬 모드로 시작');
+            // Firebase 초기화 실패해도 로컬 모드로 앱 시작
+            initialize_app();
         });
     });
     
@@ -5436,9 +5445,11 @@
         $('#app-root').classList.remove('hidden');
         renderApp();
         
-        const { auth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } = window.firebase;
+        // Firebase가 사용 가능한 경우에만 인증 관련 기능 활성화
+        if (window.firebase) {
+            const { auth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } = window.firebase;
 
-        onAuthStateChanged(auth, user => {
+            onAuthStateChanged(auth, user => {
             console.log('=== Firebase 인증 상태 변경 ===');
             console.log('상태:', user ? '로그인됨' : '로그아웃됨');
             console.log('사용자 정보:', user);
@@ -5471,39 +5482,75 @@
                 // 앱 다시 렌더링
                 renderApp();
             }
-        });
+            });
 
-        $('#signup-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = $('#signup-email').value;
-            const password = $('#signup-password').value;
-            try { await createUserWithEmailAndPassword(auth, email, password); } 
-            catch (error) { handleAuthError(error, 'signup'); }
-        });
+            $('#signup-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = $('#signup-email').value;
+                const password = $('#signup-password').value;
+                try { await createUserWithEmailAndPassword(auth, email, password); } 
+                catch (error) { handleAuthError(error, 'signup'); }
+            });
 
-        $('#login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = $('#login-email').value;
-            const password = $('#login-password').value;
-            try { await signInWithEmailAndPassword(auth, email, password); } 
-            catch (error) { handleAuthError(error, 'login'); }
-        });
+            $('#login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = $('#login-email').value;
+                const password = $('#login-password').value;
+                try { await signInWithEmailAndPassword(auth, email, password); } 
+                catch (error) { handleAuthError(error, 'login'); }
+            });
 
-        $('#reset-form').addEventListener('submit', handlePasswordReset);
-        
-        $('#forgot-password-link').addEventListener('click', (e) => {
-            e.preventDefault();
-            showAuthForm('reset');
-        });
+            $('#reset-form').addEventListener('submit', handlePasswordReset);
+            
+            $('#forgot-password-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                showAuthForm('reset');
+            });
 
-        $('#back-to-login-link').addEventListener('click', (e) => {
-            e.preventDefault();
-            showAuthForm('login');
-        });
+            $('#back-to-login-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                showAuthForm('login');
+            });
 
-        $('#google-login-btn').addEventListener('click', signInWithGoogle);
+            $('#google-login-btn').addEventListener('click', signInWithGoogle);
 
-        $('#logout-btn').addEventListener('click', () => { signOut(auth); });
+            $('#logout-btn').addEventListener('click', () => { signOut(auth); });
+        } else {
+            console.log('Firebase를 사용할 수 없음, 로컬 모드로만 작동');
+            // Firebase 없이도 기본 UI는 작동하도록 설정
+            $('#signup-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                alert('Firebase가 초기화되지 않아 회원가입을 할 수 없습니다. 로컬 모드로 사용해주세요.');
+            });
+
+            $('#login-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                alert('Firebase가 초기화되지 않아 로그인을 할 수 없습니다. 로컬 모드로 사용해주세요.');
+            });
+
+            $('#reset-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                alert('Firebase가 초기화되지 않아 비밀번호 재설정을 할 수 없습니다.');
+            });
+            
+            $('#forgot-password-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                showAuthForm('reset');
+            });
+
+            $('#back-to-login-link').addEventListener('click', (e) => {
+                e.preventDefault();
+                showAuthForm('login');
+            });
+
+            $('#google-login-btn').addEventListener('click', () => {
+                alert('Firebase가 초기화되지 않아 Google 로그인을 할 수 없습니다. 로컬 모드로 사용해주세요.');
+            });
+
+            $('#logout-btn').addEventListener('click', () => {
+                alert('이미 로컬 모드로 사용 중입니다.');
+            });
+        }
         
         const savedTheme = localStorage.getItem("theme") || "light";
         document.body.dataset.theme = savedTheme;
