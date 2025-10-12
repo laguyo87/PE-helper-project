@@ -106,8 +106,56 @@
     let dbDebounceTimer;
     const adminUid = "4LRORiF8UcXB6BYMrs5bZi2UEyy2"; // 관리자 UID가 여기에 입력되었습니다.
     
-    const $ = s => document.querySelector(s);
-    const $$ = s => document.querySelectorAll(s);
+    // 브라우저 호환성을 위한 헬퍼 함수들
+    const $ = s => {
+        try {
+            return document.querySelector(s);
+        } catch (e) {
+            console.error('querySelector error:', e);
+            return null;
+        }
+    };
+    const $$ = s => {
+        try {
+            return document.querySelectorAll(s);
+        } catch (e) {
+            console.error('querySelectorAll error:', e);
+            return [];
+        }
+    };
+    
+    // 브라우저 호환성 체크
+    function checkBrowserCompatibility() {
+        const userAgent = navigator.userAgent;
+        const isIE = /MSIE|Trident/.test(userAgent);
+        const isOldChrome = /Chrome\/([0-9]+)/.test(userAgent) && parseInt(RegExp.$1) < 60;
+        const isOldFirefox = /Firefox\/([0-9]+)/.test(userAgent) && parseInt(RegExp.$1) < 60;
+        const isWindows = /Windows/.test(userAgent);
+        
+        // Windows 환경에서의 디버깅 정보
+        if (isWindows) {
+            console.log('Windows 환경 감지됨');
+            console.log('User Agent:', userAgent);
+            console.log('Screen resolution:', screen.width + 'x' + screen.height);
+            console.log('Viewport size:', window.innerWidth + 'x' + window.innerHeight);
+        }
+        
+        if (isIE) {
+            alert('Internet Explorer는 지원되지 않습니다. Chrome, Firefox, Edge를 사용해주세요.');
+            return false;
+        }
+        
+        if (isOldChrome || isOldFirefox) {
+            console.warn('구형 브라우저 감지됨. 일부 기능이 제한될 수 있습니다.');
+        }
+        
+        // CSS Grid 지원 체크
+        if (isWindows && !CSS.supports('display', 'grid')) {
+            console.warn('CSS Grid가 지원되지 않습니다. 레이아웃이 깨질 수 있습니다.');
+        }
+        
+        return true;
+    }
 
     // ========================================
     // 방문자 통계
@@ -5185,6 +5233,11 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        // 브라우저 호환성 체크
+        if (!checkBrowserCompatibility()) {
+            return;
+        }
+        
         if (handleShareView()) {
             return;
         }
@@ -5427,15 +5480,20 @@
     // ========================================
 
     function initialize_app() {
+        // Service Worker 등록 (지원하는 브라우저에서만)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful: ', registration);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
+                try {
+                    navigator.serviceWorker.register('./service-worker.js')
+                        .then(registration => {
+                            console.log('ServiceWorker registration successful: ', registration);
+                        })
+                        .catch(err => {
+                            console.log('ServiceWorker registration failed: ', err);
+                        });
+                } catch (e) {
+                    console.warn('ServiceWorker not supported:', e);
+                }
             });
         }
         

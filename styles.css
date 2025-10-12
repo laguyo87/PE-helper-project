@@ -1,6 +1,9 @@
 /* 화면 크기에 따라 기본 폰트 크기를 조절하여 반응형 UI의 기반을 마련합니다. */
 html {
     font-size: 14px;
+    /* Windows 브라우저 호환성을 위한 추가 설정 */
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
 }
 @media (max-width: 1200px) { html { font-size: 13px; } }
 @media (max-width: 992px) { html { font-size: 12px; } }
@@ -33,7 +36,12 @@ body{
   margin:0; font-family: 'Noto Sans KR', sans-serif;
   color:var(--ink); background:var(--bg-light); font-size: 1rem; /* rem 단위로 변경 */
   transition: background-color .2s, color .2s;
+  display: -webkit-box; /* Safari 6.1+ */
+  display: -ms-flexbox; /* IE 10 */
   display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
@@ -464,7 +472,14 @@ h2 { font-size: 1.25rem; font-weight: 700; margin-top: 0; margin-bottom: 1rem; }
 .action-buttons button.has-note { color: var(--draw); }
 .action-buttons button svg { width: 1.15em; height: 1.15em; }
 
-.student-list-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+.student-list-grid { 
+    display: -ms-grid; /* IE fallback */
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+    gap: 0.75rem;
+    /* IE fallback */
+    -ms-grid-columns: 1fr 1fr 1fr;
+}
 .student-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; background-color: var(--input-bg); border-radius: 0.5rem; }
 .student-item > span { cursor: pointer; }
 .status-badge { padding: 0.25rem 0.5rem; font-size: 0.75rem; font-weight: 600; border-radius: 9999px; }
