@@ -1122,6 +1122,10 @@
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
                         일정 공유
                     </button>
+                    <button class="btn" onclick="shareAllClassesSchedule()" data-tooltip="모든 반의 일정을 하나의 페이지에서 공유합니다">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                        모든 반 일정 공유
+                    </button>
                     <button class="btn" onclick="clearAllHighlights()" data-tooltip="모든 강조 표시를 해제합니다."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 5-8 8"/><path d="m12 19 8-8"/><path d="M20 13a2.5 2.5 0 0 0-3.54-3.54l-8.37 8.37A2.5 2.5 0 0 0 9.46 20l8.37-8.37a2.5 2.5 0 0 0 2.17-6.38Z"/></svg>모든 강조 해제</button>
                     <button id="generateGamesBtn" class="btn" onclick="generateGames()" style="background:var(--win); color:white;" data-tooltip="현재 학생 명단으로 새 경기 일정을 생성합니다."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>일정 생성</button>
                   </div>
@@ -5472,7 +5476,11 @@
                         }
                     });
                 }
-                renderSharedView(id, mode, view); // id가 문자열일 수 있으므로 Number() 제거
+                if (mode === 'league' && view === 'all-schedules') {
+                    renderAllClassesScheduleView();
+                } else {
+                    renderSharedView(id, mode, view); // id가 문자열일 수 있으므로 Number() 제거
+                }
             } else {
                  $('#share-view-content').innerHTML = '<h2>공유된 데이터를 찾을 수 없습니다.</h2>';
             }
@@ -5523,6 +5531,120 @@
         }
     }
 
+    function renderAllClassesScheduleView() {
+        const container = $('#share-view-content');
+        
+        if (!leagueData.classes || leagueData.classes.length === 0) {
+            container.innerHTML = '<h2>공유할 리그전 반이 없습니다.</h2>';
+            return;
+        }
+
+        let html = '<h2 style="text-align: center; margin-bottom: 30px;">모든 반 경기 일정</h2>';
+        
+        leagueData.classes.forEach((classItem, index) => {
+            // 해당 반의 경기 데이터 필터링
+            const classGames = leagueData.games.filter(game => game.classId === classItem.id);
+            
+            html += `
+                <div class="class-schedule-section" style="margin-bottom: 40px;">
+                    <h3 style="color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin-bottom: 20px;">
+                        ${classItem.name} (${classGames.length}경기)
+                    </h3>
+                    <div class="paps-table-wrap">
+                        <div class="games-table-content">
+                            ${renderGamesTableForClass(classItem, classGames)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+    }
+
+    function renderGamesTableForClass(classItem, games) {
+        if (!games || games.length === 0) {
+            return '<div style="text-align: center; padding: 2rem; color: var(--ink-muted);">경기가 없습니다.</div>';
+        }
+
+        // 경기를 날짜별로 그룹화
+        const gamesByDate = {};
+        games.forEach(game => {
+            const date = game.date || '날짜 미정';
+            if (!gamesByDate[date]) {
+                gamesByDate[date] = [];
+            }
+            gamesByDate[date].push(game);
+        });
+
+        let html = '';
+        Object.keys(gamesByDate).sort().forEach(date => {
+            html += `
+                <div class="date-group" style="margin-bottom: 20px;">
+                    <h4 style="color: var(--ink); margin-bottom: 10px; font-size: 14px; font-weight: 600;">${date}</h4>
+                    <div class="games-list">
+                        ${gamesByDate[date].map(game => renderGameItem(game)).join('')}
+                    </div>
+                </div>
+            `;
+        });
+
+        return html;
+    }
+
+    function renderGameItem(game) {
+        const teamA = game.teamA || '팀 A';
+        const teamB = game.teamB || '팀 B';
+        const scoreA = game.scoreA !== null ? game.scoreA : '-';
+        const scoreB = game.scoreB !== null ? game.scoreB : '-';
+        const time = game.time || '시간 미정';
+        const court = game.court || '코트 미정';
+        
+        let resultClass = '';
+        let resultText = '';
+        
+        if (game.scoreA !== null && game.scoreB !== null) {
+            if (game.scoreA > game.scoreB) {
+                resultClass = 'win';
+                resultText = `${teamA} 승`;
+            } else if (game.scoreB > game.scoreA) {
+                resultClass = 'win';
+                resultText = `${teamB} 승`;
+            } else {
+                resultClass = 'draw';
+                resultText = '무승부';
+            }
+        }
+
+        return `
+            <div class="game-item" style="
+                display: flex; 
+                align-items: center; 
+                padding: 12px 16px; 
+                margin-bottom: 8px; 
+                background: var(--bg-light); 
+                border: 1px solid var(--border); 
+                border-radius: 8px;
+                ${resultClass ? `border-left: 4px solid var(--${resultClass === 'win' ? 'win' : 'draw'});` : ''}
+            ">
+                <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
+                    <div style="font-weight: 600; min-width: 80px;">${teamA}</div>
+                    <div style="color: var(--ink-muted);">vs</div>
+                    <div style="font-weight: 600; min-width: 80px;">${teamB}</div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px; color: var(--ink-muted); font-size: 14px;">
+                    <div style="min-width: 60px; text-align: center;">
+                        <span style="font-weight: 600; color: var(--ink);">${scoreA}</span> - 
+                        <span style="font-weight: 600; color: var(--ink);">${scoreB}</span>
+                    </div>
+                    <div style="min-width: 60px;">${time}</div>
+                    <div style="min-width: 80px;">${court}</div>
+                    ${resultText ? `<div style="color: var(--${resultClass === 'win' ? 'win' : 'draw'}); font-weight: 600;">${resultText}</div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
     function shareView(mode, view) {
         if (!currentUser) return;
         let id;
@@ -5535,6 +5657,23 @@
         }
 
         const url = `${window.location.origin}${window.location.pathname}?share=true&uid=${currentUser.uid}&id=${id}&mode=${mode}&view=${view}`;
+        copyToClipboard(url);
+    }
+
+    function shareAllClassesSchedule() {
+        if (!currentUser) return;
+        
+        // 리그전 반이 있는지 확인
+        if (!leagueData.classes || leagueData.classes.length === 0) {
+            showModal({ 
+                title: '오류', 
+                body: '공유할 리그전 반이 없습니다. 먼저 반을 생성해주세요.', 
+                actions: [{ text: '확인', type: 'primary', callback: closeModal }] 
+            }); 
+            return; 
+        }
+
+        const url = `${window.location.origin}${window.location.pathname}?share=true&uid=${currentUser.uid}&mode=league&view=all-schedules`;
         copyToClipboard(url);
     }
     
