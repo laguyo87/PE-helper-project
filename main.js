@@ -5818,20 +5818,103 @@
         
         printWindow.document.write(`
             <style>
-                body { background: #fff !important; color: #000 !important; }
-                .bracket-wrap { overflow: visible !important; border: none !important; }
+                body { 
+                    background: #fff !important; 
+                    color: #000 !important; 
+                    font-family: 'Noto Sans KR', sans-serif;
+                    margin: 0;
+                    padding: 20px;
+                }
+                .bracket-wrap { 
+                    overflow: visible !important; 
+                    border: none !important; 
+                    width: 100%;
+                }
                 .main-content { padding: 0 !important; }
                 .btn { display: none !important; }
+                .rounds {
+                    display: flex;
+                    gap: 20px;
+                    justify-content: center;
+                    align-items: flex-start;
+                }
+                .round {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    min-width: 200px;
+                }
+                .round-title {
+                    font-weight: bold;
+                    margin-bottom: 20px;
+                    text-align: center;
+                    font-size: 14px;
+                }
+                .match-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                .match {
+                    border: 1px solid #ddd;
+                    border-radius: 8px;
+                    background: #fff;
+                    min-width: 180px;
+                }
+                .team {
+                    display: flex;
+                    align-items: center;
+                    padding: 8px 12px;
+                    border-bottom: 1px solid #eee;
+                    min-height: 40px;
+                }
+                .team:last-child {
+                    border-bottom: none;
+                }
+                .team.win {
+                    background-color: #e8f5e8;
+                    font-weight: bold;
+                }
+                .team.lose {
+                    background-color: #f5e8e8;
+                }
+                .team-name {
+                    flex: 1;
+                    font-size: 13px;
+                }
+                .team-score {
+                    width: 40px;
+                    text-align: center;
+                    border: 1px solid #ccc;
+                    border-radius: 4px;
+                    padding: 2px;
+                    margin-left: 8px;
+                }
+                .team-actions {
+                    margin-left: 8px;
+                    font-size: 11px;
+                }
+                .medal {
+                    display: inline-block;
+                    margin-right: 4px;
+                }
                 @media print {
-                  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .bracket-wrap { page-break-inside: avoid; }
                 }
             </style>
         `);
         printWindow.document.write('</head><body>');
-        printWindow.document.write(`<h2>${tourney.name} - 대진표</h2>`);
+        printWindow.document.write(`<h2 style="text-align: center; margin-bottom: 30px;">${tourney.name} - 대진표</h2>`);
         
-        // 대진표 HTML 생성
-        const roundsData = tourney.rounds;
+        // 대진표 HTML 생성 - 실제 UI와 동일하게
+        const roundsData = tourney.roundsData || tourney.rounds;
+        if (!roundsData || roundsData.length === 0) {
+            printWindow.document.write('<p>대진표가 생성되지 않았습니다.</p>');
+            printWindow.document.close();
+            return;
+        }
+        
         const roundLabels = makeRoundLabels(roundsData.length);
         const bracketHtml = `
             <div class="bracket-wrap">
@@ -5840,25 +5923,24 @@
                         <div class="round">
                             <div class="round-title">${roundLabels[rIdx]}</div>
                             <div class="match-group">
-                                ${round.map(m => renderMatchCard(m, rIdx, tourney, true)).join('')}
+                                ${round.matches ? round.matches.map(m => renderMatchCard(m, rIdx, tourney, true)).join('') : round.map(m => renderMatchCard(m, rIdx, tourney, true)).join('')}
                             </div>
                         </div>
                     `).join('')}
                 </div>
-                <svg id="printSvgLayer" class="svg-layer"></svg>
             </div>
         `;
         
         printWindow.document.write(bracketHtml);
+        printWindow.document.write('</body></html>');
         printWindow.document.close();
         
-        // 인쇄 창에서 연결선 그리기
+        // 인쇄 실행
         setTimeout(() => {
-            drawSvgLinesForPrint(printWindow, tourney);
             printWindow.focus();
             printWindow.print();
             printWindow.close();
-        }, 1000);
+        }, 500);
     }
     
     function drawSvgLinesForPrint(printWindow, tourney) {
