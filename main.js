@@ -5609,29 +5609,8 @@
             return '<div style="text-align: center; padding: 2rem; color: var(--ink-muted);">경기가 없습니다.</div>';
         }
 
-        // 경기를 날짜별로 그룹화
-        const gamesByDate = {};
-        games.forEach(game => {
-            const date = game.date || '날짜 미정';
-            if (!gamesByDate[date]) {
-                gamesByDate[date] = [];
-            }
-            gamesByDate[date].push(game);
-        });
-
-        let html = '';
-        Object.keys(gamesByDate).sort().forEach(date => {
-            html += `
-                <div class="date-group" style="margin-bottom: 20px;">
-                    <h4 style="color: var(--ink); margin-bottom: 10px; font-size: 14px; font-weight: 600;">${date}</h4>
-                    <div class="games-list">
-                        ${gamesByDate[date].map(game => renderGameItem(game)).join('')}
-                    </div>
-                </div>
-            `;
-        });
-
-        return html;
+        // 경기를 간단하게 나열 (날짜별 그룹화 제거)
+        return games.map(game => renderGameItem(game)).join('');
     }
 
     function renderGameItem(game) {
@@ -5655,8 +5634,6 @@
                       (game.scoreA !== null && game.scoreA !== undefined) ? game.scoreA : '-';
         const scoreB = (game.player2Score !== null && game.player2Score !== undefined) ? game.player2Score : 
                       (game.scoreB !== null && game.scoreB !== undefined) ? game.scoreB : '-';
-        const time = game.time || '시간 미정';
-        const court = game.court || '코트 미정';
         
         let resultClass = '';
         let resultText = '';
@@ -5701,8 +5678,6 @@
                         <span style="font-weight: 600; color: var(--ink);">${scoreA}</span> - 
                         <span style="font-weight: 600; color: var(--ink);">${scoreB}</span>
                     </div>
-                    <div style="min-width: 60px;">${time}</div>
-                    <div style="min-width: 80px;">${court}</div>
                     ${resultText ? `<div style="color: var(--${resultClass === 'win' ? 'win' : 'draw'}); font-weight: 600;">${resultText}</div>` : ''}
                 </div>
             </div>
