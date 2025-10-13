@@ -5430,7 +5430,9 @@
             const mode = urlParams.get('mode');
             const view = urlParams.get('view');
 
-            if (!uid || !id || !mode || !view) return false;
+            // 모든 반 일정 공유의 경우 id가 없을 수 있음
+            if (!uid || !mode || !view) return false;
+            if (view !== 'all-schedules' && !id) return false;
             
             document.body.innerHTML = `
                 <div id="loader" class="loader"><div >데이터를 불러오는 중...</div></div>
@@ -5479,7 +5481,7 @@
                 if (mode === 'league' && view === 'all-schedules') {
                     renderAllClassesScheduleView();
                 } else {
-                    renderSharedView(id, mode, view); // id가 문자열일 수 있으므로 Number() 제거
+                    renderSharedView(id, mode, view);
                 }
             } else {
                  $('#share-view-content').innerHTML = '<h2>공유된 데이터를 찾을 수 없습니다.</h2>';
