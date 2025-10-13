@@ -1864,9 +1864,12 @@
                 
                 <div id="teamsList" class="student-list-grid" style="margin-top: 1rem;">
                     ${tourney.teams.map(team => `
-                        <div class="student-item">
+                        <div class="student-item" id="team-item-${team.replace(/[^a-zA-Z0-9]/g, '_')}">
                             <span>${team}</span>
                             <div class="action-buttons">
+                                <button onclick="editTeamName('${team}')" data-tooltip="수정">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                </button>
                                 <button onclick="removeTeamFromTournament('${team}')" data-tooltip="삭제">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                                 </button>
@@ -1980,6 +1983,61 @@
         saveDataToFirestore();
         renderTournamentView(tourney);
         renderTournamentList();
+    }
+
+    function editTeamName(oldTeamName) {
+        const tourney = tournamentData.tournaments.find(t => t.id === tournamentData.activeTournamentId);
+        if (!tourney) return;
+        
+        const newTeamName = prompt(`팀 이름을 수정하세요:`, oldTeamName);
+        
+        if (newTeamName === null) return; // 취소된 경우
+        
+        const trimmedName = newTeamName.trim();
+        
+        if (!trimmedName) {
+            alert('팀 이름을 입력해주세요.');
+            return;
+        }
+        
+        if (trimmedName === oldTeamName) {
+            return; // 변경사항이 없는 경우
+        }
+        
+        // 중복 체크
+        const isDuplicate = tourney.teams.some(team => 
+            team !== oldTeamName && team.trim().toLowerCase() === trimmedName.toLowerCase()
+        );
+        
+        if (isDuplicate) {
+            alert('이미 존재하는 팀 이름입니다.');
+            return;
+        }
+        
+        // 팀 이름 업데이트
+        const teamIndex = tourney.teams.indexOf(oldTeamName);
+        if (teamIndex !== -1) {
+            tourney.teams[teamIndex] = trimmedName;
+            
+            // 대진표에서도 팀 이름 업데이트
+            if (tourney.roundsData) {
+                tourney.roundsData.forEach(round => {
+                    round.matches.forEach(match => {
+                        if (match.team1 === oldTeamName) {
+                            match.team1 = trimmedName;
+                        }
+                        if (match.team2 === oldTeamName) {
+                            match.team2 = trimmedName;
+                        }
+                    });
+                });
+            }
+            
+            buildBracket(tourney);
+            saveDataToFirestore();
+            renderTournamentView(tourney);
+            renderTournamentList();
+        }
     }
 
     function buildBracket(tourney) {
