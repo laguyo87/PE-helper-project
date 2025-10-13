@@ -5434,6 +5434,15 @@
             if (!uid || !mode || !view) return false;
             if (view !== 'all-schedules' && !id) return false;
             
+            // 공유 모드에서는 서비스 워커 등록하지 않음
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    registrations.forEach(registration => {
+                        registration.unregister();
+                    });
+                });
+            }
+
             document.body.innerHTML = `
                 <div id="loader" class="loader"><div >데이터를 불러오는 중...</div></div>
                 <header class="top-bar">
@@ -5459,8 +5468,15 @@
     }
 
     async function loadSharedData(uid, id, mode, view) {
-        $('#loader').classList.remove('hidden');
+        const loader = $('#loader');
+        if (loader) loader.classList.remove('hidden');
+        
         try {
+            // Firebase 연결 확인
+            if (!window.firebase || !window.firebase.db) {
+                throw new Error('Firebase가 초기화되지 않았습니다.');
+            }
+
             const userDocRef = window.firebase.doc(window.firebase.db, "users", uid);
             const docSnap = await window.firebase.getDoc(userDocRef);
 
@@ -5478,19 +5494,30 @@
                         }
                     });
                 }
+                
                 if (mode === 'league' && view === 'all-schedules') {
                     renderAllClassesScheduleView();
                 } else {
                     renderSharedView(id, mode, view);
                 }
             } else {
-                 $('#share-view-content').innerHTML = '<h2>공유된 데이터를 찾을 수 없습니다.</h2>';
+                const container = $('#share-view-content');
+                if (container) {
+                    container.innerHTML = '<h2>공유된 데이터를 찾을 수 없습니다.</h2>';
+                }
             }
         } catch (error) {
             console.error("Firestore 불러오기 실패:", error);
-            $('#share-view-content').innerHTML = '<h2>데이터를 불러오는 중 오류가 발생했습니다.</h2>';
+            const container = $('#share-view-content');
+            if (container) {
+                container.innerHTML = `
+                    <h2>데이터를 불러오는 중 오류가 발생했습니다.</h2>
+                    <p style="color: var(--ink-muted); margin-top: 10px;">오류: ${error.message}</p>
+                    <p style="color: var(--ink-muted); margin-top: 5px;">잠시 후 다시 시도해주세요.</p>
+                `;
+            }
         } finally {
-            $('#loader').classList.add('hidden');
+            if (loader) loader.classList.add('hidden');
         }
     }
 
@@ -5536,32 +5563,45 @@
     function renderAllClassesScheduleView() {
         const container = $('#share-view-content');
         
-        if (!leagueData.classes || leagueData.classes.length === 0) {
+        if (!container) {
+            console.error('공유 뷰 컨테이너를 찾을 수 없습니다.');
+            return;
+        }
+        
+        if (!leagueData || !leagueData.classes || leagueData.classes.length === 0) {
             container.innerHTML = '<h2>공유할 리그전 반이 없습니다.</h2>';
             return;
         }
 
-        let html = '<h2 style="text-align: center; margin-bottom: 30px;">모든 반 경기 일정</h2>';
-        
-        leagueData.classes.forEach((classItem, index) => {
-            // 해당 반의 경기 데이터 필터링
-            const classGames = leagueData.games.filter(game => game.classId === classItem.id);
+        try {
+            let html = '<h2 style="text-align: center; margin-bottom: 30px;">모든 반 경기 일정</h2>';
             
-            html += `
-                <div class="class-schedule-section" style="margin-bottom: 40px;">
-                    <h3 style="color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin-bottom: 20px;">
-                        ${classItem.name} (${classGames.length}경기)
-                    </h3>
-                    <div class="paps-table-wrap">
-                        <div class="games-table-content">
-                            ${renderGamesTableForClass(classItem, classGames)}
+            leagueData.classes.forEach((classItem, index) => {
+                // 해당 반의 경기 데이터 필터링
+                const classGames = (leagueData.games || []).filter(game => game.classId === classItem.id);
+                
+                html += `
+                    <div class="class-schedule-section" style="margin-bottom: 40px;">
+                        <h3 style="color: var(--accent); border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin-bottom: 20px;">
+                            ${classItem.name} (${classGames.length}경기)
+                        </h3>
+                        <div class="paps-table-wrap">
+                            <div class="games-table-content">
+                                ${renderGamesTableForClass(classItem, classGames)}
+                            </div>
                         </div>
                     </div>
-                </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        } catch (error) {
+            console.error('모든 반 일정 렌더링 중 오류:', error);
+            container.innerHTML = `
+                <h2>일정을 표시하는 중 오류가 발생했습니다.</h2>
+                <p style="color: var(--ink-muted); margin-top: 10px;">오류: ${error.message}</p>
             `;
-        });
-        
-        container.innerHTML = html;
+        }
     }
 
     function renderGamesTableForClass(classItem, games) {
