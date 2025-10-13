@@ -5635,26 +5635,48 @@
     }
 
     function renderGameItem(game) {
-        const teamA = game.teamA || '팀 A';
-        const teamB = game.teamB || '팀 B';
-        const scoreA = game.scoreA !== null ? game.scoreA : '-';
-        const scoreB = game.scoreB !== null ? game.scoreB : '-';
+        // 리그전 경기 데이터에서 선수 이름 찾기
+        let teamA = '팀 A';
+        let teamB = '팀 B';
+        
+        if (game.player1Id && game.player2Id) {
+            // 리그전 경기 데이터 구조
+            const player1 = leagueData.students.find(s => s.id === game.player1Id);
+            const player2 = leagueData.students.find(s => s.id === game.player2Id);
+            teamA = player1 ? player1.name : '팀 A';
+            teamB = player2 ? player2.name : '팀 B';
+        } else if (game.teamA && game.teamB) {
+            // 토너먼트 경기 데이터 구조
+            teamA = game.teamA;
+            teamB = game.teamB;
+        }
+        
+        const scoreA = (game.player1Score !== null && game.player1Score !== undefined) ? game.player1Score : 
+                      (game.scoreA !== null && game.scoreA !== undefined) ? game.scoreA : '-';
+        const scoreB = (game.player2Score !== null && game.player2Score !== undefined) ? game.player2Score : 
+                      (game.scoreB !== null && game.scoreB !== undefined) ? game.scoreB : '-';
         const time = game.time || '시간 미정';
         const court = game.court || '코트 미정';
         
         let resultClass = '';
         let resultText = '';
         
-        if (game.scoreA !== null && game.scoreB !== null) {
-            if (game.scoreA > game.scoreB) {
-                resultClass = 'win';
-                resultText = `${teamA} 승`;
-            } else if (game.scoreB > game.scoreA) {
-                resultClass = 'win';
-                resultText = `${teamB} 승`;
-            } else {
-                resultClass = 'draw';
-                resultText = '무승부';
+        // 점수가 입력된 경우 승부 결과 판정
+        if (scoreA !== '-' && scoreB !== '-') {
+            const numScoreA = parseFloat(scoreA);
+            const numScoreB = parseFloat(scoreB);
+            
+            if (!isNaN(numScoreA) && !isNaN(numScoreB)) {
+                if (numScoreA > numScoreB) {
+                    resultClass = 'win';
+                    resultText = `${teamA} 승`;
+                } else if (numScoreB > numScoreA) {
+                    resultClass = 'win';
+                    resultText = `${teamB} 승`;
+                } else {
+                    resultClass = 'draw';
+                    resultText = '무승부';
+                }
             }
         }
 
