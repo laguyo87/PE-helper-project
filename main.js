@@ -934,8 +934,10 @@
         
         
         // 사이드바 폼 컨테이너 초기화
-        $('#sidebar-form-container').innerHTML = '';
-        $('#sidebar-list-container').innerHTML = '';
+        const sidebarFormContainer = $('#sidebar-form-container');
+        const sidebarListContainer = $('#sidebar-list-container');
+        if (sidebarFormContainer) sidebarFormContainer.innerHTML = '';
+        if (sidebarListContainer) sidebarListContainer.innerHTML = '';
         
         console.log('사이드바 정리 완료');
     }
@@ -3738,7 +3740,8 @@
         // 기존 요소들 정리
         cleanupSidebar();
         
-        $('#sidebarTitle').textContent = '수업 진도 관리';
+        const sidebarTitle = $('#sidebarTitle');
+        if (sidebarTitle) sidebarTitle.textContent = '수업 진도 관리';
         
         // 사이드바에 반 목록과 시간표 표시
         const formHtml = `
@@ -3750,7 +3753,8 @@
             </div>
             <div id="progressClassList" class="progress-class-list"></div>
         `;
-        $('#sidebar-form-container').innerHTML = formHtml;
+        const sidebarFormContainer = $('#sidebar-form-container');
+        if (sidebarFormContainer) sidebarFormContainer.innerHTML = formHtml;
         
         // 사이드바 푸터에 방문자 수와 저작권 추가
         const sidebarFooter = $('.sidebar-footer');
@@ -4080,11 +4084,17 @@
     function loadProgressToRight(id){
         const c = progressClasses.find(c => c.id === id);
         if(!c){
-            $('#progressSelectedClassInfo').innerHTML = '선택된 반 없음';
-            $('#progressTeacherName').value = '';
-            $('#progressUnitContent').value = '';
-            $('#progressWeeklyHours').value = '1';
-            $('#progressSheetArea').innerHTML = '<div class="progress-empty">반을 선택하고 "설정 저장"을 누르면 진도표가 생성됩니다.</div>';
+            const progressSelectedClassInfo = $('#progressSelectedClassInfo');
+            const progressTeacherName = $('#progressTeacherName');
+            const progressUnitContent = $('#progressUnitContent');
+            const progressWeeklyHours = $('#progressWeeklyHours');
+            const progressSheetArea = $('#progressSheetArea');
+            
+            if (progressSelectedClassInfo) progressSelectedClassInfo.innerHTML = '선택된 반 없음';
+            if (progressTeacherName) progressTeacherName.value = '';
+            if (progressUnitContent) progressUnitContent.value = '';
+            if (progressWeeklyHours) progressWeeklyHours.value = '1';
+            if (progressSheetArea) progressSheetArea.innerHTML = '<div class="progress-empty">반을 선택하고 "설정 저장"을 누르면 진도표가 생성됩니다.</div>';
             // 제목 업데이트 (반이 선택되지 않았을 때)
             updateProgressSheetTitle();
             return;
@@ -4095,18 +4105,29 @@
         updateProgressSheetTitle();
         
         // 수업 설정 폼에 값 설정
-        $('#progressTeacherName').value = c.teacherName || '';
-        $('#progressUnitContent').value = c.unitContent || '';
+        const progressTeacherName = $('#progressTeacherName');
+        const progressUnitContent = $('#progressUnitContent');
+        const progressWeeklyHours = $('#progressWeeklyHours');
+        const progressSheetArea = $('#progressSheetArea');
+        const progressSettingHeader = $('#progressSettingHeader');
+        
+        if (progressTeacherName) progressTeacherName.value = c.teacherName || '';
+        if (progressUnitContent) progressUnitContent.value = c.unitContent || '';
+        
         if(c.weeklyHours){
-            $('#progressWeeklyHours').value = String(c.weeklyHours);
+            if (progressWeeklyHours) progressWeeklyHours.value = String(c.weeklyHours);
             renderProgressSheet(c);
             // 설정이 저장된 반이면 수업 설정 카드 숨기기
-            $('#progressSettingHeader').parentElement.style.display = 'none';
+            if (progressSettingHeader && progressSettingHeader.parentElement) {
+                progressSettingHeader.parentElement.style.display = 'none';
+            }
         } else {
-            $('#progressWeeklyHours').value = '1';
-            $('#progressSheetArea').innerHTML = '<div class="progress-empty">"수업 설정"에서 주당 시간을 저장하면 진도표가 생성됩니다.</div>';
+            if (progressWeeklyHours) progressWeeklyHours.value = '1';
+            if (progressSheetArea) progressSheetArea.innerHTML = '<div class="progress-empty">"수업 설정"에서 주당 시간을 저장하면 진도표가 생성됩니다.</div>';
             // 설정이 저장되지 않은 반이면 수업 설정 카드 표시
-            $('#progressSettingHeader').parentElement.style.display = 'block';
+            if (progressSettingHeader && progressSettingHeader.parentElement) {
+                progressSettingHeader.parentElement.style.display = 'block';
+            }
         }
     }
 
