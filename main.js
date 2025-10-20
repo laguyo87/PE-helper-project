@@ -117,16 +117,7 @@
     }
     let papsData = { classes: [], activeClassId: null };
     
-    // PapsManager 즉시 초기화 (DOM 로딩과 독립적으로)
-    console.log('PapsManager 즉시 초기화 시작');
-    let papsManager;
-    try {
-        papsManager = new PapsManager(papsData, $, saveDataToFirestore, cleanupSidebar);
-        console.log('PapsManager 즉시 초기화 완료');
-    } catch (error) {
-        console.error('PapsManager 초기화 실패:', error);
-        papsManager = null;
-    }
+    // PapsManager는 $ 함수 정의 후에 초기화됩니다
     
     let progressClasses = [];
     let progressSelectedClassId = '';
@@ -151,6 +142,17 @@
             return [];
         }
     };
+    
+    // PapsManager 초기화 ($ 함수 정의 후)
+    console.log('PapsManager 초기화 시작');
+    let papsManager;
+    try {
+        papsManager = new PapsManager(papsData, $, saveDataToFirestore, cleanupSidebar);
+        console.log('PapsManager 초기화 완료');
+    } catch (error) {
+        console.error('PapsManager 초기화 실패:', error);
+        papsManager = null;
+    }
     
     // 브라우저 호환성 체크
     function checkBrowserCompatibility() {
