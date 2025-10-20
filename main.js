@@ -28,6 +28,10 @@
     } from './js/modules/leagueManager.js';
     
     import { 
+      PapsManager
+    } from './js/modules/papsManager.js';
+    
+    import { 
       initializeTournamentManager,
       TournamentManager
     } from './js/modules/tournamentManager.js';
@@ -112,6 +116,18 @@
         tournamentManagerInitialized = false;
     }
     let papsData = { classes: [], activeClassId: null };
+    
+    // PapsManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('PapsManager 즉시 초기화 시작');
+    let papsManager;
+    try {
+        papsManager = new PapsManager(papsData, $, saveDataToFirestore, cleanupSidebar);
+        console.log('PapsManager 즉시 초기화 완료');
+    } catch (error) {
+        console.error('PapsManager 초기화 실패:', error);
+        papsManager = null;
+    }
+    
     let progressClasses = [];
     let progressSelectedClassId = '';
     let currentUser = null;
@@ -2834,43 +2850,10 @@
     };
 
     function renderPapsUI() {
-        // 기존 요소들 정리
-        cleanupSidebar();
-        
-        $('#sidebarTitle').textContent = 'PAPS 반 목록';
-        const formHtml = `
-            <div class="sidebar-form-group">
-                <input id="papsClassName" type="text" placeholder="새로운 반 이름">
-                <button onclick="createPapsClass()" class="btn primary" data-tooltip="새로운 반을 추가합니다.">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                </button>
-            </div>`;
-        $('#sidebar-form-container').innerHTML = formHtml;
-        renderPapsClassList();
-
-        const selected = papsData.classes.find(c => c.id === papsData.activeClassId);
-        if (!selected) {
-            $('#content-wrapper').innerHTML = `
-                <div class="placeholder-view"><div class="placeholder-content">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/></svg>
-                    <h3>PAPS 반을 선택하거나 추가하세요</h3>
-                    <p>왼쪽에서 반을 선택하거나 생성해주세요.</p>
-                </div></div>`;
+        if (papsManager) {
+            papsManager.renderPapsUI();
         } else {
-            renderPapsDashboard(selected);
-        }
-        
-        // PAPS 엑셀 버튼 이벤트 리스너 (중복 방지)
-        const exportBtn = $('#exportAllPapsBtn');
-        if (exportBtn && !exportBtn.dataset.listenerAdded) {
-            exportBtn.addEventListener('click', exportAllPapsToExcel);
-            exportBtn.dataset.listenerAdded = 'true';
-        }
-        
-        const importInput = $('#importAllPapsExcel');
-        if (importInput && !importInput.dataset.listenerAdded) {
-            importInput.addEventListener('change', handleAllPapsExcelUpload);
-            importInput.dataset.listenerAdded = 'true';
+            console.error('PapsManager가 초기화되지 않음');
         }
     }
 
@@ -2890,15 +2873,11 @@
     }
 
     function createPapsClass() {
-        const input = $('#papsClassName');
-        const name = input.value.trim();
-        if (!name) return;
-        const newClass = { id: Date.now(), name, gradeLevel: '', eventSettings: {}, students: [] };
-        papsData.classes.push(newClass);
-        papsData.activeClassId = newClass.id;
-        input.value = '';
-        saveDataToFirestore();
-        renderPapsUI();
+        if (papsManager) {
+            papsManager.createPapsClass();
+        } else {
+            console.error('PapsManager가 초기화되지 않음');
+        }
     }
 
     function editPapsClass(id) {
@@ -2940,12 +2919,21 @@
         ]});
     }
 
-    function selectPapsClass(id) { papsData.activeClassId = id; saveDataToFirestore(); renderPapsUI(); }
+    function selectPapsClass(id) { 
+        if (papsManager) {
+            papsManager.selectPapsClass(id);
+        } else {
+            console.error('PapsManager가 초기화되지 않음');
+        }
+    }
 
     function renderPapsDashboard(cls) {
-        // 설정이 완료되었는지 확인 (학년과 이벤트 설정이 모두 있는지)
-        const hasSettings = cls.gradeLevel && cls.eventSettings && 
-                           Object.keys(cls.eventSettings).length > 0;
+        if (papsManager) {
+            papsManager.renderPapsDashboard(cls);
+        } else {
+            console.error('PapsManager가 초기화되지 않음');
+        }
+    }
         
         let settingsCardHtml = '';
         if (!hasSettings) {
