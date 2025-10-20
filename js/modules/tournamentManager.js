@@ -4,6 +4,9 @@
  * 이 모듈은 토너먼트 수업의 모든 기능을 관리합니다.
  * 토너먼트 생성/삭제, 팀 관리, 대진표 구성, 경기 관리 등을 담당합니다.
  *
+ * 현재 지원하는 팀 수: 3-24팀
+ * TODO: 25-32팀 토너먼트 로직 추가 예정
+ *
  * @author PE Helper Online
  * @version 2.2.1
  * @since 2024-01-01
@@ -1297,7 +1300,8 @@ export class TournamentManager {
                     roundsData[3][1].parentId = roundsData[4][0].id; // 4라운드 2경기 → 결승
                 }
                 else {
-                    // 25팀 이상: 일반적인 부전승 로직
+                    // 25팀 이상: 현재 미지원 (일반적인 부전승 로직으로 대체)
+                    console.warn(`25팀 이상의 토너먼트는 현재 미지원입니다. 24팀 이하로 설정해주세요. (현재: ${numTeams}팀)`);
                     const byeTeams = seededTeams.slice(0, byeCount);
                     const firstRoundTeams = seededTeams.slice(byeCount);
                     // 1라운드: 하위 시드 팀들끼리 경기
