@@ -1,104 +1,116 @@
     // ========================================
-    // 버전 관리 시스템
+    // 모듈 import
     // ========================================
-    const APP_VERSION = '2.2.1';
-    const VERSION_KEY = 'pe_helper_version';
+    import { 
+      initializeVersionManager, 
+      APP_VERSION, 
+      updateVersionDisplay 
+    } from './js/modules/versionManager.js';
     
-    // 버전 체크 및 캐시 무효화
-    function checkVersion() {
-      const storedVersion = localStorage.getItem(VERSION_KEY);
-      if (storedVersion !== APP_VERSION) {
-        // 새 버전이 감지되면 캐시 무효화
-        console.log(`새 버전 감지: ${APP_VERSION} (이전: ${storedVersion})`);
-        localStorage.setItem(VERSION_KEY, APP_VERSION);
-        
-        // 캐시 무효화를 위한 타임스탬프 추가
-        const timestamp = Date.now();
-        localStorage.setItem('cache_buster', timestamp);
-        
-        // 사용자에게 새 버전 알림
-        if (storedVersion) {
-          showVersionNotification(APP_VERSION, storedVersion);
-        }
-      }
-    }
+    import { 
+      initializeAuthManager,
+      setupGlobalAuthFunctions 
+    } from './js/modules/authManager.js';
     
-    // 버전 알림 표시
-    function showVersionNotification(newVersion, oldVersion) {
-      const notification = document.createElement('div');
-      notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #1565c0;
-        color: white;
-        padding: 16px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        z-index: 10000;
-        font-family: 'Noto Sans KR', sans-serif;
-        max-width: 300px;
-        animation: slideIn 0.3s ease-out;
-      `;
-      
-      notification.innerHTML = `
-        <div style="font-weight: 700; margin-bottom: 8px;">🔄 새 버전 사용 가능</div>
-        <div style="font-size: 14px; margin-bottom: 12px;">
-          v${newVersion}이 출시되었습니다.<br>
-          최신 기능을 사용하려면 새로고침해주세요.
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button onclick="this.parentElement.parentElement.remove()" 
-                  style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-            나중에
-          </button>
-          <button onclick="window.location.reload(true)" 
-                  style="background: white; border: none; color: #1565c0; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">
-            새로고침
-          </button>
-        </div>
-      `;
-      
-      // CSS 애니메이션 추가
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes slideIn {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-      `;
-      document.head.appendChild(style);
-      
-      document.body.appendChild(notification);
-      
-      // 10초 후 자동으로 사라지기
-      setTimeout(() => {
-        if (notification.parentElement) {
-          notification.remove();
-        }
-      }, 10000);
-    }
+    import { 
+      initializeDataManager,
+      DataManager
+    } from './js/modules/dataManager.js';
     
-    // 페이지 로드 시 버전 체크
-    checkVersion();
+    import { 
+      initializeVisitorManager,
+      VisitorManager
+    } from './js/modules/visitorManager.js';
     
-    // 상단바 버전 표시 업데이트
-    function updateVersionDisplay() {
-      const versionElement = document.querySelector('.version');
-      if (versionElement) {
-        versionElement.textContent = `v${APP_VERSION}`;
-      }
-    }
+    import { 
+      initializeLeagueManager,
+      LeagueManager
+    } from './js/modules/leagueManager.js';
     
-    // 버전 표시 업데이트
-    updateVersionDisplay();
+    import { 
+      initializeTournamentManager,
+      TournamentManager
+    } from './js/modules/tournamentManager.js';
     
     // ========================================
     // 앱 상태 및 전역 변수
     // ========================================
+    let authManager = null;
+    let authManagerInitialized = false;
+    let dataManager = null;
+    let dataManagerInitialized = false;
+    let visitorManager = null;
+    let visitorManagerInitialized = false;
+    let leagueManager = null;
+    let leagueManagerInitialized = false;
+    let tournamentManager = null;
+    let tournamentManagerInitialized = false;
     let appMode = 'progress';
+    
+    // 버전 관리 시스템 초기화
+    console.log('main.js 로딩 시작');
+    if (!initializeVersionManager()) {
+      console.error('버전 관리 시스템 초기화 실패');
+    }
+    console.log('버전 관리 시스템 초기화 완료');
+    
+    // AuthManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('AuthManager 즉시 초기화 시작');
+    authManager = initializeAuthManager();
+    setupGlobalAuthFunctions();
+    authManagerInitialized = true;
+    console.log('AuthManager 즉시 초기화 완료');
+    
+    // DataManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('DataManager 즉시 초기화 시작');
+    try {
+        dataManager = initializeDataManager();
+        dataManagerInitialized = true;
+        console.log('DataManager 즉시 초기화 완료');
+    } catch (error) {
+        console.error('DataManager 초기화 실패:', error);
+        dataManager = null;
+        dataManagerInitialized = false;
+    }
+    
+    // VisitorManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('VisitorManager 즉시 초기화 시작');
+    try {
+        visitorManager = initializeVisitorManager();
+        visitorManagerInitialized = true;
+        console.log('VisitorManager 즉시 초기화 완료');
+    } catch (error) {
+        console.error('VisitorManager 초기화 실패:', error);
+        visitorManager = null;
+        visitorManagerInitialized = false;
+    }
+    
     let leagueData = { classes: [], students: [], games: [], selectedClassId: null };
+    
+    // LeagueManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('LeagueManager 즉시 초기화 시작');
+    try {
+        leagueManager = initializeLeagueManager(leagueData);
+        leagueManagerInitialized = true;
+        console.log('LeagueManager 즉시 초기화 완료');
+    } catch (error) {
+        console.error('LeagueManager 초기화 실패:', error);
+        leagueManager = null;
+        leagueManagerInitialized = false;
+    }
     let tournamentData = { tournaments: [], activeTournamentId: null };
+    
+    // TournamentManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('TournamentManager 즉시 초기화 시작');
+    try {
+        tournamentManager = initializeTournamentManager(tournamentData);
+        tournamentManagerInitialized = true;
+        console.log('TournamentManager 즉시 초기화 완료');
+    } catch (error) {
+        console.error('TournamentManager 초기화 실패:', error);
+        tournamentManager = null;
+        tournamentManagerInitialized = false;
+    }
     let papsData = { classes: [], activeClassId: null };
     let progressClasses = [];
     let progressSelectedClassId = '';
@@ -132,7 +144,6 @@
         const isOldFirefox = /Firefox\/([0-9]+)/.test(userAgent) && parseInt(RegExp.$1) < 60;
         const isWindows = /Windows/.test(userAgent);
         
-        // Windows 환경에서의 디버깅 정보
         if (isWindows) {
             console.log('Windows 환경 감지됨');
             console.log('User Agent:', userAgent);
@@ -149,234 +160,149 @@
             console.warn('구형 브라우저 감지됨. 일부 기능이 제한될 수 있습니다.');
         }
         
-        // CSS Grid 지원 체크
         if (isWindows && !CSS.supports('display', 'grid')) {
             console.warn('CSS Grid가 지원되지 않습니다. 레이아웃이 깨질 수 있습니다.');
         }
-        
         return true;
     }
 
     // ========================================
-    // 방문자 통계
+    // 방문자 통계 - VisitorManager 사용
     // ========================================
     async function updateVisitorCount() {
-        try {
-            console.log('=== 방문자 수 업데이트 시작 ===');
-            
-            if (!window.firebase || !window.firebase.db) {
-                console.log('Firebase가 아직 초기화되지 않음, 방문자 수 업데이트 건너뜀');
+        if (!visitorManager) {
+            console.error('VisitorManager가 초기화되지 않음');
                 return;
             }
             
-            // 세션 기반 방문자 카운트 (같은 세션에서는 중복 카운트 방지)
-            const sessionKey = 'visitor_counted_' + new Date().toDateString();
-            console.log('세션 키:', sessionKey);
-            console.log('세션 스토리지 값:', sessionStorage.getItem(sessionKey));
-            
-            if (sessionStorage.getItem(sessionKey)) {
-                console.log('이미 오늘 방문자 수가 카운트됨, 기존 카운트만 로드');
-                // 기존 카운트만 로드
-                await loadVisitorCount();
-                return;
-            }
-            
-            console.log('새로운 방문자로 카운트 시작');
-            const visitorRef = window.firebase.doc(window.firebase.db, "stats", "visitors");
-            const visitorSnap = await window.firebase.getDoc(visitorRef);
-            
-            let currentCount = 0;
-            let startDate = null;
-            
-            if (visitorSnap.exists()) {
-                const data = visitorSnap.data();
-                currentCount = data.count || 0;
-                startDate = data.startDate || null;
-                console.log('기존 방문자 수:', currentCount, '시작 날짜:', startDate);
+        // VisitorManager를 통해 방문자 수 업데이트
+        const result = await visitorManager.updateVisitorCount();
+        
+        if (result.success) {
+            console.log('방문자 수 업데이트 완료:', result.count);
             } else {
-                console.log('첫 방문자입니다');
-            }
-            
-            // 첫 방문자라면 시작 날짜 설정
-            if (!startDate) {
-                startDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
-                console.log('시작 날짜 설정:', startDate);
-            }
-            
-            // 방문자 수 증가
-            currentCount += 1;
-            console.log('증가된 방문자 수:', currentCount);
-            
-            // Firebase에 저장
-            console.log('Firebase에 저장 중...');
-            await window.firebase.setDoc(visitorRef, {
-                count: currentCount,
-                startDate: startDate,
-                lastUpdated: Date.now()
-            });
-            console.log('Firebase 저장 완료');
-            
-            // 세션에 카운트 완료 표시
-            sessionStorage.setItem(sessionKey, 'true');
-            console.log('세션 스토리지에 카운트 완료 표시');
-            
-            // 화면에 표시 (시작 날짜 포함)
-            displayVisitorCount(currentCount, startDate);
-            
-            console.log('방문자 수 업데이트 완료:', currentCount);
-        } catch (error) {
-            console.error('방문자 수 업데이트 오류:', error);
-            $('#visitor-count').textContent = '-';
+            console.error('방문자 수 업데이트 실패:', result.error);
         }
     }
     
     async function loadVisitorCount() {
-        try {
-            if (!window.firebase || !window.firebase.db) {
-                console.log('Firebase가 아직 초기화되지 않음, 방문자 수 로드 건너뜀');
+        if (!visitorManager) {
+            console.error('VisitorManager가 초기화되지 않음');
                 return;
             }
-            const visitorRef = window.firebase.doc(window.firebase.db, "stats", "visitors");
-            const visitorSnap = await window.firebase.getDoc(visitorRef);
-            
-            if (visitorSnap.exists()) {
-                const data = visitorSnap.data();
-                const count = data.count || 0;
-                const startDate = data.startDate || null;
-                displayVisitorCount(count, startDate);
+        
+        // VisitorManager를 통해 방문자 수 로드
+        const result = await visitorManager.loadVisitorCount();
+        
+        if (result.success) {
+            console.log('방문자 수 로드 완료:', result.count);
             } else {
-                $('#visitor-count').textContent = '0';
-            }
-        } catch (error) {
-            console.error('방문자 수 로드 오류:', error);
-            $('#visitor-count').textContent = '-';
+            console.error('방문자 수 로드 실패:', result.error);
         }
     }
     
     function displayVisitorCount(count, startDate) {
-        const countElement = $('#visitor-count');
-        if (countElement) {
-            countElement.textContent = count.toLocaleString();
+        if (!visitorManager) {
+            console.error('VisitorManager가 초기화되지 않음');
+            return;
         }
         
-        // 수업 진도 관리 모드의 방문자 수도 업데이트
-        const progressCountElement = $('#progress-visitor-count');
-        if (progressCountElement) {
-            progressCountElement.textContent = count.toLocaleString();
-        }
+        // VisitorManager를 통해 방문자 수 표시
+        visitorManager.displayVisitorCount(count, startDate);
     }
     
     // 방문자 수 테스트용 함수 (개발자 콘솔에서 사용)
-    function resetVisitorCount() {
-        sessionStorage.removeItem('visitor_counted_' + new Date().toDateString());
-        console.log('방문자 수 카운트 세션 초기화됨. 페이지를 새로고침하면 방문자 수가 증가합니다.');
+    function resetVisitorCountLocal() {
+        if (!visitorManager) {
+            console.error('VisitorManager가 초기화되지 않음');
+            return;
+        }
+        
+        // VisitorManager를 통해 방문자 수 카운트 세션 초기화
+        visitorManager.resetVisitorCount();
     }
+    
+    // 전역 함수로 등록 (개발자 콘솔에서 사용)
+    window.resetVisitorCount = resetVisitorCountLocal;
+
+    // ========================================
+    // 팝업 관련 함수들
+    // ========================================
+    function openRankingPopup() {
+        const classId = leagueData.selectedClassId;
+        if (!classId) return;
+        const currentClass = leagueData.classes.find(c => c.id === classId);
+        const popupTitle = document.getElementById('popupTitle');
+        const rankingPopup = document.getElementById('rankingPopup');
+        
+        if (popupTitle && rankingPopup) {
+            popupTitle.textContent = `${currentClass.name} - 실시간 순위표`;
+            if (leagueManager) {
+                leagueManager.renderRankingsTable(document.getElementById('popupRankingsTable'));
+            }
+            rankingPopup.classList.remove('hidden');
+        }
+    }
+    
+    function closeRankingPopup() {
+        const rankingPopup = document.getElementById('rankingPopup');
+        if (rankingPopup) {
+            rankingPopup.classList.add('hidden');
+        }
+    }
+
+    function openHelpPopup() {
+        const helpPopup = document.getElementById('helpPopup');
+        if (helpPopup) {
+            helpPopup.classList.remove('hidden');
+        }
+    }
+    
+    function closeHelpPopup() {
+        const helpPopup = document.getElementById('helpPopup');
+        if (helpPopup) {
+            helpPopup.classList.add('hidden');
+        }
+    }
+
+    // 전역 함수로 등록 (기본 함수들)
+    window.openRankingPopup = openRankingPopup;
+    window.closeRankingPopup = closeRankingPopup;
+    window.openHelpPopup = openHelpPopup;
+    window.closeHelpPopup = closeHelpPopup;
+    window.shareView = shareView;
+    window.shareAllClassesSchedule = shareAllClassesSchedule;
+    window.printRankings = printRankings;
 
     async function updateProgressVisitorCount() {
-        try {
-            // Firebase가 사용 가능한지 확인
-            if (!window.firebase || !window.firebase.db) {
-                console.log('Firebase를 사용할 수 없음, 방문자 수 업데이트 건너뜀');
-                return;
-            }
-            
-            const visitorRef = window.firebase.doc(window.firebase.db, "stats", "visitors");
-            const visitorSnap = await window.firebase.getDoc(visitorRef);
-            
-            if (visitorSnap.exists()) {
-                const data = visitorSnap.data();
-                const count = data.count || 0;
-                const progressCountElement = $('#progress-visitor-count');
-                if (progressCountElement) {
-                    progressCountElement.textContent = count.toLocaleString();
-                }
-            } else {
-                const progressCountElement = $('#progress-visitor-count');
-                if (progressCountElement) {
-                    progressCountElement.textContent = '0';
-                }
-            }
-        } catch (error) {
-            console.error('진도 관리 모드 방문자 수 로드 오류:', error);
-            const progressCountElement = $('#progress-visitor-count');
-            if (progressCountElement) {
-                progressCountElement.textContent = '-';
-            }
+        if (!visitorManager) {
+            console.error('VisitorManager가 초기화되지 않음');
+            return;
         }
-    }
-
-    // ========================================
-    // 인증 UI 및 로직
-    // ========================================
-    function showLoginModal() {
-        // 로그인 화면으로 전환
-        $('#auth-container').classList.remove('hidden');
-        $('#app-root').classList.add('hidden');
-        showAuthForm('login');
-    }
-
-    function updateLoginStatus() {
-        const loginStatus = $('#login-status');
-        const guestStatus = $('#guest-status');
         
-        if (currentUser) {
-            // 로그인된 상태
-            loginStatus.style.display = 'flex';
-            guestStatus.style.display = 'none';
-            $('#user-email').textContent = currentUser.displayName || currentUser.email;
+        // VisitorManager를 통해 진도 관리 모드 방문자 수 업데이트
+        const result = await visitorManager.updateProgressVisitorCount();
+        
+        if (result.success) {
+            console.log('진도 관리 모드 방문자 수 업데이트 완료:', result.count);
         } else {
-            // 로그인하지 않은 상태
-            loginStatus.style.display = 'none';
-            guestStatus.style.display = 'flex';
-        }
-    }
-    function showAuthForm(formName) {
-        $('#login-form').classList.toggle('hidden', formName !== 'login');
-        $('#signup-form').classList.toggle('hidden', formName !== 'signup');
-        $('#reset-form').classList.toggle('hidden', formName !== 'reset');
-
-        const isReset = formName === 'reset';
-        $('.auth-tabs').classList.toggle('hidden', isReset);
-        $('.divider').classList.toggle('hidden', isReset);
-        $('.social-buttons').classList.toggle('hidden', isReset);
-
-        $('#auth-title').textContent = isReset ? '비밀번호 재설정' : '체육 수업 도우미';
-
-        $('#login-tab-btn').classList.toggle('active', formName === 'login');
-        $('#signup-tab-btn').classList.toggle('active', formName === 'signup');
-
-        $('#login-error').classList.add('hidden');
-        $('#signup-error').classList.add('hidden');
-        $('#reset-message').classList.add('hidden');
-    }
-
-    async function signInWithGoogle() {
-        const { auth, GoogleAuthProvider, signInWithPopup } = window.firebase;
-        const provider = new GoogleAuthProvider();
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (error) {
-            handleAuthError(error, 'login');
+            console.error('진도 관리 모드 방문자 수 업데이트 실패:', result.error);
         }
     }
 
-    function handleAuthError(error, type) {
-        const messageElement = $(`#${type}-error`);
-        let friendlyMessage = "오류가 발생했습니다. 다시 시도해주세요.";
-        switch (error.code) {
-            case 'auth/invalid-email': friendlyMessage = "유효하지 않은 이메일 형식입니다."; break;
-            case 'auth/user-not-found': friendlyMessage = "가입되지 않은 이메일입니다."; break;
-            case 'auth/wrong-password': friendlyMessage = "비밀번호가 틀렸습니다."; break;
-            case 'auth/email-already-in-use': friendlyMessage = "이미 사용 중인 이메일입니다."; break;
-            case 'auth/weak-password': friendlyMessage = "비밀번호는 6자 이상이어야 합니다."; break;
-            case 'auth/popup-closed-by-user': friendlyMessage = "로그인 팝업이 닫혔습니다. 다시 시도해주세요."; break;
-            default: friendlyMessage = "로그인에 실패했습니다. 잠시 후 다시 시도해주세요.";
-        }
-        messageElement.textContent = friendlyMessage;
-        messageElement.classList.remove('hidden');
-    }
+    // ========================================
+    // 인증 관리자 초기화 (Firebase 준비 후)
+    // ========================================
 
-    async function handlePasswordReset(e) {
+    // updateLoginStatus 함수는 authManager에서 처리됨
+    // showAuthForm 함수는 authManager에서 처리됨
+
+    // signInWithGoogle 함수는 authManager에서 처리됨
+
+    // handleAuthError 함수는 authManager에서 처리됨
+
+    // handlePasswordReset 함수는 authManager에서 처리됨
+    async function handlePasswordReset_OLD(e) {
         e.preventDefault();
         const { auth, sendPasswordResetEmail } = window.firebase;
         const email = $('#reset-email').value;
@@ -410,176 +336,53 @@
     }
 
     // ========================================
-    // 데이터 동기화 (Firebase <-> 로컬)
+    // 데이터 동기화 (Firebase <-> 로컬) - DataManager 사용
     // ========================================
     async function saveDataToFirestore(retryCount = 0) {
-      if (!currentUser) {
-          console.log('사용자가 로그인되지 않음, 로컬 스토리지에 저장');
-          saveToLocalStorage();
+        if (!dataManager) {
+            console.error('DataManager가 초기화되지 않음');
           return;
       }
       
-      if (!window.firebase || !window.firebase.db) {
-          console.error('Firebase가 초기화되지 않음, 저장 건너뜀');
-          return;
-      }
-      
-      clearTimeout(dbDebounceTimer);
-      dbDebounceTimer = setTimeout(async () => {
-          try {
-              console.log('Firestore에 데이터 저장 시작, retryCount:', retryCount);
-              
-              const dataToSave = {
-                  leagues: JSON.parse(JSON.stringify(leagueData)),
-                  tournaments: JSON.parse(JSON.stringify(tournamentData)),
-                  paps: JSON.parse(JSON.stringify(papsData)),
+        // 현재 사용자 설정
+        dataManager.setCurrentUser(currentUser);
+        
+        // 데이터 구성
+        const appData = {
+            leagues: leagueData,
+            tournaments: tournamentData,
+            paps: papsData,
                   progress: {
-                      classes: JSON.parse(JSON.stringify(progressClasses)),
+                classes: progressClasses,
                       selectedClassId: progressSelectedClassId
                   },
                   lastUpdated: Date.now()
               };
 
-              if (dataToSave.tournaments && dataToSave.tournaments.tournaments) {
-                  dataToSave.tournaments.tournaments.forEach(t => {
-                      if (Array.isArray(t.rounds)) {
-                          t.rounds = JSON.stringify(t.rounds);
-                      }
-                  });
-              }
-
-              const userDocRef = window.firebase.doc(window.firebase.db, "users", currentUser.uid);
-              
-              // 타임아웃 설정 (15초)
-              const timeoutPromise = new Promise((_, reject) => {
-                  setTimeout(() => reject(new Error('Firestore 저장 시간 초과')), 15000);
-              });
-              
-              await Promise.race([
-                  window.firebase.setDoc(userDocRef, dataToSave, { merge: true }),
-                  timeoutPromise
-              ]);
-              
-              console.log('Firestore 데이터 저장 성공');
-              
-              // 로컬 스토리지에도 백업
-              try {
-                  localStorage.setItem('leagueData', JSON.stringify(leagueData));
-                  localStorage.setItem('tournamentData', JSON.stringify(tournamentData));
-                  localStorage.setItem('papsData', JSON.stringify(papsData));
-                  localStorage.setItem('progressData', JSON.stringify({
-                      classes: progressClasses,
-                      selectedClassId: progressSelectedClassId
-                  }));
-                  console.log('로컬 스토리지 백업 완료');
-              } catch (backupError) {
-                  console.warn('로컬 스토리지 백업 실패:', backupError);
-              }
-              
-          } catch (error) {
-              console.error("Firestore 저장 실패:", error);
-              console.error("오류 상세:", error.message);
-              console.error("오류 코드:", error.code);
-              
-              // 재시도 로직 (최대 3회)
-              if (retryCount < 3) {
-                  console.log(`데이터 저장 재시도 중... (${retryCount + 1}/3)`);
-                  setTimeout(() => {
-                      saveDataToFirestore(retryCount + 1);
-                  }, 2000 * (retryCount + 1)); // 2초, 4초, 6초 간격으로 재시도
-                  return;
-              }
-              
-              // 최종 실패 시 사용자에게 알림
-              const errorMessage = getFirebaseErrorMessage(error);
-              console.error('데이터 저장 최종 실패:', errorMessage);
-              
-              // 사용자에게 알림 (너무 자주 알림이 뜨지 않도록 제한)
-              if (!window.lastSaveErrorTime || Date.now() - window.lastSaveErrorTime > 30000) {
-                  alert(`데이터 저장에 실패했습니다: ${errorMessage}\n오프라인 모드로 전환됩니다.`);
-                  window.lastSaveErrorTime = Date.now();
-              }
-          }
-      }, 1000);
+        // DataManager를 통해 저장
+        await dataManager.saveDataToFirestore(appData, { retryCount });
     }
 
     async function loadDataFromFirestore(userId, retryCount = 0) {
+        if (!dataManager) {
+            console.error('DataManager가 초기화되지 않음');
+                  return;
+              }
+              
         console.log('=== loadDataFromFirestore 호출됨 ===');
         console.log('userId:', userId);
         console.log('retryCount:', retryCount);
-        console.log('window.firebase 존재:', !!window.firebase);
-        console.log('window.firebase.db 존재:', !!(window.firebase && window.firebase.db));
         
-        $('#loader').classList.remove('hidden');
+        // DataManager를 통해 데이터 로드
+        const appData = await dataManager.loadDataFromFirestore(userId, { retryCount });
         
-        try {
-            // Firebase 연결 상태 확인
-            if (!window.firebase || !window.firebase.db) {
-                throw new Error('Firebase가 초기화되지 않았습니다.');
-            }
-            
-            console.log('Firebase 연결 상태 확인 완료');
-            const userDocRef = window.firebase.doc(window.firebase.db, "users", userId);
-            console.log('Firestore 문서 참조 생성됨:', userDocRef);
-            console.log('문서 경로:', userDocRef.path);
-            
-            // 타임아웃 설정 (10초)
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Firestore 요청 시간 초과')), 10000);
-            });
-            
-            console.log('Firestore getDoc 요청 시작...');
-            const docSnap = await Promise.race([
-                window.firebase.getDoc(userDocRef),
-                timeoutPromise
-            ]);
-            
-            console.log('=== Firestore 응답 받음 ===');
-            console.log('docSnap:', docSnap);
-            console.log('docSnap.exists():', docSnap.exists());
-            console.log('docSnap.id:', docSnap.id);
-            console.log('docSnap.ref:', docSnap.ref);
-
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                console.log('=== Firestore 데이터 파싱 시작 ===');
-                console.log('원본 데이터:', data);
-                console.log('data.leagues:', data.leagues);
-                console.log('data.tournaments:', data.tournaments);
-                console.log('data.paps:', data.paps);
-                console.log('data.progress:', data.progress);
-                
-                leagueData = data.leagues || { classes: [], students: [], games: [], selectedClassId: null };
-                tournamentData = data.tournaments || { tournaments: [], activeTournamentId: null };
-                papsData = data.paps || { classes: [], activeClassId: null };
-                
-                // progressClasses 데이터 로드
-                if (data.progress) {
-                    progressClasses = data.progress.classes || [];
-                    progressSelectedClassId = data.progress.selectedClassId || '';
-                    console.log('진도표 데이터 로드됨:', data.progress);
-                    console.log('progressClasses 배열:', progressClasses);
-                    console.log('progressClasses 길이:', progressClasses.length);
-                } else {
-                    progressClasses = [];
-                    progressSelectedClassId = '';
-                    console.log('진도표 데이터 없음, 초기화');
-                }
-
-                if (tournamentData.tournaments) {
-                    tournamentData.tournaments.forEach(t => {
-                        if (t.rounds && typeof t.rounds === 'string') {
-                            try {
-                                t.rounds = JSON.parse(t.rounds);
-                            } catch (e) {
-                                console.error("Rounds parsing error:", e);
-                                t.rounds = []; 
-                            }
-                        } else if (t.rounds === undefined) {
-                            t.rounds = [];
-                        }
-                    });
-                }
+        if (appData) {
+            // 로드된 데이터를 전역 변수에 설정
+            leagueData = appData.leagues;
+            tournamentData = appData.tournaments;
+            papsData = appData.paps;
+            progressClasses = appData.progress.classes;
+            progressSelectedClassId = appData.progress.selectedClassId;
                 
                 console.log('=== 데이터 로드 완료 ===');
                 console.log('leagueData:', leagueData);
@@ -590,13 +393,13 @@
                 // 데이터 유효성 검사
                 validateLoadedData();
             } else {
-                console.log('Firestore 문서가 존재하지 않음, 새 사용자로 처리');
-                leagueData = { classes: [], students: [], games: [], selectedClassId: null };
-                tournamentData = { tournaments: [], activeTournamentId: null };
-                papsData = { classes: [], activeClassId: null };
-                progressClasses = [];
-                progressSelectedClassId = '';
-                await saveDataToFirestore();
+            console.log('데이터 로드 실패, 기본 데이터 사용');
+            const defaultData = dataManager.getDefaultData();
+            leagueData = defaultData.leagues;
+            tournamentData = defaultData.tournaments;
+            papsData = defaultData.paps;
+            progressClasses = defaultData.progress.classes;
+            progressSelectedClassId = defaultData.progress.selectedClassId;
             }
             
             // 데이터 로드 완료 후 렌더링
@@ -604,89 +407,8 @@
             setTimeout(() => {
                 renderApp();
             }, 100); // 약간의 지연을 두어 DOM이 준비되도록 함
-        } catch (error) {
-            console.error("Firestore 불러오기 실패:", error);
-            console.error("오류 상세:", error.message);
-            console.error("오류 코드:", error.code);
-            console.error("스택 트레이스:", error.stack);
-            
-            // 재시도 로직 (최대 3회)
-            if (retryCount < 3) {
-                console.log(`재시도 중... (${retryCount + 1}/3)`);
-                setTimeout(() => {
-                    loadDataFromFirestore(userId, retryCount + 1);
-                }, 2000 * (retryCount + 1)); // 2초, 4초, 6초 간격으로 재시도
-                return;
-            }
-            
-            // 최종 실패 시 사용자에게 알림
-            const errorMessage = getFirebaseErrorMessage(error);
-            console.error('=== 최종 데이터 로딩 실패 ===');
-            console.error('오류 메시지:', errorMessage);
-            console.error('사용자 UID:', userId);
-            console.error('재시도 횟수:', retryCount);
-            
-            const retryAction = confirm(`데이터를 불러오는 데 실패했습니다: ${errorMessage}\n\n다시 시도하시겠습니까?`);
-            if (retryAction) {
-                console.log('사용자가 수동 재시도 선택');
-                setTimeout(() => {
-                    loadDataFromFirestore(userId, 0);
-                }, 1000);
-                return;
-            }
-            
-            // 오프라인 모드로 전환
-            console.log('오프라인 모드로 전환합니다.');
-            loadFallbackData();
-            
-            // 오프라인 모드에서도 렌더링
-            setTimeout(() => {
-                renderApp();
-            }, 100);
-        } finally {
-            $('#loader').classList.add('hidden');
-        }
     }
     
-    // Firebase 에러 메시지 변환 함수
-    function getFirebaseErrorMessage(error) {
-        const errorCode = error.code || error.message;
-        
-        switch (errorCode) {
-            case 'permission-denied':
-                return '데이터에 접근할 권한이 없습니다.';
-            case 'unavailable':
-                return 'Firebase 서비스가 일시적으로 사용할 수 없습니다.';
-            case 'unauthenticated':
-                return '인증이 필요합니다. 다시 로그인해주세요.';
-            case 'not-found':
-                return '데이터를 찾을 수 없습니다.';
-            case 'deadline-exceeded':
-                return '요청 시간이 초과되었습니다.';
-            case 'resource-exhausted':
-                return '서버 리소스가 부족합니다.';
-            case 'failed-precondition':
-                return '요청 조건이 맞지 않습니다.';
-            case 'aborted':
-                return '요청이 중단되었습니다.';
-            case 'out-of-range':
-                return '요청 범위를 벗어났습니다.';
-            case 'unimplemented':
-                return '구현되지 않은 기능입니다.';
-            case 'internal':
-                return '내부 서버 오류가 발생했습니다.';
-            case 'data-loss':
-                return '데이터 손실이 발생했습니다.';
-            default:
-                if (error.message.includes('timeout')) {
-                    return '연결 시간이 초과되었습니다. 인터넷 연결을 확인해주세요.';
-                } else if (error.message.includes('network')) {
-                    return '네트워크 연결을 확인해주세요.';
-                } else {
-                    return error.message || '알 수 없는 오류가 발생했습니다.';
-                }
-        }
-    }
 
 
     // ========================================
@@ -714,73 +436,42 @@
     // ========================================
     // 로컬 스토리지 저장 (로그인하지 않은 사용자용)
     // ========================================
-    function saveToLocalStorage() {
-        try {
-            console.log('로컬 스토리지에 데이터 저장 시작');
-            
-            // 각 데이터를 로컬 스토리지에 저장
-            localStorage.setItem('leagueData', JSON.stringify(leagueData));
-            localStorage.setItem('tournamentData', JSON.stringify(tournamentData));
-            localStorage.setItem('papsData', JSON.stringify(papsData));
-            localStorage.setItem('progressData', JSON.stringify({
-                classes: progressClasses,
-                selectedClassId: progressSelectedClassId
-            }));
-            
-            console.log('로컬 스토리지에 데이터 저장 완료');
-        } catch (error) {
-            console.error('로컬 스토리지 저장 실패:', error);
-        }
-    }
 
     // ========================================
     // 로컬 데이터 로딩 (로그인하지 않은 사용자용)
     // ========================================
     function loadLocalData() {
+        if (!dataManager) {
+            console.error('DataManager가 초기화되지 않음');
+            return;
+        }
+        
         console.log('로컬 데이터 로딩 시작');
-        try {
-            // 로컬 스토리지에서 데이터 로드
-            const localLeagueData = localStorage.getItem('leagueData');
-            const localTournamentData = localStorage.getItem('tournamentData');
-            const localPapsData = localStorage.getItem('papsData');
-            const localProgressData = localStorage.getItem('progressData');
-            
-            if (localLeagueData) {
-                leagueData = JSON.parse(localLeagueData);
-                console.log('로컬 스토리지에서 leagueData 로드됨');
-            }
-            
-            if (localTournamentData) {
-                tournamentData = JSON.parse(localTournamentData);
-                console.log('로컬 스토리지에서 tournamentData 로드됨');
-            }
-            
-            if (localPapsData) {
-                papsData = JSON.parse(localPapsData);
-                console.log('로컬 스토리지에서 papsData 로드됨');
-            }
-            
-            if (localProgressData) {
-                const parsed = JSON.parse(localProgressData);
-                progressClasses = parsed.classes || [];
-                progressSelectedClassId = parsed.selectedClassId || '';
-                console.log('로컬 스토리지에서 progressData 로드됨');
-            }
+        
+        // DataManager를 통해 로컬 데이터 로드
+        const appData = dataManager.loadFromLocalStorage();
+        
+        if (appData) {
+            // 로드된 데이터를 전역 변수에 설정
+            leagueData = appData.leagues;
+            tournamentData = appData.tournaments;
+            papsData = appData.paps;
+            progressClasses = appData.progress.classes;
+            progressSelectedClassId = appData.progress.selectedClassId;
             
             console.log('로컬 데이터 로딩 완료');
             console.log('leagueData:', leagueData);
             console.log('tournamentData:', tournamentData);
             console.log('papsData:', papsData);
             console.log('progressClasses:', progressClasses);
-            
-        } catch (error) {
-            console.error('로컬 데이터 로딩 실패:', error);
-            // 빈 데이터로 초기화
-            leagueData = { classes: [], students: [], games: [], selectedClassId: null };
-            tournamentData = { tournaments: [], activeTournamentId: null };
-            papsData = { classes: [], activeClassId: null };
-            progressClasses = [];
-            progressSelectedClassId = '';
+        } else {
+            console.log('로컬 스토리지에 데이터 없음, 기본 데이터 사용');
+            const defaultData = dataManager.getDefaultData();
+            leagueData = defaultData.leagues;
+            tournamentData = defaultData.tournaments;
+            papsData = defaultData.paps;
+            progressClasses = defaultData.progress.classes;
+            progressSelectedClassId = defaultData.progress.selectedClassId;
         }
     }
 
@@ -788,62 +479,28 @@
     // 폴백 데이터 로딩
     // ========================================
     function loadFallbackData() {
+        if (!dataManager) {
+            console.error('DataManager가 초기화되지 않음');
+            return;
+        }
+        
         console.log('=== 폴백 데이터 로딩 시작 ===');
         
-        try {
-            // 로컬 스토리지에서 데이터 시도
-            const localLeagueData = localStorage.getItem('leagueData');
-            const localTournamentData = localStorage.getItem('tournamentData');
-            const localPapsData = localStorage.getItem('papsData');
-            const localProgressData = localStorage.getItem('progressData');
-            
-            if (localLeagueData) {
-                leagueData = JSON.parse(localLeagueData);
-                console.log('로컬 스토리지에서 leagueData 로드됨');
-            } else {
-                leagueData = { classes: [], students: [], games: [], selectedClassId: null };
-            }
-            
-            if (localTournamentData) {
-                tournamentData = JSON.parse(localTournamentData);
-                console.log('로컬 스토리지에서 tournamentData 로드됨');
-            } else {
-                tournamentData = { tournaments: [], activeTournamentId: null };
-            }
-            
-            if (localPapsData) {
-                papsData = JSON.parse(localPapsData);
-                console.log('로컬 스토리지에서 papsData 로드됨');
-            } else {
-                papsData = { classes: [], activeClassId: null };
-            }
-            
-            if (localProgressData) {
-                const parsed = JSON.parse(localProgressData);
-                progressClasses = parsed.classes || [];
-                progressSelectedClassId = parsed.selectedClassId || '';
-                console.log('로컬 스토리지에서 progressData 로드됨');
-            } else {
-                progressClasses = [];
-                progressSelectedClassId = '';
-            }
+        // DataManager를 통해 폴백 데이터 로드
+        const appData = dataManager.loadFallbackData();
+        
+        // 로드된 데이터를 전역 변수에 설정
+        leagueData = appData.leagues;
+        tournamentData = appData.tournaments;
+        papsData = appData.paps;
+        progressClasses = appData.progress.classes;
+        progressSelectedClassId = appData.progress.selectedClassId;
             
             console.log('=== 폴백 데이터 로딩 완료 ===');
             console.log('leagueData:', leagueData);
             console.log('tournamentData:', tournamentData);
             console.log('papsData:', papsData);
             console.log('progressClasses:', progressClasses);
-            
-        } catch (error) {
-            console.error('폴백 데이터 로딩 실패:', error);
-            // 최종 폴백: 빈 데이터로 초기화
-            leagueData = { classes: [], students: [], games: [], selectedClassId: null };
-            tournamentData = { tournaments: [], activeTournamentId: null };
-            papsData = { classes: [], activeClassId: null };
-            progressClasses = [];
-            progressSelectedClassId = '';
-            console.log('빈 데이터로 초기화 완료');
-        }
     }
 
 
@@ -851,71 +508,34 @@
     // 데이터 유효성 검사
     // ========================================
     function validateLoadedData() {
+        if (!dataManager) {
+            console.error('DataManager가 초기화되지 않음');
+            return;
+        }
+        
         console.log('=== 데이터 유효성 검사 시작 ===');
         
-        const issues = [];
+        // 현재 데이터를 AppData 형태로 구성
+        const appData = {
+            leagues: leagueData,
+            tournaments: tournamentData,
+            paps: papsData,
+            progress: {
+                classes: progressClasses,
+                selectedClassId: progressSelectedClassId
+            },
+            lastUpdated: Date.now()
+        };
         
-        // leagueData 검사
-        if (!leagueData || typeof leagueData !== 'object') {
-            issues.push('leagueData가 유효하지 않음');
-        } else {
-            if (!Array.isArray(leagueData.classes)) {
-                issues.push('leagueData.classes가 배열이 아님');
-            }
-            if (!Array.isArray(leagueData.students)) {
-                issues.push('leagueData.students가 배열이 아님');
-            }
-            if (!Array.isArray(leagueData.games)) {
-                issues.push('leagueData.games가 배열이 아님');
-            }
-        }
+        // DataManager를 통해 데이터 유효성 검사
+        dataManager.validateLoadedData(appData);
         
-        // tournamentData 검사
-        if (!tournamentData || typeof tournamentData !== 'object') {
-            issues.push('tournamentData가 유효하지 않음');
-        } else {
-            if (!Array.isArray(tournamentData.tournaments)) {
-                issues.push('tournamentData.tournaments가 배열이 아님');
-            }
-        }
-        
-        // papsData 검사
-        if (!papsData || typeof papsData !== 'object') {
-            issues.push('papsData가 유효하지 않음');
-        } else {
-            if (!Array.isArray(papsData.classes)) {
-                issues.push('papsData.classes가 배열이 아님');
-            }
-        }
-        
-        // progressClasses 검사
-        if (!Array.isArray(progressClasses)) {
-            issues.push('progressClasses가 배열이 아님');
-        }
-        
-        if (issues.length > 0) {
-            console.warn('데이터 유효성 검사에서 문제 발견:', issues);
-            console.log('데이터 복구 시도...');
-            
-            // 데이터 복구
-            if (!leagueData || typeof leagueData !== 'object') {
-                leagueData = { classes: [], students: [], games: [], selectedClassId: null };
-            }
-            if (!tournamentData || typeof tournamentData !== 'object') {
-                tournamentData = { tournaments: [], activeTournamentId: null };
-            }
-            if (!papsData || typeof papsData !== 'object') {
-                papsData = { classes: [], activeClassId: null };
-            }
-            if (!Array.isArray(progressClasses)) {
-                progressClasses = [];
-                progressSelectedClassId = '';
-            }
-            
-            console.log('데이터 복구 완료');
-        } else {
-            console.log('데이터 유효성 검사 통과');
-        }
+        // 검사된 데이터를 다시 전역 변수에 설정
+        leagueData = appData.leagues;
+        tournamentData = appData.tournaments;
+        papsData = appData.paps;
+        progressClasses = appData.progress.classes;
+        progressSelectedClassId = appData.progress.selectedClassId;
         
         console.log('=== 데이터 유효성 검사 완료 ===');
     }
@@ -993,7 +613,122 @@
         }
         
         // 로그인 상태 UI 업데이트
-        updateLoginStatus();
+        if (!authManager) {
+            console.log('AuthManager가 초기화되지 않음, 초기화 시도');
+            authManager = initializeAuthManager();
+            setupGlobalAuthFunctions();
+            authManagerInitialized = true;
+        }
+        authManager.updateLoginStatus();
+        
+        // DataManager 초기화 확인
+        if (!dataManager) {
+            console.log('DataManager가 초기화되지 않음, 초기화 시도');
+            dataManager = initializeDataManager();
+            dataManagerInitialized = true;
+        }
+        
+        // DataManager에 현재 사용자 설정
+        dataManager.setCurrentUser(currentUser);
+        
+        // VisitorManager 초기화 확인
+        if (!visitorManager) {
+            console.log('VisitorManager가 초기화되지 않음, 초기화 시도');
+            visitorManager = initializeVisitorManager();
+            visitorManagerInitialized = true;
+        }
+        
+        // LeagueManager 초기화 확인
+        if (!leagueManager) {
+            console.log('LeagueManager가 초기화되지 않음, 초기화 시도');
+            leagueManager = initializeLeagueManager(leagueData);
+            leagueManagerInitialized = true;
+        }
+        
+        // TournamentManager 초기화 확인
+        if (!tournamentManager) {
+            console.log('TournamentManager가 초기화되지 않음, 초기화 시도');
+            tournamentManager = initializeTournamentManager(tournamentData);
+            tournamentManagerInitialized = true;
+        }
+        
+        // LeagueManager에 저장 콜백 설정
+        if (leagueManager) {
+            leagueManager.setSaveCallback(saveDataToFirestore);
+            // LeagueManager의 데이터를 최신 leagueData로 동기화
+            leagueManager.setLeagueData(leagueData);
+            // LeagueManager에서 데이터 변경 시 main.js의 leagueData도 업데이트
+            leagueManager.setDataUpdateCallback((newLeagueData) => {
+                leagueData = newLeagueData;
+            });
+            // 전역으로 등록하여 HTML에서 사용할 수 있도록 함
+            window.leagueManager = leagueManager;
+            
+            // 리그전 관련 전역 함수들 등록
+            window.editStudentNote = (id) => leagueManager.editStudentNote(parseInt(id));
+            window.editStudentName = (id) => leagueManager.editStudentName(parseInt(id));
+            window.removeStudent = (id) => leagueManager.removeStudent(parseInt(id));
+            window.selectClass = (id) => leagueManager.selectClass(parseInt(id));
+            window.editClassNote = (id) => leagueManager.editClassNote(parseInt(id));
+            window.editClassName = (id) => leagueManager.editClassName(parseInt(id));
+            window.deleteClass = (id) => leagueManager.deleteClass(parseInt(id));
+            window.createClass = () => leagueManager.createClass();
+            window.addStudent = () => leagueManager.addStudent();
+            window.bulkAddStudents = () => leagueManager.bulkAddStudents();
+            window.toggleGameHighlight = (gameId) => {
+                console.log('전역 toggleGameHighlight 호출됨, gameId:', gameId, 'type:', typeof gameId);
+                const numGameId = typeof gameId === 'string' ? parseInt(gameId) : gameId;
+                console.log('변환된 gameId:', numGameId);
+                if (leagueManager) {
+                    leagueManager.toggleGameHighlight(numGameId);
+                } else {
+                    console.error('leagueManager가 없습니다');
+                }
+            };
+            // clearAllHighlights 함수를 leagueManager 초기화 후에 다시 등록
+            window.clearAllHighlights = () => {
+                if (leagueManager) {
+                    leagueManager.clearAllHighlights();
+                } else {
+                    console.error('leagueManager가 초기화되지 않아 clearAllHighlights를 호출할 수 없습니다.');
+                }
+            };
+            window.generateGames = () => leagueManager.generateGames();
+            window.updateLeagueScore = (gameId, player, score) => leagueManager.updateLeagueScore(parseInt(gameId), player, score);
+            window.updateGameNote = (gameId, note) => leagueManager.updateGameNote(parseInt(gameId), note);
+        }
+        
+        // TournamentManager에 저장 콜백 설정
+        if (tournamentManager) {
+            tournamentManager.setSaveCallback(saveDataToFirestore);
+            // TournamentManager의 데이터를 최신 tournamentData로 동기화
+            tournamentManager.setTournamentData(tournamentData);
+            // TournamentManager에서 데이터 변경 시 main.js의 tournamentData도 업데이트
+            tournamentManager.setDataUpdateCallback((newTournamentData) => {
+                tournamentData = newTournamentData;
+            });
+            // 전역으로 등록하여 HTML에서 사용할 수 있도록 함
+            window.tournamentManager = tournamentManager;
+            
+            // 토너먼트 관련 전역 함수들 등록
+            window.renderTournamentUI = () => tournamentManager.renderTournamentUI();
+            window.renderTournamentList = () => tournamentManager.renderTournamentList();
+            window.renderTournamentDashboard = () => tournamentManager.renderTournamentDashboard();
+            window.createTournament = () => tournamentManager.createTournament();
+            window.selectTournament = (id) => tournamentManager.selectTournament(id);
+            window.deleteTournament = (id) => tournamentManager.deleteTournament(id);
+            window.showTournamentSettings = (id) => tournamentManager.showTournamentSettings(id);
+            window.renderTournamentView = (tourney) => tournamentManager.renderTournamentView(tourney);
+            window.updateTournamentSettings = () => tournamentManager.updateTournamentSettings();
+            window.addTeamToTournament = () => tournamentManager.addTeamToTournament();
+            window.removeTeamFromTournament = (teamName) => tournamentManager.removeTeamFromTournament(teamName);
+            window.editTeamName = (oldName, newName) => tournamentManager.editTeamName(oldName, newName);
+            window.buildBracket = (tourney) => tournamentManager.buildBracket(tourney);
+            window.onScoreInputTournament = (matchId, side, value) => tournamentManager.onScoreInputTournament(matchId, side, value);
+            window.propagateWinners = (tourney) => tournamentManager.propagateWinners(tourney);
+            window.renderBracket = (tourney, isReadOnly) => tournamentManager.renderBracket(tourney, isReadOnly);
+            window.renderMatchCard = (match, rIdx, tourney, isReadOnly) => tournamentManager.renderMatchCard(match, rIdx, tourney, isReadOnly);
+        }
         
         // 데이터 로딩 상태 확인
         const hasData = leagueData.classes.length > 0 || 
@@ -1009,10 +744,18 @@
         
         if (appMode === 'league') {
             console.log('리그 UI 렌더링 시작');
-            renderLeagueUI();
-        } else if (appMode === 'tournament') {
+            if (leagueManager) {
+                leagueManager.renderLeagueUI();
+            } else {
+                console.error('LeagueManager가 초기화되지 않음');
+            }
+        } else         if (appMode === 'tournament') {
             console.log('토너먼트 UI 렌더링 시작');
-            renderTournamentUI();
+            if (tournamentManager) {
+                tournamentManager.renderTournamentUI();
+            } else {
+                console.error('TournamentManager가 초기화되지 않음');
+            }
         } else if (appMode === 'paps') {
             console.log('PAPS UI 렌더링 시작');
             renderPapsUI();
@@ -1027,141 +770,11 @@
     // ========================================
     // 리그 UI 및 로직
     // ========================================
-    function renderLeagueUI() {
-        console.log('renderLeagueUI 시작');
-        console.log('leagueData.classes.length:', leagueData.classes.length);
-        console.log('leagueData:', leagueData);
-        
-        // 기존 요소들 정리
-        cleanupSidebar();
-        
-        $('#sidebarTitle').textContent = '리그전 목록';
-        
-        const isFirstTimeUser = leagueData.classes.length === 0 && tournamentData.tournaments.length === 0;
-        console.log('isFirstTimeUser:', isFirstTimeUser);
-        
-        let formHtml = `
-            <div style="position: relative;" class="${isFirstTimeUser ? 'intro-container-active' : ''}">
-                <div class="sidebar-form-group ${isFirstTimeUser ? 'intro-highlight' : ''}">
-                    <input id="className" type="text" placeholder="새로운 반(팀) 이름">
-                    <button onclick="createClass()" class="btn primary" data-tooltip="새로운 리그를 목록에 추가합니다.">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                    </button>
-                </div>
-                <div class="intro-arrow">
-                    <svg viewBox="0 0 24 24" fill="#F44336">
-                        <path d="M2 12l8-8v5h12v6H10v5l-8-8z"/>
-                    </svg>
-                </div>
-            </div>
-        `;
-        $('#sidebar-form-container').innerHTML = formHtml;
+    // renderLeagueUI 함수는 leagueManager 모듈로 이동됨
 
-        renderClassList();
-        const selectedClass = leagueData.classes.find(c => c.id === leagueData.selectedClassId);
-        if (selectedClass) {
-            renderLeagueDashboard(selectedClass);
-        } else {
-            console.log('리그 데이터가 없음, 플레이스홀더 표시');
-            $('#content-wrapper').innerHTML = `
-                <div class="placeholder-view">
-                    <div class="placeholder-content">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                        <h3>반을 선택하여 시작하세요</h3>
-                        <p>왼쪽에서 반을 선택하거나 새로 만들어주세요.</p>
-                        <div style="margin-top: 16px; padding: 12px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #666;">
-                            <strong>디버그 정보:</strong><br>
-                            • 리그 클래스 수: ${leagueData.classes.length}<br>
-                            • 토너먼트 수: ${tournamentData.tournaments.length}<br>
-                            • 선택된 클래스 ID: ${leagueData.selectedClassId}
-                        </div>
-                    </div>
-                </div>`;
-        }
-    }
+    // renderClassList 함수는 leagueManager 모듈로 이동됨
 
-    function renderClassList() {
-        $('#sidebar-list-container').innerHTML = leagueData.classes.map(c => `
-            <div class="list-card ${c.id === leagueData.selectedClassId ? 'active' : ''}" onclick="selectClass(${c.id})">
-                <div style="flex-grow: 1;">
-                    <div class="name">${c.name}</div>
-                    <div class="details">${leagueData.students.filter(s => s.classId === c.id).length}명</div>
-                </div>
-                <div class="action-buttons row">
-                    <button class="${(c.note || '').trim() ? 'has-note' : ''}" onclick="event.stopPropagation(); editClassNote(${c.id})" data-tooltip="메모"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></button>
-                    <button onclick="event.stopPropagation(); editClassName(${c.id})" data-tooltip="수정"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-                    <button onclick="event.stopPropagation(); deleteClass(${c.id});" data-tooltip="삭제"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function renderLeagueDashboard(selectedClass) {
-        $('#content-wrapper').innerHTML = `
-            <h2>${selectedClass.name} - 참가자 관리</h2>
-            <section class="section-box">
-                <div class="row" style="align-items: flex-end;">
-                    <div class="field" style="flex-grow:1; margin-bottom: 0;">
-                         <label>신규 선수 추가</label>
-                        <input id="studentName" type="text" placeholder="학생 이름 입력 후 엔터">
-                    </div>
-                    <button class="btn primary" onclick="addStudent()" data-tooltip="입력한 학생을 목록에 추가합니다."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>추가</button>
-                    <button class="btn" onclick="bulkAddStudents()" data-tooltip="쉼표로 구분된 여러 학생을 한번에 추가합니다."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>일괄 추가</button>
-                </div>
-                <div id="studentListGrid" class="student-list-grid" style="margin-top: 1rem;"></div>
-            </section>
-            
-            <div class="schedule-header">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <div class="row">
-                     <h2 class="schedule-title">경기 일정</h2>
-                     <div id="gameStatsContainer"></div>
-                  </div>
-                  <div class="row">
-                    <button class="btn" onclick="shareView('league', 'schedule')">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                        일정 공유
-                    </button>
-                    <button class="btn" onclick="shareAllClassesSchedule()" data-tooltip="모든 반의 일정을 하나의 페이지에서 공유합니다">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                        모든 반 일정 공유
-                    </button>
-                    <button class="btn" onclick="clearAllHighlights()" data-tooltip="모든 강조 표시를 해제합니다."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 5-8 8"/><path d="m12 19 8-8"/><path d="M20 13a2.5 2.5 0 0 0-3.54-3.54l-8.37 8.37A2.5 2.5 0 0 0 9.46 20l8.37-8.37a2.5 2.5 0 0 0 2.17-6.38Z"/></svg>모든 강조 해제</button>
-                    <button id="generateGamesBtn" class="btn" onclick="generateGames()" style="background:var(--win); color:white;" data-tooltip="현재 학생 명단으로 새 경기 일정을 생성합니다."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>일정 생성</button>
-                  </div>
-                </div>
-            </div>
-            <div id="gamesTableContainer" style="margin: 0 -24px; padding: 0 24px;">
-                <div class="paps-table-wrap">
-                    <div id="gamesTableContent"></div>
-                </div>
-            </div>
-            
-             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>순위표</h2>
-                <div class="row">
-                    <button class="btn" onclick="shareView('league', 'standings')">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                        공유
-                    </button>
-                    <button class="btn" onclick="printRankings()" data-tooltip="현재 순위표를 인쇄합니다.">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                        순위표 인쇄
-                    </button>
-                </div>
-            </div>
-            <div id="rankingsTableContainer" class="section-box" style="padding:0; overflow-x:auto;"></div>
-        `;
-        $('#studentName').addEventListener('keypress', e => e.key === 'Enter' && addStudent());
-        renderStudentList();
-        renderGamesTable();
-        renderRankingsTable();
-        renderGameStats();
-        
-        // 일정 생성 버튼 상태 초기화
-        const classGames = leagueData.games.filter(g => g.classId === leagueData.selectedClassId);
-        updateGenerateGamesButtonState(classGames.length > 0);
-    }
+    // renderLeagueDashboard 함수는 leagueManager 모듈로 이동됨
 
     function renderGameStats() {
         const container = $('#gameStatsContainer');
@@ -1376,14 +989,6 @@
         }
     }
     
-    function toggleGameHighlight(gameId) {
-        const game = leagueData.games.find(g => g.id === gameId);
-        if (game) {
-            game.isHighlighted = !game.isHighlighted;
-            saveDataToFirestore();
-            renderGamesTable();
-        }
-    }
 
     function clearAllHighlights() {
         const classId = leagueData.selectedClassId;
@@ -1455,7 +1060,7 @@
             const note = game.note || '';
 
             return `<tr class="${game.isHighlighted ? 'highlighted-row' : ''}" data-game-id="${game.id}">
-                <td style="text-align: center;" ${!isReadOnly ? `onclick="toggleGameHighlight(${game.id})"` : ''} data-tooltip="경기 번호 강조" data-tooltip-align="left">
+                <td style="text-align: center;" ${!isReadOnly ? `onclick="window.toggleGameHighlight(${game.id})"` : ''} data-tooltip="경기 번호 강조" data-tooltip-align="left">
                     <span class="game-number ${game.isHighlighted ? 'highlighted-number' : ''}">${i+1}</span>
                 </td>
                 <td style="font-weight: 500;">${p1.name}</td>
@@ -2860,40 +2465,11 @@
     let draggedElement = null;
     let draggedData = null;
 
-    // 드래그 시작
-    function handleDragStart(event) {
-        draggedElement = event.target.closest('.team-item');
-        if (!draggedElement) return;
-        
-        draggedData = {
-            matchId: draggedElement.dataset.matchId,
-            teamType: draggedElement.dataset.teamType,
-            teamName: draggedElement.dataset.teamName
-        };
-        
-        draggedElement.classList.add('dragging');
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/html', draggedElement.outerHTML);
-    }
+    // 드래그 시작 함수는 아래에 정의됨 (중복 제거)
 
-    // 드래그 오버
-    function handleDragOver(event) {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
-        
-        const team = event.target.closest('.team-item');
-        if (team && team !== draggedElement) {
-            team.classList.add('drag-over');
-        }
-    }
+    // 드래그 오버 함수는 아래에 정의됨 (중복 제거)
 
-    // 드래그 리브
-    function handleDragLeave(event) {
-        const team = event.target.closest('.team-item');
-        if (team) {
-            team.classList.remove('drag-over');
-        }
-    }
+    // 드래그 리브 함수는 아래에 정의됨 (중복 제거)
 
     // 드롭
     function handleDrop(event) {
@@ -3129,30 +2705,7 @@
         }
     }
 
-    function handleDrop(event) {
-        event.preventDefault();
-        
-        const team = event.target.closest('.team');
-        if (!team) return;
-        
-        team.classList.remove('drag-over');
-        
-        try {
-            const dragData = JSON.parse(event.dataTransfer.getData('text/plain'));
-            const sourceMatchId = dragData.matchId;
-            const sourceTeamType = dragData.teamType;
-            const targetMatchId = team.dataset.matchId;
-            const targetTeamType = team.dataset.teamType;
-            
-            if (sourceMatchId === targetMatchId && sourceTeamType === targetTeamType) {
-                return; // 같은 위치로 드롭한 경우 무시
-            }
-            
-            swapTeams(sourceMatchId, sourceTeamType, targetMatchId, targetTeamType);
-        } catch (error) {
-            console.error('드래그&드롭 처리 중 오류:', error);
-        }
-    }
+    // handleDrop 함수는 위에 정의됨 (중복 제거)
 
     function swapTeams(sourceMatchId, sourceTeamType, targetMatchId, targetTeamType) {
         const tourney = getCurrentTournament();
@@ -5337,7 +4890,18 @@
         // 네트워크 상태 모니터링 초기화
         initializeNetworkMonitoring();
         
-        // Firebase 초기화 대기
+        // AuthManager는 이미 초기화됨
+        
+        // 앱 즉시 초기화 (Firebase 초기화와 독립적으로)
+        console.log('앱 초기화 시작');
+        try {
+            initialize_app();
+            console.log('앱 초기화 완료');
+        } catch (error) {
+            console.error('앱 초기화 중 오류 발생:', error);
+        }
+        
+        // Firebase 초기화 대기 (백그라운드에서)
         let firebaseCheckCount = 0;
         const maxFirebaseChecks = 50; // 5초 대기 (100ms * 50)
         
@@ -5346,13 +4910,12 @@
             
             if (window.firebase) {
                 clearInterval(checkFirebase);
-                console.log('Firebase 초기화 완료, 앱 시작');
-                initialize_app();
+                console.log('Firebase 초기화 완료, 인증 설정');
+                setupFirebaseAuth();
             } else if (firebaseCheckCount >= maxFirebaseChecks) {
                 clearInterval(checkFirebase);
-                console.error('Firebase 초기화 시간 초과, 로컬 모드로 시작');
-                // Firebase 초기화 실패해도 로컬 모드로 앱 시작
-                initialize_app();
+                console.log('Firebase 초기화 시간 초과, 로컬 모드로 계속');
+                setupLocalMode();
             } else {
                 console.log(`Firebase 초기화 대기 중... (${firebaseCheckCount}/${maxFirebaseChecks})`);
             }
@@ -5364,7 +4927,17 @@
             if (checkFirebase) {
                 clearInterval(checkFirebase);
             }
-            initialize_app();
+            
+            // AuthManager 초기화 (Firebase 준비 후)
+            if (!authManagerInitialized) {
+                console.log('AuthManager 초기화 시작');
+                authManager = initializeAuthManager();
+                setupGlobalAuthFunctions();
+                authManagerInitialized = true;
+                console.log('AuthManager 초기화 완료');
+            }
+            
+            setupFirebaseAuth();
             
             // Firebase 초기화 완료 후 방문자 수 업데이트
             setTimeout(async () => {
@@ -5378,9 +4951,8 @@
             if (checkFirebase) {
                 clearInterval(checkFirebase);
             }
-            console.log('Firebase 초기화 실패, 로컬 모드로 시작');
-            // Firebase 초기화 실패해도 로컬 모드로 앱 시작
-            initialize_app();
+            console.log('Firebase 초기화 실패, 로컬 모드로 계속');
+            setupLocalMode();
         });
     });
     
@@ -5468,32 +5040,25 @@
     }
 
     async function loadSharedData(uid, id, mode, view) {
+        if (!dataManager) {
+            console.error('DataManager가 초기화되지 않음');
+            return;
+        }
+        
         const loader = $('#loader');
         if (loader) loader.classList.remove('hidden');
         
         try {
-            // Firebase 연결 확인
-            if (!window.firebase || !window.firebase.db) {
-                throw new Error('Firebase가 초기화되지 않았습니다.');
-            }
-
-            const userDocRef = window.firebase.doc(window.firebase.db, "users", uid);
-            const docSnap = await window.firebase.getDoc(userDocRef);
-
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                leagueData = data.leagues || { classes: [], students: [], games: [], selectedClassId: null };
-                tournamentData = data.tournaments || { tournaments: [], activeTournamentId: null };
-
-                if (tournamentData.tournaments) {
-                    tournamentData.tournaments.forEach(t => {
-                        if (t.rounds && typeof t.rounds === 'string') {
-                            t.rounds = JSON.parse(t.rounds);
-                        } else if (t.rounds === undefined) {
-                            t.rounds = [];
-                        }
-                    });
-                }
+            // DataManager를 통해 공유 데이터 로드
+            const appData = await dataManager.loadSharedData(uid, id, mode, view);
+            
+            if (appData) {
+                // 로드된 데이터를 전역 변수에 설정
+                leagueData = appData.leagues;
+                tournamentData = appData.tournaments;
+                papsData = appData.paps;
+                progressClasses = appData.progress.classes;
+                progressSelectedClassId = appData.progress.selectedClassId;
                 
                 if (mode === 'league' && view === 'all-schedules') {
                     renderAllClassesScheduleView();
@@ -5507,7 +5072,7 @@
                 }
             }
         } catch (error) {
-            console.error("Firestore 불러오기 실패:", error);
+            console.error("공유 데이터 불러오기 실패:", error);
             const container = $('#share-view-content');
             if (container) {
                 container.innerHTML = `
@@ -5685,7 +5250,6 @@
     }
 
     function shareView(mode, view) {
-        if (!currentUser) return;
         let id;
         if (mode === 'league') {
             id = leagueData.selectedClassId;
@@ -5695,13 +5259,13 @@
              if (!id) { showModal({ title: '오류', body: '먼저 토너먼트를 선택해주세요.', actions: [{ text: '확인', type: 'primary', callback: closeModal }] }); return; }
         }
 
-        const url = `${window.location.origin}${window.location.pathname}?share=true&uid=${currentUser.uid}&id=${id}&mode=${mode}&view=${view}`;
+        // 로컬 모드와 로그인 모드 모두 지원
+        const uid = currentUser ? currentUser.uid : 'local';
+        const url = `${window.location.origin}${window.location.pathname}?share=true&uid=${uid}&id=${id}&mode=${mode}&view=${view}`;
         copyToClipboard(url);
     }
 
     function shareAllClassesSchedule() {
-        if (!currentUser) return;
-        
         // 리그전 반이 있는지 확인
         if (!leagueData.classes || leagueData.classes.length === 0) {
             showModal({ 
@@ -5712,7 +5276,9 @@
             return; 
         }
 
-        const url = `${window.location.origin}${window.location.pathname}?share=true&uid=${currentUser.uid}&mode=league&view=all-schedules`;
+        // 로컬 모드와 로그인 모드 모두 지원
+        const uid = currentUser ? currentUser.uid : 'local';
+        const url = `${window.location.origin}${window.location.pathname}?share=true&uid=${uid}&mode=league&view=all-schedules`;
         copyToClipboard(url);
     }
     
@@ -5737,6 +5303,8 @@
     // ========================================
 
     function initialize_app() {
+        console.log('initialize_app 함수 시작');
+        
         // Service Worker 등록 (지원하는 브라우저에서만)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -5755,16 +5323,41 @@
         }
         
         // 초기 화면을 수업 진도 관리 모드로 설정
+        console.log('앱 모드 설정:', appMode);
         appMode = 'progress';
-        $('#auth-container').classList.add('hidden');
-        $('#app-root').classList.remove('hidden');
-        renderApp();
+        console.log('앱 모드 변경됨:', appMode);
         
-        // Firebase가 사용 가능한 경우에만 인증 관련 기능 활성화
-        if (window.firebase) {
-            const { auth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } = window.firebase;
-
-            onAuthStateChanged(auth, user => {
+        // VisitorManager 초기화 확인
+        if (!visitorManager) {
+            console.log('VisitorManager가 초기화되지 않음, 초기화 시도');
+            visitorManager = initializeVisitorManager();
+            visitorManagerInitialized = true;
+        }
+        
+        // HTML에서 이미 올바른 초기 상태로 설정되어 있음
+        console.log('renderApp 호출 시작');
+        renderApp();
+        console.log('renderApp 호출 완료');
+    }
+    
+    function setupFirebaseAuth() {
+        // AuthManager가 초기화되었는지 확인
+        if (!authManager) {
+            console.error('AuthManager가 초기화되지 않음');
+            return;
+        }
+        
+        console.log('Firebase 인증 설정 시작');
+        // authManager를 통해 Firebase 인증 설정
+        authManager.setupFirebaseAuth();
+        
+        // dataManager에 현재 사용자 설정
+        if (dataManager) {
+            dataManager.setCurrentUser(currentUser);
+        }
+        
+        // 인증 상태 변경 콜백 등록
+        authManager.onAuthStateChange((user) => {
             console.log('=== Firebase 인증 상태 변경 ===');
             console.log('상태:', user ? '로그인됨' : '로그아웃됨');
             console.log('사용자 정보:', user);
@@ -5774,20 +5367,14 @@
             if (user) {
                 currentUser = user;
                 console.log('=== 사용자 로그인 처리 시작 ===');
-                $('#auth-container').classList.add('hidden');
-                $('#app-root').classList.remove('hidden');
                 console.log('사용자 이메일 표시:', user.displayName || user.email);
                 console.log('데이터 로딩 시작, UID:', user.uid);
                 loadDataFromFirestore(user.uid);
                 // 로그인 상태 UI 업데이트
-                updateLoginStatus();
+                authManager.updateLoginStatus();
             } else {
                 console.log('사용자 로그아웃 처리 시작');
                 currentUser = null;
-                // 로그아웃 시에도 모든 기능 유지
-                $('#auth-container').classList.add('hidden');
-                $('#app-root').classList.remove('hidden');
-                
                 // 로컬 스토리지에서 데이터 로드
                 loadLocalData();
                 
@@ -5799,74 +5386,11 @@
             }
             });
 
-            $('#signup-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = $('#signup-email').value;
-                const password = $('#signup-password').value;
-                try { await createUserWithEmailAndPassword(auth, email, password); } 
-                catch (error) { handleAuthError(error, 'signup'); }
-            });
-
-            $('#login-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = $('#login-email').value;
-                const password = $('#login-password').value;
-                try { await signInWithEmailAndPassword(auth, email, password); } 
-                catch (error) { handleAuthError(error, 'login'); }
-            });
-
-            $('#reset-form').addEventListener('submit', handlePasswordReset);
-            
-            $('#forgot-password-link').addEventListener('click', (e) => {
-                e.preventDefault();
-                showAuthForm('reset');
-            });
-
-            $('#back-to-login-link').addEventListener('click', (e) => {
-                e.preventDefault();
-                showAuthForm('login');
-            });
-
-            $('#google-login-btn').addEventListener('click', signInWithGoogle);
-
-            $('#logout-btn').addEventListener('click', () => { signOut(auth); });
-        } else {
-            console.log('Firebase를 사용할 수 없음, 로컬 모드로만 작동');
-            // Firebase 없이도 기본 UI는 작동하도록 설정
-            $('#signup-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                alert('Firebase가 초기화되지 않아 회원가입을 할 수 없습니다. 로컬 모드로 사용해주세요.');
-            });
-
-            $('#login-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                alert('Firebase가 초기화되지 않아 로그인을 할 수 없습니다. 로컬 모드로 사용해주세요.');
-            });
-
-            $('#reset-form').addEventListener('submit', (e) => {
-                e.preventDefault();
-                alert('Firebase가 초기화되지 않아 비밀번호 재설정을 할 수 없습니다.');
-            });
-            
-            $('#forgot-password-link').addEventListener('click', (e) => {
-                e.preventDefault();
-                showAuthForm('reset');
-            });
-
-            $('#back-to-login-link').addEventListener('click', (e) => {
-                e.preventDefault();
-                showAuthForm('login');
-            });
-
-            $('#google-login-btn').addEventListener('click', () => {
-                alert('Firebase가 초기화되지 않아 Google 로그인을 할 수 없습니다. 로컬 모드로 사용해주세요.');
-            });
-
-            $('#logout-btn').addEventListener('click', () => {
-                alert('이미 로컬 모드로 사용 중입니다.');
-            });
-        }
-        
+        // 공통 이벤트 리스너 설정
+        setupCommonEventListeners();
+    }
+    
+    function setupCommonEventListeners() {
         const savedTheme = localStorage.getItem("theme") || "light";
         document.body.dataset.theme = savedTheme;
         switchMode(appMode);
@@ -5879,6 +5403,28 @@
             document.body.dataset.theme = newTheme;
             localStorage.setItem("theme", newTheme);
         });
+    }
+    
+    function setupLocalMode() {
+        console.log('Firebase를 사용할 수 없음, 로컬 모드로만 작동');
+        
+        // AuthManager가 초기화되었는지 확인
+        if (!authManager) {
+            console.error('AuthManager가 초기화되지 않음');
+            return;
+        }
+        
+        console.log('로컬 모드 설정 시작');
+        // authManager를 통해 로컬 모드 설정
+        authManager.setupLocalMode();
+        
+        // dataManager에 현재 사용자 설정 (로컬 모드에서는 null)
+        if (dataManager) {
+            dataManager.setCurrentUser(null);
+        }
+        
+        // 공통 이벤트 리스너 설정
+        setupCommonEventListeners();
     }
 
     function importAllLeaguesFromExcel(event) {
@@ -6181,7 +5727,14 @@
         if (!classId) return;
         const currentClass = leagueData.classes.find(c => c.id === classId);
         const tableContainer = document.createElement('div');
-        renderRankingsTable(tableContainer);
+        
+        // leagueManager를 통해 순위표 렌더링
+        if (leagueManager) {
+            leagueManager.renderRankingsTable(tableContainer);
+        } else {
+            console.error('leagueManager가 초기화되지 않음');
+            return;
+        }
 
         const printWindow = window.open('', '', 'height=800,width=800');
         printWindow.document.write('<html><head><title>순위표 인쇄</title>');
@@ -6194,27 +5747,6 @@
         setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
     }
     
-    function openRankingPopup() {
-        const classId = leagueData.selectedClassId;
-        if (!classId) return;
-        const currentClass = leagueData.classes.find(c => c.id === classId);
-        $('#popupTitle').textContent = `${currentClass.name} - 실시간 순위표`;
-        renderRankingsTable($('#popupRankingsTable'));
-        $('#rankingPopup').classList.remove('hidden');
-    }
-    
-    function closeRankingPopup() {
-        $('#rankingPopup').classList.add('hidden');
-    }
-
-    function openHelpPopup() {
-        $('#helpPopup').classList.remove('hidden');
-    }
-    
-    function closeHelpPopup() {
-        $('#helpPopup').classList.add('hidden');
-    }
-
 
 
     function showModal({ title, body, actions }) {

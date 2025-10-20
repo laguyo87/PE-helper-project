@@ -1,0 +1,33 @@
+{
+  "name": "pe-helper-online",
+  "version": "2.2.1",
+  "description": "체육 수업 도우미 온라인 버전",
+  "main": "dist/main.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && npm run copy-modules",
+    "copy-modules": "cp dist/modules/*.js js/modules/",
+    "build:watch": "tsc --watch",
+    "dev": "tsc && npm run copy-modules && node server.js",
+    "start": "node server.js",
+    "clean": "rimraf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "pe",
+    "education",
+    "sports",
+    "management",
+    "typescript"
+  ],
+  "author": "김신회 <laguyo87@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.19.21",
+    "rimraf": "^5.0.10",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

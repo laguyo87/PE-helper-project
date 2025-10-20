@@ -20,7 +20,7 @@
     <div>데이터를 불러오는 중...</div>
   </div>
 
-  <div id="auth-container" class="auth-container">
+  <div id="auth-container" class="auth-container hidden">
       <div class="auth-box">
           <div style="text-align: center; margin-bottom: 24px;">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
@@ -32,10 +32,10 @@
           </div>
           <form id="login-form" class="auth-form">
               <div class="field">
-                  <input type="email" id="login-email" placeholder="이메일" required>
+                  <input type="email" id="login-email" placeholder="이메일" autocomplete="email" required>
               </div>
               <div class="field">
-                  <input type="password" id="login-password" placeholder="비밀번호" required>
+                  <input type="password" id="login-password" placeholder="비밀번호" autocomplete="current-password" required>
               </div>
               <a href="#" id="forgot-password-link" class="forgot-password-link">비밀번호를 잊으셨나요?</a>
               <p id="login-error" class="error-message hidden"></p>
@@ -43,10 +43,10 @@
           </form>
           <form id="signup-form" class="auth-form hidden">
               <div class="field">
-                  <input type="email" id="signup-email" placeholder="이메일" required>
+                  <input type="email" id="signup-email" placeholder="이메일" autocomplete="email" required>
               </div>
               <div class="field">
-                  <input type="password" id="signup-password" placeholder="비밀번호 (6자 이상)" required>
+                  <input type="password" id="signup-password" placeholder="비밀번호 (6자 이상)" autocomplete="new-password" required>
               </div>
               <p id="signup-error" class="error-message hidden"></p>
               <button type="submit" class="btn primary">회원가입</button>
@@ -54,7 +54,7 @@
           
           <form id="reset-form" class="auth-form hidden">
               <div class="field">
-                  <input type="email" id="reset-email" placeholder="가입한 이메일 주소" required>
+                  <input type="email" id="reset-email" placeholder="가입한 이메일 주소" autocomplete="email" required>
               </div>
               <p id="reset-message" class="hidden"></p>
               <button type="submit" class="btn primary">재설정 링크 발송</button>
@@ -70,7 +70,7 @@
       </div>
   </div>
 
-  <div id="app-root" class="hidden" style="display:flex; flex-direction:column; height:100vh;">
+  <div id="app-root" style="display:flex; flex-direction:column; height:100vh;">
       <header class="top-bar">
         <div style="display: flex; align-items: center; gap: 12px;">
           <h1>
@@ -103,7 +103,7 @@
                     <span id="user-email" style="font-weight: 500;"></span>
                     <button id="logout-btn" class="btn">로그아웃</button>
                 </div>
-                <div id="guest-status" class="guest-status" style="display: none;">
+                <div id="guest-status" class="guest-status hidden">
                     <span style="color: var(--ink-muted); font-size: 0.9rem;">로컬 모드</span>
                     <button id="login-btn" class="btn primary" onclick="showLoginModal()">로그인</button>
                 </div>
@@ -295,4 +295,9 @@
 
   <script type="module" src="firebase.js"></script>
   
-  <script src="main.js"></script>
+  <script>
+    console.log('HTML에서 직접 JavaScript 실행 테스트');
+    console.log('DOM 로드 상태:', document.readyState);
+  </script>
+  
+  <script type="module" src="main.js"></script>
