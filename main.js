@@ -148,10 +148,13 @@
     let papsManager;
     try {
         papsManager = new PapsManager(papsData, $, saveDataToFirestore, cleanupSidebar);
+        // 전역 접근을 위해 window 객체에 할당
+        window.papsManager = papsManager;
         console.log('PapsManager 초기화 완료');
     } catch (error) {
         console.error('PapsManager 초기화 실패:', error);
         papsManager = null;
+        window.papsManager = null;
     }
     
     // 브라우저 호환성 체크
@@ -2852,8 +2855,8 @@
     };
 
     function renderPapsUI() {
-        if (papsManager) {
-            papsManager.renderPapsUI();
+        if (window.papsManager) {
+            window.papsManager.renderPapsUI();
         } else {
             console.error('PapsManager가 초기화되지 않음');
         }
