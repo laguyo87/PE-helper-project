@@ -4933,48 +4933,55 @@
             console.error('앱 초기화 중 오류 발생:', error);
         }
         
-        // Firebase 초기화 대기 (더 안정적인 방법)
-        let firebaseCheckCount = 0;
-        const maxFirebaseChecks = 100; // 10초 대기 (100ms * 100)
+        // Firebase 초기화 대기 (간단하고 안정적인 방법)
+        let firebaseInitialized = false;
         
         const checkFirebase = () => {
-            firebaseCheckCount++;
-            
-            if (window.firebase) {
+            if (window.firebase && !firebaseInitialized) {
                 console.log('Firebase 초기화 완료, 인증 설정');
+                firebaseInitialized = true;
                 setupFirebaseAuth();
-            } else if (firebaseCheckCount >= maxFirebaseChecks) {
-                console.log('Firebase 초기화 시간 초과, 로컬 모드로 계속');
-                setupLocalMode();
-            } else {
-                console.log(`Firebase 초기화 대기 중... (${firebaseCheckCount}/${maxFirebaseChecks})`);
-                setTimeout(checkFirebase, 100);
+            } else if (!firebaseInitialized) {
+                console.log('Firebase 초기화 대기 중...');
+                setTimeout(checkFirebase, 200);
             }
         };
         
-        // Firebase 체크 시작
+        // Firebase 체크 시작 (즉시 한 번, 그 후 200ms마다)
         checkFirebase();
+        
+        // 5초 후에도 Firebase가 초기화되지 않으면 로컬 모드로 전환
+        setTimeout(() => {
+            if (!firebaseInitialized) {
+                console.log('Firebase 초기화 시간 초과, 로컬 모드로 계속');
+                setupLocalMode();
+            }
+        }, 5000);
         
         // Firebase 이벤트 리스너 추가
         window.addEventListener('firebaseReady', async () => {
             console.log('Firebase Ready 이벤트 수신');
             
-            // AuthManager 초기화 (Firebase 준비 후)
-            if (!authManagerInitialized) {
-                console.log('AuthManager 초기화 시작');
-                authManager = initializeAuthManager();
-                setupGlobalAuthFunctions();
-                authManagerInitialized = true;
-                console.log('AuthManager 초기화 완료');
+            if (!firebaseInitialized) {
+                firebaseInitialized = true;
+                
+                // AuthManager 초기화 (Firebase 준비 후)
+                if (!authManagerInitialized) {
+                    console.log('AuthManager 초기화 시작');
+                    authManager = initializeAuthManager();
+                    setupGlobalAuthFunctions();
+                    authManagerInitialized = true;
+                    console.log('AuthManager 초기화 완료');
+                }
+                
+                setupFirebaseAuth();
+                
+                // Firebase 초기화 완료 후 방문자 수 업데이트
+                setTimeout(async () => {
+                    await loadVisitorCount();
+                    await updateVisitorCount();
+                }, 500);
             }
-            
-            setupFirebaseAuth();
-            
-            // Firebase 초기화 완료 후 방문자 수 업데이트
-            setTimeout(async () => {
-                await loadVisitorCount();
-                await updateVisitorCount();
-            }, 500);
         });
         
         window.addEventListener('firebaseError', (event) => {

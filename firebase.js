@@ -29,6 +29,11 @@ try {
   const db = getFirestore(app);
   console.log('Firebase Firestore 초기화 완료');
   
+  // Firebase 객체 유효성 검사
+  if (!auth || !db) {
+    throw new Error('Firebase Auth 또는 Firestore 초기화 실패');
+  }
+  
   // Firebase 연결 상태 확인
   console.log('=== Firebase 초기화 성공 ===');
   console.log('Auth 객체:', auth);
@@ -38,17 +43,19 @@ try {
   const testDoc = doc(db, 'test', 'connection');
   console.log('Firestore 테스트 문서 참조 생성됨:', testDoc);
   
-  // 실제 연결 테스트 수행
-  try {
-    console.log('=== Firebase 연결 테스트 시작 ===');
-    const testDoc = doc(db, 'test', 'connection');
-    const testSnap = await getDoc(testDoc);
-    console.log('Firebase 연결 테스트 성공:', testSnap.exists() ? '문서 존재' : '문서 없음');
-  } catch (error) {
-    console.error('Firebase 연결 테스트 실패:', error);
-    console.error('오류 코드:', error.code);
-    console.error('오류 메시지:', error.message);
-  }
+  // 실제 연결 테스트 수행 (비동기로 처리)
+  (async () => {
+    try {
+      console.log('=== Firebase 연결 테스트 시작 ===');
+      const testDoc = doc(db, 'test', 'connection');
+      const testSnap = await getDoc(testDoc);
+      console.log('Firebase 연결 테스트 성공:', testSnap.exists() ? '문서 존재' : '문서 없음');
+    } catch (error) {
+      console.error('Firebase 연결 테스트 실패:', error);
+      console.error('오류 코드:', error.code);
+      console.error('오류 메시지:', error.message);
+    }
+  })();
 
   window.firebase = { 
     auth, 
@@ -66,6 +73,7 @@ try {
   };
   
   console.log('window.firebase 객체 설정 완료');
+  console.log('window.firebase 내용:', window.firebase);
   
   // Firebase 초기화 완료 이벤트 발생
   window.dispatchEvent(new CustomEvent('firebaseReady'));
