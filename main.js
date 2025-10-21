@@ -5390,6 +5390,11 @@
         console.log('renderApp 호출 시작');
         renderApp();
         console.log('renderApp 호출 완료');
+        
+        // 초기 사용자 상태 UI 업데이트
+        if (authManager) {
+            authManager.updateLoginStatus();
+        }
     }
     
     function setupFirebaseAuth() {
@@ -5421,12 +5426,19 @@
                 console.log('=== 사용자 로그인 처리 시작 ===');
                 console.log('사용자 이메일 표시:', user.displayName || user.email);
                 console.log('데이터 로딩 시작, UID:', user.uid);
-                loadDataFromFirestore(user.uid);
-                // 로그인 상태 UI 업데이트
+                
+                // 로그인 상태 UI 즉시 업데이트
                 authManager.updateLoginStatus();
+                
+                // 데이터 로딩
+                loadDataFromFirestore(user.uid);
             } else {
                 console.log('사용자 로그아웃 처리 시작');
                 currentUser = null;
+                
+                // 로그인 상태 UI 즉시 업데이트
+                authManager.updateLoginStatus();
+                
                 // 로컬 스토리지에서 데이터 로드
                 loadLocalData();
                 

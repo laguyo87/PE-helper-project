@@ -429,7 +429,7 @@ export class AuthManager {
             loginStatus.classList.remove('hidden');
             guestStatus.classList.add('hidden');
             const userEmail = this.currentUser.displayName || this.currentUser.email || '사용자';
-            const userEmailElement = loginStatus.querySelector('.user-email');
+            const userEmailElement = $('#user-email');
             if (userEmailElement) {
                 userEmailElement.textContent = userEmail;
             }
