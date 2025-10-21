@@ -1,9 +1,9 @@
 /**
  * PAPS 수업 관리 모듈
- * 
+ *
  * 이 모듈은 PAPS(Physical Activity Promotion System) 수업의 모든 기능을 관리합니다.
  * PAPS 반 생성/삭제, 학생 관리, 체력 측정 기록, 평가 기준 적용 등을 담당합니다.
- * 
+ *
  * 현재 지원하는 기능:
  * - PAPS 반 관리 (생성, 수정, 삭제)
  * - 학생 명단 관리 (추가, 삭제, 엑셀 업로드)
@@ -11,112 +11,25 @@
  * - PAPS 평가 기준 적용 (2024년 기준)
  * - 엑셀 내보내기/가져오기
  * - 차트 및 통계 분석
- * 
+ *
  * @author PE Helper Online
  * @version 2.2.1
  * @since 2024-01-01
  */
-
-// 타입 정의
-export interface PapsStudent {
-    id: number;
-    number: number;
-    name: string;
-    gender: '남자' | '여자';
-    records: Record<string, any>;
-}
-
-export interface PapsClass {
-    id: number;
-    name: string;
-    gradeLevel?: string;
-    eventSettings?: Record<string, string>;
-    students: PapsStudent[];
-}
-
-export interface PapsData {
-    classes: PapsClass[];
-    activeClassId: number | null;
-}
-
-export interface PapsCriteria {
-    [gender: string]: {
-        [grade: string]: {
-            [test: string]: number[][];
-        };
-    };
-}
-
-export interface PapsItems {
-    [category: string]: {
-        id: string;
-        options: string[];
-    };
-}
-
 /**
  * PAPS 관리자 클래스
  */
 export class PapsManager {
-    private papsData: PapsData;
-    private $: (selector: string) => HTMLElement;
-    private saveDataCallback: () => void;
-
-    // PAPS 평가 항목 데이터
-    public static readonly PAPS_ITEMS: PapsItems = {
-        "심폐지구력": { id: "endurance", options: ["왕복오래달리기", "오래달리기", "스텝검사"] },
-        "유연성": { id: "flexibility", options: ["앉아윗몸앞으로굽히기", "종합유연성검사"] },
-        "근력/근지구력": { id: "strength", options: ["악력", "팔굽혀펴기", "윗몸말아올리기"] },
-        "민첩성": { id: "agility", options: ["50m 달리기", "제자리멀리뛰기", "던지기"] },
-        "체지방": { id: "bodyfat", options: ["BMI"] }
-    };
-
-    // PAPS 평가 기준 데이터 (2024년 기준)
-    public static readonly PAPS_CRITERIA: PapsCriteria = {
-        "남자": {
-            "초4": {
-                "왕복오래달리기": [[96, 9999, 1], [69, 95, 2], [45, 68, 3], [26, 44, 4], [0, 25, 5]],
-                "앉아윗몸앞으로굽히기": [[0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5]],
-                "제자리멀리뛰기": [[170.1, 9999, 1], [149.1, 170, 2], [130.1, 149, 3], [100.1, 130, 4], [0, 100, 5]],
-                "팔굽혀펴기": [[0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5]],
-                "윗몸말아올리기": [[80, 9999, 1], [40, 79, 2], [22, 39, 3], [7, 21, 4], [0, 6, 5]],
-                "악력": [[31, 9999, 1], [18.5, 30.9, 2], [15, 18.4, 3], [11.5, 14.9, 4], [0, 11.4, 5]],
-                "50m 달리기": [[0, 8.8, 1], [8.81, 9.7, 2], [9.71, 10.5, 3], [10.51, 13.2, 4], [13.21, 9999, 5]],
-                "오래달리기걷기": [[0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5]],
-                "스텝검사": [[76, 9999, 1], [62, 75.9, 2], [52, 61.9, 3], [47, 51.9, 4], [0, 46.9, 5]],
-                "던지기": [[25, 9999, 1], [22, 24.9, 2], [19, 21.9, 3], [16, 18.9, 4], [0, 15.9, 5]]
-            },
-            "초5": {
-                "왕복오래달리기": [[100, 9999, 1], [73, 99, 2], [50, 72, 3], [29, 49, 4], [0, 28, 5]],
-                "앉아윗몸앞으로굽히기": [[8, 9999, 1], [5, 7.9, 2], [1, 4.9, 3], [-4, 0.9, 4], [-999, -4.1, 5]],
-                "제자리멀리뛰기": [[180.1, 9999, 1], [159.1, 180, 2], [141.1, 159, 3], [111.1, 141, 4], [0, 111, 5]],
-                "팔굽혀펴기": [[0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5]],
-                "윗몸말아올리기": [[80, 9999, 1], [40, 79, 2], [22, 39, 3], [10, 21, 4], [0, 9, 5]],
-                "악력": [[31, 9999, 1], [23, 30.9, 2], [17, 22.9, 3], [12.5, 16.9, 4], [0, 12.4, 5]],
-                "50m 달리기": [[0, 8.5, 1], [8.51, 9.4, 2], [9.41, 10.2, 3], [10.21, 13.2, 4], [13.21, 9999, 5]],
-                "오래달리기걷기": [[0, 281, 1], [282, 324, 2], [325, 409, 3], [410, 479, 4], [480, 9999, 5]],
-                "스텝검사": [[76, 9999, 1], [62, 75.9, 2], [52, 61.9, 3], [47, 51.9, 4], [0, 46.9, 5]],
-                "던지기": [[28, 9999, 1], [25, 27.9, 2], [22, 24.9, 3], [19, 21.9, 4], [0, 18.9, 5]]
-            }
-            // 더 많은 학년 데이터는 필요에 따라 추가
-        },
-        "여자": {
-            // 여자 데이터도 필요에 따라 추가
-        }
-    };
-
-    constructor(papsData: PapsData, $: (selector: string) => HTMLElement, saveDataCallback: () => void) {
+    constructor(papsData, $, saveDataCallback) {
         this.papsData = papsData;
         this.$ = $;
         this.saveDataCallback = saveDataCallback;
     }
-
     /**
      * PAPS UI를 렌더링합니다.
      */
-    public renderPapsUI(): void {
+    renderPapsUI() {
         this.cleanupSidebar();
-        
         this.$('#sidebarTitle').textContent = 'PAPS 반 목록';
         const formHtml = `
             <div class="sidebar-form-group">
@@ -127,9 +40,7 @@ export class PapsManager {
             </div>
         `;
         this.$('#sidebar-form-container').innerHTML = formHtml;
-
         this.renderPapsClassList();
-
         const selected = this.papsData.classes.find(c => c.id === this.papsData.activeClassId);
         if (!selected) {
             this.$('#content-wrapper').innerHTML = `
@@ -138,17 +49,16 @@ export class PapsManager {
                     <h3>PAPS 반을 선택하거나 추가하세요</h3>
                     <p>왼쪽에서 반을 선택하거나 생성해주세요.</p>
                 </div></div>`;
-        } else {
+        }
+        else {
             this.renderPapsDashboard(selected);
         }
-        
         this.setupPapsEventListeners();
     }
-
     /**
      * PAPS 반 목록을 렌더링합니다.
      */
-    public renderPapsClassList(): void {
+    renderPapsClassList() {
         this.$('#sidebar-list-container').innerHTML = this.papsData.classes.map(c => `
             <div class="list-card ${c.id === this.papsData.activeClassId ? 'active' : ''}" onclick="window.papsManager.selectPapsClass(${c.id})">
                 <div style="flex-grow:1;">
@@ -166,42 +76,38 @@ export class PapsManager {
             </div>
         `).join('');
     }
-
     /**
      * PAPS 반을 생성합니다.
      */
-    public createPapsClass(): void {
-        const input = this.$('#papsClassName') as HTMLInputElement;
+    createPapsClass() {
+        const input = this.$('#papsClassName');
         const name = input.value.trim();
-        if (!name) return;
-
-        const newClass: PapsClass = {
+        if (!name)
+            return;
+        const newClass = {
             id: Date.now(),
             name,
             students: [],
             eventSettings: {}
         };
-
         this.papsData.classes.push(newClass);
         this.papsData.activeClassId = newClass.id;
         this.saveDataCallback();
         this.renderPapsUI();
         input.value = '';
     }
-
     /**
      * PAPS 반을 선택합니다.
      */
-    public selectPapsClass(id: number): void {
+    selectPapsClass(id) {
         this.papsData.activeClassId = id;
         this.saveDataCallback();
         this.renderPapsUI();
     }
-
     /**
      * PAPS 반을 삭제합니다.
      */
-    public deletePapsClass(id: number): void {
+    deletePapsClass(id) {
         if (typeof window.showModal === 'function') {
             window.showModal({
                 title: '반 삭제',
@@ -209,27 +115,25 @@ export class PapsManager {
                 actions: [
                     { text: '취소', callback: window.closeModal },
                     { text: '삭제', callback: () => {
-                        this.papsData.classes = this.papsData.classes.filter(c => c.id !== id);
-                        if (this.papsData.activeClassId === id) {
-                            this.papsData.activeClassId = null;
-                        }
-                        this.saveDataCallback();
-                        this.renderPapsUI();
-                        window.closeModal();
-                    }}
+                            this.papsData.classes = this.papsData.classes.filter(c => c.id !== id);
+                            if (this.papsData.activeClassId === id) {
+                                this.papsData.activeClassId = null;
+                            }
+                            this.saveDataCallback();
+                            this.renderPapsUI();
+                            window.closeModal();
+                        } }
                 ]
             });
         }
     }
-
     /**
      * PAPS 대시보드를 렌더링합니다.
      */
-    public renderPapsDashboard(cls: PapsClass): void {
+    renderPapsDashboard(cls) {
         // 설정이 완료되었는지 확인
-        const hasSettings = cls.gradeLevel && cls.eventSettings && 
-                           Object.keys(cls.eventSettings).length > 0;
-
+        const hasSettings = cls.gradeLevel && cls.eventSettings &&
+            Object.keys(cls.eventSettings).length > 0;
         if (!hasSettings) {
             this.$('#content-wrapper').innerHTML = `
                 <div class="paps-setup-container">
@@ -257,15 +161,15 @@ export class PapsManager {
                             <label>체력 측정 항목 설정</label>
                             <div class="paps-events-config">
                                 ${Object.keys(PapsManager.PAPS_ITEMS).filter(k => k !== "체지방").map(category => {
-                                    const item = PapsManager.PAPS_ITEMS[category];
-                                    const current = cls.eventSettings?.[item.id] || item.options[0];
-                                    return `<div class="paps-event-group">
+                const item = PapsManager.PAPS_ITEMS[category];
+                const current = cls.eventSettings?.[item.id] || item.options[0];
+                return `<div class="paps-event-group">
                                         <label style="min-width:90px; color: var(--ink-muted);">${category}</label>
                                         <select data-paps-category="${item.id}">
                                             ${item.options.map(o => `<option value="${o}" ${o === current ? 'selected' : ''}>${o}</option>`).join('')}
                                         </select>
                                     </div>`;
-                                }).join('')}
+            }).join('')}
                             </div>
                         </div>
                         <div class="form-actions">
@@ -274,7 +178,8 @@ export class PapsManager {
                     </div>
                 </div>
             `;
-        } else {
+        }
+        else {
             this.$('#content-wrapper').innerHTML = `
                 <div class="paps-dashboard">
                     <div class="dashboard-header">
@@ -294,50 +199,42 @@ export class PapsManager {
                 </div>
             `;
         }
-
         this.setupPapsDashboardEvents(cls);
     }
-
     /**
      * PAPS 테이블을 구성합니다.
      */
-    public buildPapsTable(cls: PapsClass): void {
+    buildPapsTable(cls) {
         const head = this.$('#paps-record-head');
         const body = this.$('#paps-record-body');
-        
         // Header 구성
         let header1 = '<tr><th rowspan="2"><input type="checkbox" id="paps-select-all"></th><th rowspan="2">번호</th><th rowspan="2">이름</th><th rowspan="2">성별</th>';
         let header2 = '<tr>';
-        
         Object.keys(PapsManager.PAPS_ITEMS).filter(k => k !== "체지방").forEach(category => {
             const item = PapsManager.PAPS_ITEMS[category];
             let eventName = cls.eventSettings?.[item.id] || item.options[0];
-            
             // 성별에 따라 팔굽혀펴기 종목명 변경
             if (eventName === '팔굽혀펴기') {
                 eventName = '팔굽혀펴기(남)';
             }
-            
             if (eventName === '악력') {
                 header1 += `<th colspan="2">${eventName}</th>`;
                 header2 += `<th>왼손</th><th>오른손</th>`;
-            } else {
+            }
+            else {
                 header1 += `<th rowspan="2">${eventName}</th>`;
             }
         });
-        
         header1 += '<th rowspan="2">키(cm)</th><th rowspan="2">몸무게(kg)</th><th rowspan="2">BMI</th><th rowspan="2">종합 등급</th></tr>';
         header2 += '</tr>';
         head.innerHTML = header1 + header2;
-        
         // 전체 선택 체크박스 이벤트
         this.$('#paps-select-all').addEventListener('change', (e) => {
-            const target = e.target as HTMLInputElement;
+            const target = e.target;
             body.querySelectorAll('.paps-row-checkbox').forEach((cb) => {
-                (cb as HTMLInputElement).checked = target.checked;
+                cb.checked = target.checked;
             });
         });
-
         // Body 구성
         body.innerHTML = cls.students.map(st => `
             <tr data-sid="${st.id}">
@@ -351,95 +248,92 @@ export class PapsManager {
                     </select>
                 </td>
                 ${Object.keys(PapsManager.PAPS_ITEMS).filter(k => k !== "체지방").map(k => {
-                    const id = PapsManager.PAPS_ITEMS[k].id;
-                    const eventName = cls.eventSettings?.[id] || PapsManager.PAPS_ITEMS[k].options[0];
-                    
-                    if (eventName === '악력') {
-                        return `
+            const id = PapsManager.PAPS_ITEMS[k].id;
+            const eventName = cls.eventSettings?.[id] || PapsManager.PAPS_ITEMS[k].options[0];
+            if (eventName === '악력') {
+                return `
                             <td><input type="number" class="paps-input rec" data-id="${id}_left" value="${st.records?.[`${id}_left`] || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>
                             <td><input type="number" class="paps-input rec" data-id="${id}_right" value="${st.records?.[`${id}_right`] || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>
                         `;
-                    } else {
-                        return `<td><input type="number" class="paps-input rec" data-id="${id}" value="${st.records?.[id] || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>`;
-                    }
-                }).join('')}
+            }
+            else {
+                return `<td><input type="number" class="paps-input rec" data-id="${id}" value="${st.records?.[id] || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>`;
+            }
+        }).join('')}
                 <td><input type="number" class="paps-input height" value="${st.records?.height || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>
                 <td><input type="number" class="paps-input weight" value="${st.records?.weight || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>
                 <td class="grade-cell" data-id="bodyfat"></td>
                 <td class="grade-cell overall-grade"></td>
             </tr>
         `).join('');
-
         // 각 행의 등급 계산
         body.querySelectorAll('tr').forEach(tr => {
             if (cls) {
-                this.updatePapsRowGrades(tr as HTMLTableRowElement, cls);
+                this.updatePapsRowGrades(tr, cls);
             }
         });
     }
-
     /**
      * PAPS 입력 이벤트를 처리합니다.
      */
-    public onPapsInput(e: Event, classId: number): void {
-        const target = e.target as HTMLElement;
-        const tr = target.closest('tr') as HTMLTableRowElement;
-        if (!tr) return;
-        
+    onPapsInput(e, classId) {
+        const target = e.target;
+        const tr = target.closest('tr');
+        if (!tr)
+            return;
         const sid = Number(tr.dataset.sid);
         const cls = this.papsData.classes.find(c => c.id === classId);
         const st = cls?.students.find(s => s.id === sid);
-        if (!st) return;
-
+        if (!st)
+            return;
         st.records = st.records || {};
-
         if (target.classList.contains('number')) {
-            st.number = Number((target as HTMLInputElement).value);
-        } else if (target.classList.contains('name')) {
-            st.name = (target as HTMLInputElement).value;
-        } else if (target.classList.contains('gender')) {
-            st.gender = (target as HTMLSelectElement).value as '남자' | '여자';
-        } else if (target.classList.contains('rec')) {
+            st.number = Number(target.value);
+        }
+        else if (target.classList.contains('name')) {
+            st.name = target.value;
+        }
+        else if (target.classList.contains('gender')) {
+            st.gender = target.value;
+        }
+        else if (target.classList.contains('rec')) {
             const dataId = target.getAttribute('data-id');
             if (dataId) {
-                st.records[dataId] = Number((target as HTMLInputElement).value);
+                st.records[dataId] = Number(target.value);
             }
-        } else if (target.classList.contains('height')) {
-            st.records.height = Number((target as HTMLInputElement).value);
-        } else if (target.classList.contains('weight')) {
-            st.records.weight = Number((target as HTMLInputElement).value);
         }
-
+        else if (target.classList.contains('height')) {
+            st.records.height = Number(target.value);
+        }
+        else if (target.classList.contains('weight')) {
+            st.records.weight = Number(target.value);
+        }
         if (cls) {
             this.updatePapsRowGrades(tr, cls);
         }
         this.saveDataCallback();
     }
-
     /**
      * PAPS 행의 등급을 업데이트합니다.
      */
-    public updatePapsRowGrades(tr: HTMLTableRowElement, cls: PapsClass): void {
+    updatePapsRowGrades(tr, cls) {
         const sid = Number(tr.dataset.sid);
         const st = cls.students.find(s => s.id === sid);
-        if (!st) return;
-
+        if (!st)
+            return;
         // BMI 계산
-        const height = parseFloat((tr.querySelector('.height') as HTMLInputElement)?.value || '');
-        const weight = parseFloat((tr.querySelector('.weight') as HTMLInputElement)?.value || '');
+        const height = parseFloat(tr.querySelector('.height')?.value || '');
+        const weight = parseFloat(tr.querySelector('.weight')?.value || '');
         const bmi = height && weight ? (weight / Math.pow(height / 100, 2)) : 0;
-
         // 등급 셀 초기화
         tr.querySelectorAll('.grade-cell').forEach(td => {
             td.textContent = '';
             td.className = 'grade-cell';
         });
-
         // 각 항목별 등급 계산
         Object.keys(PapsManager.PAPS_ITEMS).forEach(k => {
             const id = PapsManager.PAPS_ITEMS[k].id;
             const eventName = cls.eventSettings?.[id] || PapsManager.PAPS_ITEMS[k].options[0];
-
             if (id === 'bodyfat') {
                 const value = bmi;
                 const td = tr.querySelector(`.grade-cell[data-id="${id}"]`);
@@ -450,15 +344,14 @@ export class PapsManager {
                         td.classList.add(`grade-${gradeText}`);
                     }
                 }
-            } else if (eventName === '악력') {
-                const leftValue = parseFloat((tr.querySelector(`.rec[data-id="${id}_left"]`) as HTMLInputElement)?.value || '');
-                const rightValue = parseFloat((tr.querySelector(`.rec[data-id="${id}_right"]`) as HTMLInputElement)?.value || '');
+            }
+            else if (eventName === '악력') {
+                const leftValue = parseFloat(tr.querySelector(`.rec[data-id="${id}_left"]`)?.value || '');
+                const rightValue = parseFloat(tr.querySelector(`.rec[data-id="${id}_right"]`)?.value || '');
                 const leftTd = tr.querySelector(`.grade-cell[data-id="${id}_left"]`);
                 const rightTd = tr.querySelector(`.grade-cell[data-id="${id}_right"]`);
-
                 const leftGradeText = this.calcPapsGrade(id, leftValue, st.gender, cls.gradeLevel || '', cls);
                 const rightGradeText = this.calcPapsGrade(id, rightValue, st.gender, cls.gradeLevel || '', cls);
-
                 if (leftTd) {
                     leftTd.textContent = leftGradeText || '';
                     if (leftGradeText) {
@@ -471,8 +364,9 @@ export class PapsManager {
                         rightTd.classList.add(`grade-${rightGradeText}`);
                     }
                 }
-            } else {
-                const value = parseFloat((tr.querySelector(`.rec[data-id="${id}"]`) as HTMLInputElement)?.value || '');
+            }
+            else {
+                const value = parseFloat(tr.querySelector(`.rec[data-id="${id}"]`)?.value || '');
                 const td = tr.querySelector(`.grade-cell[data-id="${id}"]`);
                 const gradeText = this.calcPapsGrade(id, value, st.gender, cls.gradeLevel || '', cls);
                 if (td) {
@@ -483,44 +377,40 @@ export class PapsManager {
                 }
             }
         });
-
         // BMI 표시 업데이트
         const bmiTd = tr.querySelector('.grade-cell[data-id="bodyfat"]');
         if (bmiTd && bmi > 0) {
             bmiTd.textContent = bmi.toFixed(1);
         }
     }
-
     /**
      * PAPS 등급을 계산합니다.
      */
-    public calcPapsGrade(categoryId: string, value: number, gender: string, gradeLevel: string, cls: PapsClass): string {
-        if (value == null || isNaN(value) || !gender || !gradeLevel) return '';
-
+    calcPapsGrade(categoryId, value, gender, gradeLevel, cls) {
+        if (value == null || isNaN(value) || !gender || !gradeLevel)
+            return '';
         let selectedTest = null;
         if (categoryId === 'bodyfat') {
             selectedTest = 'BMI';
-        } else {
+        }
+        else {
             const catKey = Object.keys(PapsManager.PAPS_ITEMS).find(k => PapsManager.PAPS_ITEMS[k].id === categoryId);
             selectedTest = cls.eventSettings?.[categoryId] || (catKey ? PapsManager.PAPS_ITEMS[catKey].options[0] : '');
         }
-
         const criteria = PapsManager.PAPS_CRITERIA[gender]?.[gradeLevel]?.[selectedTest];
-        if (!criteria) return '';
-
+        if (!criteria)
+            return '';
         for (const [min, max, grade] of criteria) {
             if (value >= min && value <= max) {
                 return grade.toString();
             }
         }
-
         return '';
     }
-
     /**
      * PAPS 학생을 추가합니다.
      */
-    public addPapsStudent(cls: PapsClass): void {
+    addPapsStudent(cls) {
         const id = Date.now();
         cls.students.push({
             id,
@@ -530,32 +420,29 @@ export class PapsManager {
             records: {}
         });
     }
-
     /**
      * 선택된 PAPS 학생들을 삭제합니다.
      */
-    public deleteSelectedPapsStudents(cls: PapsClass): void {
+    deleteSelectedPapsStudents(cls) {
         const rows = Array.from(this.$('#paps-record-body').querySelectorAll('tr'));
-        const keep: number[] = [];
-        
+        const keep = [];
         rows.forEach(r => {
-            const checked = (r.querySelector('.paps-row-checkbox') as HTMLInputElement)?.checked;
+            const checked = r.querySelector('.paps-row-checkbox')?.checked;
             const sid = Number(r.dataset.sid);
-            if (!checked) keep.push(sid);
+            if (!checked)
+                keep.push(sid);
         });
-        
         cls.students = (cls.students || []).filter(s => keep.includes(s.id));
         this.buildPapsTable(cls);
         this.saveDataCallback();
     }
-
     /**
      * PAPS 설정을 표시합니다.
      */
-    public showPapsSettings(): void {
+    showPapsSettings() {
         const selectedClass = this.papsData.classes.find(c => c.id === this.papsData.activeClassId);
-        if (!selectedClass) return;
-
+        if (!selectedClass)
+            return;
         if (typeof window.showModal === 'function') {
             window.showModal({
                 title: 'PAPS 설정',
@@ -580,15 +467,15 @@ export class PapsManager {
                             <label>체력 측정 항목 설정</label>
                             <div class="paps-events-config">
                                 ${Object.keys(PapsManager.PAPS_ITEMS).filter(k => k !== "체지방").map(category => {
-                                    const item = PapsManager.PAPS_ITEMS[category];
-                                    const current = selectedClass.eventSettings?.[item.id] || item.options[0];
-                                    return `<div class="paps-event-group">
+                    const item = PapsManager.PAPS_ITEMS[category];
+                    const current = selectedClass.eventSettings?.[item.id] || item.options[0];
+                    return `<div class="paps-event-group">
                                         <label style="min-width:90px; color: var(--ink-muted);">${category}</label>
                                         <select data-paps-category="${item.id}">
                                             ${item.options.map(o => `<option value="${o}" ${o === current ? 'selected' : ''}>${o}</option>`).join('')}
                                         </select>
                                     </div>`;
-                                }).join('')}
+                }).join('')}
                             </div>
                         </div>
                     </div>
@@ -600,61 +487,54 @@ export class PapsManager {
             });
         }
     }
-
     /**
      * PAPS 설정을 저장합니다.
      */
-    public savePapsSettings(): void {
+    savePapsSettings() {
         const selectedClass = this.papsData.classes.find(c => c.id === this.papsData.activeClassId);
-        if (!selectedClass) return;
-
-        const gradeSelect = this.$('#paps-grade-select-modal') as HTMLSelectElement;
+        if (!selectedClass)
+            return;
+        const gradeSelect = this.$('#paps-grade-select-modal');
         const gradeSelectParent = this.$('#paps-grade-select-modal')?.parentElement;
-        const eventSelects = gradeSelectParent?.querySelectorAll('[data-paps-category]') as NodeListOf<HTMLSelectElement>;
-
+        const eventSelects = gradeSelectParent?.querySelectorAll('[data-paps-category]');
         if (gradeSelect) {
             selectedClass.gradeLevel = gradeSelect.value;
         }
-
         if (eventSelects) {
             selectedClass.eventSettings = {};
             eventSelects.forEach(select => {
                 const category = select.getAttribute('data-paps-category');
                 if (category) {
-                    selectedClass.eventSettings![category] = select.value;
+                    selectedClass.eventSettings[category] = select.value;
                 }
             });
         }
-
         this.saveDataCallback();
         this.renderPapsUI();
         if (typeof window.closeModal === 'function') {
             window.closeModal();
         }
     }
-
     /**
      * PAPS 이벤트 리스너를 설정합니다.
      */
-    private setupPapsEventListeners(): void {
+    setupPapsEventListeners() {
         // 엑셀 버튼 이벤트 리스너 (중복 방지)
         const exportBtn = this.$('#exportAllPapsBtn');
         if (exportBtn && !exportBtn.dataset.listenerAdded) {
             exportBtn.addEventListener('click', () => this.exportAllPapsToExcel());
             exportBtn.dataset.listenerAdded = 'true';
         }
-
         const importInput = this.$('#importAllPapsExcel');
         if (importInput && !importInput.dataset.listenerAdded) {
-            importInput.addEventListener('change', (e) => this.handleAllPapsExcelUpload(e as Event));
+            importInput.addEventListener('change', (e) => this.handleAllPapsExcelUpload(e));
             importInput.dataset.listenerAdded = 'true';
         }
     }
-
     /**
      * PAPS 대시보드 이벤트를 설정합니다.
      */
-    private setupPapsDashboardEvents(cls: PapsClass): void {
+    setupPapsDashboardEvents(cls) {
         // 학생 추가 버튼
         const addBtn = this.$('#paps-add-student-btn');
         if (addBtn) {
@@ -664,13 +544,11 @@ export class PapsManager {
                 this.saveDataCallback();
             });
         }
-
         // 선택 삭제 버튼
         const deleteBtn = this.$('#paps-delete-selected-btn');
         if (deleteBtn) {
             deleteBtn.addEventListener('click', () => this.deleteSelectedPapsStudents(cls));
         }
-
         // 그래프 보기 버튼
         const chartsBtn = this.$('#paps-show-charts-btn');
         if (chartsBtn) {
@@ -679,74 +557,98 @@ export class PapsManager {
                 // 차트 렌더링 로직 추가 예정
             });
         }
-
         // 설정 저장 버튼
         const saveSettingsBtn = this.$('#paps-save-settings-btn');
         if (saveSettingsBtn) {
             saveSettingsBtn.addEventListener('click', () => this.savePapsSettings());
         }
     }
-
     /**
      * 사이드바를 정리합니다.
      */
-    private cleanupSidebar(): void {
+    cleanupSidebar() {
         // 기존 이벤트 리스너 제거 및 요소 정리
         const listContainer = this.$('#sidebar-list-container');
         if (listContainer) {
             listContainer.innerHTML = '';
         }
     }
-
     /**
      * 모든 PAPS 데이터를 엑셀로 내보냅니다.
      */
-    public exportAllPapsToExcel(): void {
+    exportAllPapsToExcel() {
         if (!this.papsData || !this.papsData.classes || this.papsData.classes.length === 0) {
             alert('내보낼 PAPS 데이터가 없습니다.');
             return;
         }
-
         // 엑셀 내보내기 로직 구현 예정
         console.log('PAPS 전체 데이터 엑셀 내보내기');
     }
-
     /**
      * PAPS 엑셀 파일을 업로드합니다.
      */
-    public handleAllPapsExcelUpload(event: Event): void {
-        const target = event.target as HTMLInputElement;
+    handleAllPapsExcelUpload(event) {
+        const target = event.target;
         const file = target.files?.[0];
-        if (!file) return;
-
+        if (!file)
+            return;
         // 엑셀 업로드 로직 구현 예정
         console.log('PAPS 엑셀 파일 업로드:', file.name);
     }
-
     /**
      * PAPS 데이터를 가져옵니다.
      */
-    public getPapsData(): PapsData {
+    getPapsData() {
         return this.papsData;
     }
-
     /**
      * PAPS 데이터를 설정합니다.
      */
-    public setPapsData(data: PapsData): void {
+    setPapsData(data) {
         this.papsData = data;
     }
 }
-
-// 전역 함수들을 window 객체에 추가
-declare global {
-    interface Window {
-        papsManager: PapsManager;
-        papsItems: PapsItems;
-        showModal: (options: any) => void;
-        closeModal: () => void;
+// PAPS 평가 항목 데이터
+PapsManager.PAPS_ITEMS = {
+    "심폐지구력": { id: "endurance", options: ["왕복오래달리기", "오래달리기", "스텝검사"] },
+    "유연성": { id: "flexibility", options: ["앉아윗몸앞으로굽히기", "종합유연성검사"] },
+    "근력/근지구력": { id: "strength", options: ["악력", "팔굽혀펴기", "윗몸말아올리기"] },
+    "민첩성": { id: "agility", options: ["50m 달리기", "제자리멀리뛰기", "던지기"] },
+    "체지방": { id: "bodyfat", options: ["BMI"] }
+};
+// PAPS 평가 기준 데이터 (2024년 기준)
+PapsManager.PAPS_CRITERIA = {
+    "남자": {
+        "초4": {
+            "왕복오래달리기": [[96, 9999, 1], [69, 95, 2], [45, 68, 3], [26, 44, 4], [0, 25, 5]],
+            "앉아윗몸앞으로굽히기": [[0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5]],
+            "제자리멀리뛰기": [[170.1, 9999, 1], [149.1, 170, 2], [130.1, 149, 3], [100.1, 130, 4], [0, 100, 5]],
+            "팔굽혀펴기": [[0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5]],
+            "윗몸말아올리기": [[80, 9999, 1], [40, 79, 2], [22, 39, 3], [7, 21, 4], [0, 6, 5]],
+            "악력": [[31, 9999, 1], [18.5, 30.9, 2], [15, 18.4, 3], [11.5, 14.9, 4], [0, 11.4, 5]],
+            "50m 달리기": [[0, 8.8, 1], [8.81, 9.7, 2], [9.71, 10.5, 3], [10.51, 13.2, 4], [13.21, 9999, 5]],
+            "오래달리기걷기": [[0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5]],
+            "스텝검사": [[76, 9999, 1], [62, 75.9, 2], [52, 61.9, 3], [47, 51.9, 4], [0, 46.9, 5]],
+            "던지기": [[25, 9999, 1], [22, 24.9, 2], [19, 21.9, 3], [16, 18.9, 4], [0, 15.9, 5]]
+        },
+        "초5": {
+            "왕복오래달리기": [[100, 9999, 1], [73, 99, 2], [50, 72, 3], [29, 49, 4], [0, 28, 5]],
+            "앉아윗몸앞으로굽히기": [[8, 9999, 1], [5, 7.9, 2], [1, 4.9, 3], [-4, 0.9, 4], [-999, -4.1, 5]],
+            "제자리멀리뛰기": [[180.1, 9999, 1], [159.1, 180, 2], [141.1, 159, 3], [111.1, 141, 4], [0, 111, 5]],
+            "팔굽혀펴기": [[0, 0, 1], [0, 0, 2], [0, 0, 3], [0, 0, 4], [0, 0, 5]],
+            "윗몸말아올리기": [[80, 9999, 1], [40, 79, 2], [22, 39, 3], [10, 21, 4], [0, 9, 5]],
+            "악력": [[31, 9999, 1], [23, 30.9, 2], [17, 22.9, 3], [12.5, 16.9, 4], [0, 12.4, 5]],
+            "50m 달리기": [[0, 8.5, 1], [8.51, 9.4, 2], [9.41, 10.2, 3], [10.21, 13.2, 4], [13.21, 9999, 5]],
+            "오래달리기걷기": [[0, 281, 1], [282, 324, 2], [325, 409, 3], [410, 479, 4], [480, 9999, 5]],
+            "스텝검사": [[76, 9999, 1], [62, 75.9, 2], [52, 61.9, 3], [47, 51.9, 4], [0, 46.9, 5]],
+            "던지기": [[28, 9999, 1], [25, 27.9, 2], [22, 24.9, 3], [19, 21.9, 4], [0, 18.9, 5]]
+        }
+        // 더 많은 학년 데이터는 필요에 따라 추가
+    },
+    "여자": {
+    // 여자 데이터도 필요에 따라 추가
     }
-}
-
+};
 // 전역 변수 설정
 window.papsItems = PapsManager.PAPS_ITEMS;
+//# sourceMappingURL=papsManager.js.map

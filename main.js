@@ -104,6 +104,9 @@
     }
     let tournamentData = { tournaments: [], activeTournamentId: null };
     
+    // PAPS 데이터
+    let papsData = { classes: [], activeClassId: null };
+    
     // TournamentManager 즉시 초기화 (DOM 로딩과 독립적으로)
     console.log('TournamentManager 즉시 초기화 시작');
     try {
@@ -344,10 +347,24 @@
     // 데이터 동기화 (Firebase <-> 로컬) - DataManager 사용
     // ========================================
     async function saveDataToFirestore(retryCount = 0) {
+        console.log('saveDataToFirestore 호출됨, dataManager:', dataManager);
         if (!dataManager) {
             console.error('DataManager가 초기화되지 않음');
-          return;
-      }
+            // DataManager가 없어도 로컬 스토리지에 직접 저장
+            try {
+                localStorage.setItem('leagueData', JSON.stringify(leagueData));
+                localStorage.setItem('tournamentData', JSON.stringify(tournamentData));
+                localStorage.setItem('papsData', JSON.stringify(papsData));
+                localStorage.setItem('progressData', JSON.stringify({
+                    classes: progressClasses,
+                    selectedClassId: progressSelectedClassId
+                }));
+                console.log('로컬 스토리지 직접 저장 완료');
+            } catch (error) {
+                console.error('로컬 스토리지 저장 실패:', error);
+            }
+            return;
+        }
       
         // 현재 사용자 설정
         dataManager.setCurrentUser(currentUser);
@@ -357,12 +374,15 @@
             leagues: leagueData,
             tournaments: tournamentData,
             paps: papsData,
-                  progress: {
+            progress: {
                 classes: progressClasses,
-                      selectedClassId: progressSelectedClassId
-                  },
-                  lastUpdated: Date.now()
-              };
+                selectedClassId: progressSelectedClassId
+            },
+            lastUpdated: Date.now()
+        };
+
+        console.log('저장할 데이터:', appData);
+        console.log('papsData 상세:', papsData);
 
         // DataManager를 통해 저장
         await dataManager.saveDataToFirestore(appData, { retryCount });
@@ -763,11 +783,7 @@
             }
         } else if (appMode === 'paps') {
             console.log('PAPS UI 렌더링 시작');
-            if (papsManager) {
-                papsManager.renderPapsUI();
-            } else {
-                console.error('PapsManager가 초기화되지 않음');
-            }
+            renderPapsUI();
         } else if (appMode === 'progress') {
             console.log('진도표 UI 렌더링 시작');
             renderProgressUI();
@@ -2784,7 +2800,7 @@
     // ========================================
     // PAPS UI 및 로직
     // ========================================
-    window.window.papsItems = {
+    window.papsItems = {
         "심폐지구력": { id: "endurance", options: ["왕복오래달리기", "오래달리기", "스텝검사"] },
         "유연성": { id: "flexibility", options: ["앉아윗몸앞으로굽히기", "종합유연성검사"] },
         "근력/근지구력": { id: "strength", options: ["악력", "팔굽혀펴기", "윗몸말아올리기"] },
@@ -2952,9 +2968,21 @@
     function selectPapsClass(id) { papsData.activeClassId = id; saveDataToFirestore(); renderPapsUI(); }
 
     function renderPapsDashboard(cls) {
+        // eventSettings가 없으면 빈 객체로 초기화
+        if (!cls.eventSettings) {
+            cls.eventSettings = {};
+        }
+        
         // 설정이 완료되었는지 확인 (학년과 이벤트 설정이 모두 있는지)
         const hasSettings = cls.gradeLevel && cls.eventSettings && 
                            Object.keys(cls.eventSettings).length > 0;
+        
+        console.log('PAPS 대시보드 렌더링:', {
+            className: cls.name,
+            gradeLevel: cls.gradeLevel,
+            eventSettings: cls.eventSettings,
+            hasSettings: hasSettings
+        });
         
         let settingsCardHtml = '';
         if (!hasSettings) {
@@ -2965,7 +2993,6 @@
                     <div class="paps-toolbar" style="justify-content: space-between;">
                         <h3 style="margin: 0;">PAPS 설정</h3>
                         <div style="display: flex; gap: 8px;">
-                            <button class="btn primary" id="paps-save-settings-btn">설정 저장</button>
                             <button class="btn" id="paps-download-template-btn">학생 명렬표 양식</button>
                             <input type="file" id="paps-student-upload" class="hidden" accept=".xlsx,.xls,.csv"/>
                             <button class="btn primary" id="paps-load-list-btn">명렬표 불러오기</button>
@@ -2984,7 +3011,7 @@
                         </div>
                         ${Object.keys(window.papsItems).filter(k=>k!=="체지방").map(category => {
                             const item = window.papsItems[category];
-                            const current = cls.eventSettings[item.id] || item.options[0];
+                            const current = (cls.eventSettings && cls.eventSettings[item.id]) || item.options[0];
                             return `<div class="paps-event-group"><label style="min-width:90px; color: var(--ink-muted);">${category}</label><select data-paps-category="${item.id}">${item.options.map(o => `<option value="${o}" ${o===current?'selected':''}>${o}</option>`).join('')}</select></div>`;
                         }).join('')}
                     </div>
@@ -2992,6 +3019,7 @@
             </div>`;
         }
         
+        // 설정 카드와 학생 데이터 입력 테이블을 모두 표시
         $('#content-wrapper').innerHTML = `
             <div class="paps-toolbar">
                 <h2 style="margin:0;">${cls.name} PAPS 설정</h2>
@@ -3043,27 +3071,22 @@
             // 설정 카드가 있을 때만 설정 관련 이벤트 리스너 추가
             $('#paps-grade-select').value = cls.gradeLevel || '';
             $$('#content-wrapper select[data-paps-category]').forEach(sel => sel.addEventListener('change', e => {
+                cls.eventSettings = cls.eventSettings || {};
                 cls.eventSettings[e.target.dataset.papsCategory] = e.target.value;
                 saveDataToFirestore();
-                buildPapsTable(cls);
             }));
             $('#paps-grade-select').addEventListener('change', e => { 
                 cls.gradeLevel = e.target.value; 
                 saveDataToFirestore(); 
-                buildPapsTable(cls);
                 // 좌측 사이드바의 반 카드도 실시간으로 업데이트
                 renderPapsClassList();
             });
             $('#paps-download-template-btn').addEventListener('click', papsDownloadTemplate);
             $('#paps-load-list-btn').addEventListener('click', () => $('#paps-student-upload').click());
             $('#paps-student-upload').addEventListener('change', e => handlePapsStudentUpload(e, cls));
-            // 설정 저장 버튼 이벤트 리스너
-            const saveSettingsBtn = $('#paps-save-settings-btn');
-            if (saveSettingsBtn) {
-                saveSettingsBtn.addEventListener('click', savePapsSettings);
-            }
         }
         
+        // 학생 데이터 관련 이벤트 리스너는 항상 추가
         $('#paps-add-student-btn').addEventListener('click', () => { addPapsStudent(cls); buildPapsTable(cls); saveDataToFirestore(); });
         $('#paps-delete-selected-btn').addEventListener('click', () => deleteSelectedPapsStudents(cls));
         $('#paps-show-charts-btn').addEventListener('click', () => { 
@@ -3235,7 +3258,7 @@
         const avg = grades.reduce((a,b)=>a+b,0)/grades.length; return Math.round(avg)+"등급";
     }
 
-    function addPapsStudent(cls){ const id = Date.now(); cls.students.push({ id, number: (cls.students?.length||0)+1, name: '', gender: '남자', records: {} }); }
+    function addPapsStudent(cls){ const id = Date.now(); cls.students.push({ id, number: (cls.students?.length||0)+1, name: '', gender: '남자', records: {} }); saveDataToFirestore(); }
     function deleteSelectedPapsStudents(cls){ const rows = Array.from($('#paps-record-body').querySelectorAll('tr')); const keep = []; rows.forEach(r => { const checked = r.querySelector('.paps-row-checkbox')?.checked; const sid = Number(r.dataset.sid); if(!checked) keep.push(sid); }); cls.students = (cls.students||[]).filter(s=>keep.includes(s.id)); buildPapsTable(cls); saveDataToFirestore(); }
 
     function papsDownloadTemplate(){ const wb = XLSX.utils.book_new(); const ws = XLSX.utils.aoa_to_sheet([["번호","이름","성별"],[1,'김체육','남자'],[2,'박건강','여자']]); ws['!cols']=[{wch:8},{wch:14},{wch:8}]; XLSX.utils.book_append_sheet(wb, ws, '학생 명렬표'); XLSX.writeFile(wb, 'PAPS_학생명렬표_양식.xlsx'); }
@@ -5335,7 +5358,7 @@
         try {
             console.log('PapsManager 초기화 시작');
             papsManager = new PapsManager(
-                { classes: [], activeClassId: null },
+                papsData,
                 $,
                 saveDataToFirestore
             );
