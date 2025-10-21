@@ -72,8 +72,15 @@ export class DataManager {
             return;
         }
         if (!this.firebase || !this.firebase.db) {
-            this.logError('Firebase가 초기화되지 않음, 저장 건너뜀');
-            return;
+            // window.firebase에서 Firebase 객체 가져오기 시도
+            if (window.firebase) {
+                this.firebase = window.firebase;
+                this.log('window.firebase에서 Firebase 객체 복원됨');
+            }
+            else {
+                this.logError('Firebase가 초기화되지 않음, 저장 건너뜀');
+                return;
+            }
         }
         // 디바운스 타이머 정리
         if (this.dbDebounceTimer) {
@@ -117,9 +124,16 @@ export class DataManager {
         this.log('retryCount:', retryCount);
         this.showLoader(true);
         try {
-            // Firebase 연결 상태 확인
+            // Firebase 연결 상태 확인 및 초기화 시도
             if (!this.firebase || !this.firebase.db) {
-                throw new Error('Firebase가 초기화되지 않았습니다.');
+                // window.firebase에서 Firebase 객체 가져오기 시도
+                if (window.firebase) {
+                    this.firebase = window.firebase;
+                    this.log('window.firebase에서 Firebase 객체 복원됨');
+                }
+                else {
+                    throw new Error('Firebase가 초기화되지 않았습니다.');
+                }
             }
             this.log('Firebase 연결 상태 확인 완료');
             const userDocRef = this.firebase.doc(this.firebase.db, "users", userId);

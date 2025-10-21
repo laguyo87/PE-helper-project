@@ -4933,32 +4933,31 @@
             console.error('앱 초기화 중 오류 발생:', error);
         }
         
-        // Firebase 초기화 대기 (백그라운드에서)
+        // Firebase 초기화 대기 (더 안정적인 방법)
         let firebaseCheckCount = 0;
-        const maxFirebaseChecks = 50; // 5초 대기 (100ms * 50)
+        const maxFirebaseChecks = 100; // 10초 대기 (100ms * 100)
         
-        const checkFirebase = setInterval(() => {
+        const checkFirebase = () => {
             firebaseCheckCount++;
             
             if (window.firebase) {
-                clearInterval(checkFirebase);
                 console.log('Firebase 초기화 완료, 인증 설정');
                 setupFirebaseAuth();
             } else if (firebaseCheckCount >= maxFirebaseChecks) {
-                clearInterval(checkFirebase);
                 console.log('Firebase 초기화 시간 초과, 로컬 모드로 계속');
                 setupLocalMode();
             } else {
                 console.log(`Firebase 초기화 대기 중... (${firebaseCheckCount}/${maxFirebaseChecks})`);
+                setTimeout(checkFirebase, 100);
             }
-        }, 100);
+        };
+        
+        // Firebase 체크 시작
+        checkFirebase();
         
         // Firebase 이벤트 리스너 추가
         window.addEventListener('firebaseReady', async () => {
             console.log('Firebase Ready 이벤트 수신');
-            if (checkFirebase) {
-                clearInterval(checkFirebase);
-            }
             
             // AuthManager 초기화 (Firebase 준비 후)
             if (!authManagerInitialized) {
@@ -4980,9 +4979,6 @@
         
         window.addEventListener('firebaseError', (event) => {
             console.error('Firebase Error 이벤트 수신:', event.detail);
-            if (checkFirebase) {
-                clearInterval(checkFirebase);
-            }
             console.log('Firebase 초기화 실패, 로컬 모드로 계속');
             setupLocalMode();
         });
