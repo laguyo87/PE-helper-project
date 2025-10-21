@@ -328,7 +328,7 @@ export class AuthManager {
     event.preventDefault();
     
     if (!this.firebase) {
-      this.showAlert('Firebase가 초기화되지 않아 로그인을 할 수 없습니다. 로컬 모드로 사용해주세요.');
+      this.showAlert('현재 로컬 모드로 작동 중입니다. 모든 기능을 로컬에서 사용할 수 있습니다.');
       return;
     }
 
