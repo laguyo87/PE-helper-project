@@ -28,13 +28,13 @@
     } from './js/modules/leagueManager.js';
     
     import { 
-      PapsManager
-    } from './js/modules/papsManager.js';
-    
-    import { 
       initializeTournamentManager,
       TournamentManager
     } from './js/modules/tournamentManager.js';
+    
+    import { 
+      PapsManager
+    } from './js/modules/papsManager.js';
     
     // ========================================
     // 앱 상태 및 전역 변수
@@ -115,10 +115,8 @@
         tournamentManager = null;
         tournamentManagerInitialized = false;
     }
-    let papsData = { classes: [], activeClassId: null };
-    
-    // PapsManager는 $ 함수 정의 후에 초기화됩니다
-    
+    let papsManager = null;
+    let papsManagerInitialized = false;
     let progressClasses = [];
     let progressSelectedClassId = '';
     let currentUser = null;
@@ -142,20 +140,6 @@
             return [];
         }
     };
-    
-    // PapsManager 초기화 ($ 함수 정의 후)
-    console.log('PapsManager 초기화 시작');
-    let papsManager;
-    try {
-        papsManager = new PapsManager(papsData, $, saveDataToFirestore, cleanupSidebar);
-        // 전역 접근을 위해 window 객체에 할당
-        window.papsManager = papsManager;
-        console.log('PapsManager 초기화 완료');
-    } catch (error) {
-        console.error('PapsManager 초기화 실패:', error);
-        papsManager = null;
-        window.papsManager = null;
-    }
     
     // 브라우저 호환성 체크
     function checkBrowserCompatibility() {
@@ -779,7 +763,11 @@
             }
         } else if (appMode === 'paps') {
             console.log('PAPS UI 렌더링 시작');
-            renderPapsUI();
+            if (papsManager) {
+                papsManager.renderPapsUI();
+            } else {
+                console.error('PapsManager가 초기화되지 않음');
+            }
         } else if (appMode === 'progress') {
             console.log('진도표 UI 렌더링 시작');
             renderProgressUI();
@@ -2855,10 +2843,43 @@
     };
 
     function renderPapsUI() {
-        if (window.papsManager) {
-            window.papsManager.renderPapsUI();
+        // 기존 요소들 정리
+        cleanupSidebar();
+        
+        $('#sidebarTitle').textContent = 'PAPS 반 목록';
+        const formHtml = `
+            <div class="sidebar-form-group">
+                <input id="papsClassName" type="text" placeholder="새로운 반 이름">
+                <button onclick="createPapsClass()" class="btn primary" data-tooltip="새로운 반을 추가합니다.">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+            </div>`;
+        $('#sidebar-form-container').innerHTML = formHtml;
+        renderPapsClassList();
+
+        const selected = papsData.classes.find(c => c.id === papsData.activeClassId);
+        if (!selected) {
+            $('#content-wrapper').innerHTML = `
+                <div class="placeholder-view"><div class="placeholder-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 8h10"/><path d="M7 12h6"/></svg>
+                    <h3>PAPS 반을 선택하거나 추가하세요</h3>
+                    <p>왼쪽에서 반을 선택하거나 생성해주세요.</p>
+                </div></div>`;
         } else {
-            console.error('PapsManager가 초기화되지 않음');
+            renderPapsDashboard(selected);
+        }
+        
+        // PAPS 엑셀 버튼 이벤트 리스너 (중복 방지)
+        const exportBtn = $('#exportAllPapsBtn');
+        if (exportBtn && !exportBtn.dataset.listenerAdded) {
+            exportBtn.addEventListener('click', exportAllPapsToExcel);
+            exportBtn.dataset.listenerAdded = 'true';
+        }
+        
+        const importInput = $('#importAllPapsExcel');
+        if (importInput && !importInput.dataset.listenerAdded) {
+            importInput.addEventListener('change', handleAllPapsExcelUpload);
+            importInput.dataset.listenerAdded = 'true';
         }
     }
 
@@ -2878,11 +2899,15 @@
     }
 
     function createPapsClass() {
-        if (papsManager) {
-            papsManager.createPapsClass();
-        } else {
-            console.error('PapsManager가 초기화되지 않음');
-        }
+        const input = $('#papsClassName');
+        const name = input.value.trim();
+        if (!name) return;
+        const newClass = { id: Date.now(), name, gradeLevel: '', eventSettings: {}, students: [] };
+        papsData.classes.push(newClass);
+        papsData.activeClassId = newClass.id;
+        input.value = '';
+        saveDataToFirestore();
+        renderPapsUI();
     }
 
     function editPapsClass(id) {
@@ -2924,44 +2949,263 @@
         ]});
     }
 
-    function selectPapsClass(id) { 
-        if (papsManager) {
-            papsManager.selectPapsClass(id);
-        } else {
-            console.error('PapsManager가 초기화되지 않음');
-        }
-    }
+    function selectPapsClass(id) { papsData.activeClassId = id; saveDataToFirestore(); renderPapsUI(); }
 
     function renderPapsDashboard(cls) {
-        if (papsManager) {
-            papsManager.renderPapsDashboard(cls);
-        } else {
-            console.error('PapsManager가 초기화되지 않음');
+        // 설정이 완료되었는지 확인 (학년과 이벤트 설정이 모두 있는지)
+        const hasSettings = cls.gradeLevel && cls.eventSettings && 
+                           Object.keys(cls.eventSettings).length > 0;
+        
+        let settingsCardHtml = '';
+        if (!hasSettings) {
+            // 설정이 완료되지 않은 경우에만 설정 카드 표시
+            settingsCardHtml = `
+            <div class="card" style="margin-bottom: 2rem;">
+                <div class="card-header">
+                    <div class="paps-toolbar" style="justify-content: space-between;">
+                        <h3 style="margin: 0;">PAPS 설정</h3>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn primary" id="paps-save-settings-btn">설정 저장</button>
+                            <button class="btn" id="paps-download-template-btn">학생 명렬표 양식</button>
+                            <input type="file" id="paps-student-upload" class="hidden" accept=".xlsx,.xls,.csv"/>
+                            <button class="btn primary" id="paps-load-list-btn">명렬표 불러오기</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="paps-grid">
+                        <div class="paps-event-group"><label style="min-width:90px; color: var(--ink-muted);">학년 설정</label>
+                            <select id="paps-grade-select">
+                                <option value="">학년 선택</option>
+                                <option value="초4">초4</option><option value="초5">초5</option><option value="초6">초6</option>
+                                <option value="중1">중1</option><option value="중2">중2</option><option value="중3">중3</option>
+                                <option value="고1">고1</option><option value="고2">고2</option><option value="고3">고3</option>
+                            </select>
+                        </div>
+                        ${Object.keys(window.papsItems).filter(k=>k!=="체지방").map(category => {
+                            const item = window.papsItems[category];
+                            const current = cls.eventSettings[item.id] || item.options[0];
+                            return `<div class="paps-event-group"><label style="min-width:90px; color: var(--ink-muted);">${category}</label><select data-paps-category="${item.id}">${item.options.map(o => `<option value="${o}" ${o===current?'selected':''}>${o}</option>`).join('')}</select></div>`;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>`;
         }
+        
+        $('#content-wrapper').innerHTML = `
+            <div class="paps-toolbar">
+                <h2 style="margin:0;">${cls.name} PAPS 설정</h2>
+                <div class="row">
+                    <span class="paps-chip">학년: ${cls.gradeLevel || '미설정'}</span>
+                </div>
+            </div>
+            ${settingsCardHtml}
+            <section class="section-box">
+                <div class="paps-toolbar">
+                    <h2 style="margin:0;">기록 입력</h2>
+                    <div class="row">
+                        <button class="btn" id="paps-add-student-btn">학생 추가</button>
+                        
+                        <button class="btn danger" id="paps-delete-selected-btn">선택 삭제</button>
+                    </div>
+                </div>
+                <div class="paps-table-wrap">
+                    <table id="paps-record-table" class="styled-table">
+                        <thead id="paps-record-head"></thead>
+                        <tbody id="paps-record-body"></tbody>
+                    </table>
+                </div>
+                <div class="paps-toolbar" style="margin-top: 16px; justify-content: center;">
+                    <button class="btn primary" id="paps-show-charts-btn">그래프로 보기</button>
+                </div>
+            </section>
+            <section class="section-box" id="paps-chart-section" style="display:none;">
+                <div class="paps-toolbar" style="margin-bottom: 0;">
+                    <h2 style="margin:0;">등급 빈도 그래프</h2>
+                    <div class="row">
+                        <div class="paps-legend">
+                            <span class="paps-chip grade-1">1등급</span>
+                            <span class="paps-chip grade-2">2등급</span>
+                            <span class="paps-chip grade-3">3등급</span>
+                            <span class="paps-chip grade-4">4등급</span>
+                            <span class="paps-chip grade-5">5등급</span>
+                            <span class="paps-chip grade-정상">BMI 정상</span>
+                        </div>
+                        <button class="btn" id="paps-hide-charts-btn">그래프 닫기</button>
+                    </div>
+                </div>
+                <div id="paps-charts" class="paps-chart-grid"></div>
+            </section>
+        `;
+
+        // Wire up selectors and actions
+        if (!hasSettings) {
+            // 설정 카드가 있을 때만 설정 관련 이벤트 리스너 추가
+            $('#paps-grade-select').value = cls.gradeLevel || '';
+            $$('#content-wrapper select[data-paps-category]').forEach(sel => sel.addEventListener('change', e => {
+                cls.eventSettings[e.target.dataset.papsCategory] = e.target.value;
+                saveDataToFirestore();
+                buildPapsTable(cls);
+            }));
+            $('#paps-grade-select').addEventListener('change', e => { 
+                cls.gradeLevel = e.target.value; 
+                saveDataToFirestore(); 
+                buildPapsTable(cls);
+                // 좌측 사이드바의 반 카드도 실시간으로 업데이트
+                renderPapsClassList();
+            });
+            $('#paps-download-template-btn').addEventListener('click', papsDownloadTemplate);
+            $('#paps-load-list-btn').addEventListener('click', () => $('#paps-student-upload').click());
+            $('#paps-student-upload').addEventListener('change', e => handlePapsStudentUpload(e, cls));
+            // 설정 저장 버튼 이벤트 리스너
+            const saveSettingsBtn = $('#paps-save-settings-btn');
+            if (saveSettingsBtn) {
+                saveSettingsBtn.addEventListener('click', savePapsSettings);
+            }
+        }
+        
+        $('#paps-add-student-btn').addEventListener('click', () => { addPapsStudent(cls); buildPapsTable(cls); saveDataToFirestore(); });
+        $('#paps-delete-selected-btn').addEventListener('click', () => deleteSelectedPapsStudents(cls));
+        $('#paps-show-charts-btn').addEventListener('click', () => { 
+            console.log('그래프로 보기 버튼 클릭됨');
+            console.log('현재 클래스:', cls);
+            console.log('테이블 행 수:', $('#paps-record-body').querySelectorAll('tr').length);
+            
+            try {
+                renderPapsCharts(cls); 
+                $('#paps-chart-section').style.display = 'block';
+                console.log('차트 섹션 표시됨');
+            } catch (error) {
+                console.error('차트 렌더링 중 오류 발생:', error);
+                alert('차트를 표시하는 중 오류가 발생했습니다: ' + error.message);
+            }
+        });
+        $('#paps-hide-charts-btn').addEventListener('click', () => { 
+            $('#paps-chart-section').style.display = 'none'; 
+        });
+
+        buildPapsTable(cls);
     }
 
     function buildPapsTable(cls) {
-        if (papsManager) {
-            papsManager.buildPapsTable(cls);
-        } else {
-            console.error('PapsManager가 초기화되지 않음');
-        }
+        const head = $('#paps-record-head');
+        const body = $('#paps-record-body');
+        // Header build
+        let header1 = '<tr><th rowspan="2"><input type="checkbox" id="paps-select-all"></th><th rowspan="2">번호</th><th rowspan="2">이름</th><th rowspan="2">성별</th>'; let header2 = '<tr>';
+        Object.keys(window.papsItems).filter(k=>k!=="체지방").forEach(category => {
+            const item = window.papsItems[category]; 
+            let eventName = cls.eventSettings[item.id] || item.options[0];
+            // 성별에 따라 팔굽혀펴기 종목명 변경
+            if (eventName === '팔굽혀펴기') {
+                eventName = '팔굽혀펴기/무릎대고 팔굽혀펴기';
+            }
+            // 악력 종목은 왼손/오른손으로 분리
+            if (eventName === '악력') {
+                header1 += `<th colspan="4">${eventName}</th>`; 
+                header2 += '<th>왼손(kg)</th><th>왼손등급</th><th>오른손(kg)</th><th>오른손등급</th>';
+            } else {
+                header1 += `<th colspan="2">${eventName}</th>`; 
+                header2 += '<th>기록</th><th>등급</th>';
+            }
+        });
+        header1 += '<th colspan="4">체지방</th>'; header2 += '<th>신장(cm)</th><th>체중(kg)</th><th>BMI</th><th>등급</th>';
+        header1 += '<th rowspan="2">종합 등급</th></tr>'; header2 += '</tr>';
+        head.innerHTML = header1 + header2;
+        $('#paps-select-all').addEventListener('change', function(){ body.querySelectorAll('.paps-row-checkbox').forEach(cb => cb.checked = this.checked); });
+
+        // Body
+        body.innerHTML = '';
+        const students = (cls.students||[]).slice().sort((a,b)=> (a.number||0)-(b.number||0));
+        students.forEach(st => {
+            const tr = document.createElement('tr'); tr.dataset.sid = st.id;
+            tr.innerHTML = `
+                <td><input type="checkbox" class="paps-row-checkbox"></td>
+                <td><input type="number" class="paps-input number" value="${st.number||''}"></td>
+                <td><input type="text" class="paps-input name" value="${st.name||''}"></td>
+                <td><select class="paps-input gender"><option value="남자" ${st.gender==='남자'?'selected':''}>남</option><option value="여자" ${st.gender==='여자'?'selected':''}>여</option></select></td>
+                ${Object.keys(window.papsItems).filter(k=>k!=="체지방").map(k => {
+                    const id = window.papsItems[k].id; 
+                    const eventName = cls.eventSettings[id] || window.papsItems[k].options[0];
+                    
+                    // 악력 종목은 왼손/오른손으로 분리
+                    if (eventName === '악력') {
+                        const leftVal = (st.records||{})[`${id}_left`]||'';
+                        const rightVal = (st.records||{})[`${id}_right`]||'';
+                        return `<td><input type=\"number\" step=\"any\" class=\"paps-input rec\" data-id=\"${id}_left\" value=\"${leftVal}\"></td><td class=\"grade-cell\" data-id=\"${id}_left\"></td><td><input type=\"number\" step=\"any\" class=\"paps-input rec\" data-id=\"${id}_right\" value=\"${rightVal}\"></td><td class=\"grade-cell\" data-id=\"${id}_right\"></td>`;
+                    } else {
+                        const val = (st.records||{})[id]||''; 
+                        return `<td><input type=\"number\" step=\"any\" class=\"paps-input rec\" data-id=\"${id}\" value=\"${val}\"></td><td class=\"grade-cell\" data-id=\"${id}\"></td>`;
+                    }
+                }).join('')}
+                <td><input type="number" step="any" class="paps-input height" value="${(st.records||{}).height||''}"></td>
+                <td><input type="number" step="any" class="paps-input weight" value="${(st.records||{}).weight||''}"></td>
+                <td class="bmi-cell"></td>
+                <td class="grade-cell" data-id="bodyfat"></td>
+                <td class="overall-grade-cell"></td>
+            `;
+            body.appendChild(tr);
+            updatePapsRowGrades(tr, cls);
+        });
+
+        body.addEventListener('input', e => onPapsInput(e, cls));
+        body.addEventListener('keydown', e => {
+            if (e.key !== 'Enter' || !e.target.matches('input')) return; e.preventDefault();
+            const cell = e.target.closest('td'); const row = e.target.closest('tr'); if(!cell||!row) return; const idx = Array.from(row.children).indexOf(cell); const next = row.nextElementSibling; if(next){ const ncell = next.children[idx]; const ninp = ncell?.querySelector('input'); if(ninp){ ninp.focus(); ninp.select(); }}
+        });
     }
 
     function onPapsInput(e, cls) {
-        if (papsManager) {
-            papsManager.onPapsInput(e, cls);
-        } else {
-            console.error('PapsManager가 초기화되지 않음');
+        const tr = e.target.closest('tr'); if (!tr) return; const sid = Number(tr.dataset.sid); const st = cls.students.find(s=>s.id===sid); if(!st){ return; }
+        st.records = st.records || {};
+        if (e.target.classList.contains('rec')) { 
+            st.records[e.target.dataset.id] = e.target.value; 
         }
+        else if (e.target.classList.contains('height')) { st.records.height = e.target.value; }
+        else if (e.target.classList.contains('weight')) { st.records.weight = e.target.value; }
+        else if (e.target.classList.contains('name')) { st.name = e.target.value; }
+        else if (e.target.classList.contains('number')) { st.number = e.target.value; }
+        else if (e.target.classList.contains('gender')) { st.gender = e.target.value; }
+        updatePapsRowGrades(tr, cls); saveDataToFirestore();
     }
 
     function updatePapsRowGrades(tr, cls) {
-        if (papsManager) {
-            papsManager.updatePapsRowGrades(tr, cls);
-        } else {
-            console.error('PapsManager가 초기화되지 않음');
-        }
+        // BMI
+        const h = parseFloat(tr.querySelector('.height')?.value||''); const w = parseFloat(tr.querySelector('.weight')?.value||'');
+        const bmiCell = tr.querySelector('.bmi-cell'); let bmi = null; if (h>0 && w>0){ const m = h/100; bmi = w/(m*m); bmiCell.textContent = bmi.toFixed(2); } else { bmiCell.textContent = ''; }
+        // Each category
+        const studentGender = tr.querySelector('.gender')?.value || '남자'; const gradeLevel = cls.gradeLevel || '';
+        tr.querySelectorAll('.grade-cell').forEach(td => { td.textContent=''; td.className='grade-cell'; });
+        Object.keys(window.papsItems).forEach(k => {
+            const id = window.papsItems[k].id; 
+            const eventName = cls.eventSettings[id] || window.papsItems[k].options[0];
+            
+            if (id === 'bodyfat') { 
+                const value = bmi;
+                const td = tr.querySelector(`.grade-cell[data-id="${id}"]`);
+                const gradeText = calcPapsGrade(id, value, studentGender, gradeLevel, cls);
+                if (td) { td.textContent = gradeText||''; if(gradeText){ td.classList.add(`grade-${gradeText}`); } }
+            } else if (eventName === '악력') {
+                // 악력은 왼손과 오른손 각각 처리
+                const leftValue = parseFloat(tr.querySelector(`.rec[data-id="${id}_left"]`)?.value||'');
+                const rightValue = parseFloat(tr.querySelector(`.rec[data-id="${id}_right"]`)?.value||'');
+                
+                const leftTd = tr.querySelector(`.grade-cell[data-id="${id}_left"]`);
+                const rightTd = tr.querySelector(`.grade-cell[data-id="${id}_right"]`);
+                
+                const leftGradeText = calcPapsGrade(id, leftValue, studentGender, gradeLevel, cls);
+                const rightGradeText = calcPapsGrade(id, rightValue, studentGender, gradeLevel, cls);
+                
+                if (leftTd) { leftTd.textContent = leftGradeText||''; if(leftGradeText){ leftTd.classList.add(`grade-${leftGradeText}`); } }
+                if (rightTd) { rightTd.textContent = rightGradeText||''; if(rightGradeText){ rightTd.classList.add(`grade-${rightGradeText}`); } }
+            } else {
+                const value = parseFloat(tr.querySelector(`.rec[data-id="${id}"]`)?.value||'');
+                const td = tr.querySelector(`.grade-cell[data-id="${id}"]`);
+                const gradeText = calcPapsGrade(id, value, studentGender, gradeLevel, cls);
+                if (td) { td.textContent = gradeText||''; if(gradeText){ td.classList.add(`grade-${gradeText}`); } }
+            }
+        });
+        // Overall
+        const overall = tr.querySelector('.overall-grade-cell'); overall.textContent = calcOverallGrade(tr) || '';
     }
 
     function calcPapsGrade(categoryId, value, gender, gradeLevel, cls){
@@ -5085,6 +5329,23 @@
                     console.warn('ServiceWorker not supported:', e);
                 }
             });
+        }
+        
+        // PAPS 매니저 초기화
+        try {
+            console.log('PapsManager 초기화 시작');
+            papsManager = new PapsManager(
+                { classes: [], activeClassId: null },
+                $,
+                saveDataToFirestore
+            );
+            papsManagerInitialized = true;
+            window.papsManager = papsManager;
+            console.log('PapsManager 초기화 완료');
+        } catch (error) {
+            console.error('PapsManager 초기화 실패:', error);
+            papsManager = null;
+            papsManagerInitialized = false;
         }
         
         // 초기 화면을 수업 진도 관리 모드로 설정
