@@ -648,6 +648,13 @@
             setupGlobalAuthFunctions();
             authManagerInitialized = true;
         }
+        
+        // AuthManager에 현재 사용자 정보 설정
+        if (authManager && currentUser) {
+            authManager.currentUser = currentUser;
+            console.log('AuthManager에 사용자 정보 설정:', currentUser.email);
+        }
+        
         authManager.updateLoginStatus();
         
         // DataManager 초기화 확인
@@ -5439,6 +5446,12 @@
                 console.log('사용자 이메일 표시:', user.displayName || user.email);
                 console.log('데이터 로딩 시작, UID:', user.uid);
                 
+                // AuthManager에 사용자 정보 설정
+                if (authManager) {
+                    authManager.currentUser = user;
+                    console.log('AuthManager에 로그인 사용자 정보 설정:', user.email);
+                }
+                
                 // 로그인 상태 UI 즉시 업데이트
                 authManager.updateLoginStatus();
                 
@@ -5447,6 +5460,12 @@
             } else {
                 console.log('사용자 로그아웃 처리 시작');
                 currentUser = null;
+                
+                // AuthManager에서 사용자 정보 제거
+                if (authManager) {
+                    authManager.currentUser = null;
+                    console.log('AuthManager에서 사용자 정보 제거');
+                }
                 
                 // 로그인 상태 UI 즉시 업데이트
                 authManager.updateLoginStatus();
