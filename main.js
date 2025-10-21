@@ -635,6 +635,10 @@
             $('#app-root').classList.remove('hidden');
             // 로컬 스토리지에서 데이터 로드
             loadLocalData();
+        } else {
+            console.log('사용자가 로그인됨, 앱 인터페이스 표시');
+            $('#auth-container').classList.add('hidden');
+            $('#app-root').classList.remove('hidden');
         }
         
         // 로그인 상태 UI 업데이트
@@ -5374,10 +5378,18 @@
             papsManagerInitialized = false;
         }
         
-        // 초기 화면을 수업 진도 관리 모드로 설정
+        // 초기 화면 설정 (로그인 상태에 따라 결정)
         console.log('앱 모드 설정:', appMode);
-        appMode = 'progress';
-        console.log('앱 모드 변경됨:', appMode);
+        if (!appMode) {
+            // 기본 모드는 progress로 설정
+            appMode = 'progress';
+            console.log('앱 모드 기본값 설정:', appMode);
+        }
+        
+        // 모드 전환 버튼 활성화 상태 설정
+        $$('.mode-switch-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === appMode);
+        });
         
         // VisitorManager 초기화 확인
         if (!visitorManager) {
