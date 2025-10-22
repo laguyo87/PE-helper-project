@@ -3522,10 +3522,16 @@
         $('#progressClassNameInput').addEventListener('keydown', (e) => {
             if(e.key === 'Enter') {
                 e.preventDefault();
-                addProgressClass();
+                if (progressManager) {
+                    progressManager.addProgressClass();
+                }
             }
         });
-        $('#progressAddClassBtn').addEventListener('click', addProgressClass);
+        $('#progressAddClassBtn').addEventListener('click', () => {
+            if (progressManager) {
+                progressManager.addProgressClass();
+            }
+        });
 
         // 설정 저장
         $('#progressSaveSettingBtn').addEventListener('click', () => {
@@ -3704,7 +3710,9 @@
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if(confirm(`"${c.name}" 반을 삭제하시겠습니까?`)) {
-                    deleteProgressClass(c.id);
+                    if (progressManager) {
+                        progressManager.deleteProgressClass(c.id);
+                    }
                 }
             });
 
@@ -3854,9 +3862,9 @@
         }
     }
     
-    // 전역 함수로 등록
-    window.addProgressClass = addProgressClass;
-    window.deleteProgressClass = deleteProgressClass;
+    // 전역 함수로 등록 (ProgressManager로 이동된 함수들은 제거)
+    // window.addProgressClass = addProgressClass; // ProgressManager로 이동됨
+    // window.deleteProgressClass = deleteProgressClass; // ProgressManager로 이동됨
     window.refreshData = refreshData;
 
     function makeProgressWeek(hours){
