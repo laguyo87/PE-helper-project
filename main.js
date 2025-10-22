@@ -736,7 +736,7 @@
     // ========================================
     // 모드 전환 및 메인 렌더링
     // ========================================
-    function switchMode(mode) {
+    async function switchMode(mode) {
         console.log('모드 전환:', appMode, '->', mode);
         
         appMode = mode;
@@ -4815,7 +4815,7 @@
                     title: '데이터 복원', body: `'${file.name}' 파일 데이터를 복원하시겠습니까? 현재 클라우드 데이터는 덮어씌워집니다.`,
                     actions: [
                         { text: '취소', callback: closeModal },
-                        { text: '복원', type: 'danger', callback: () => {
+                        { text: '복원', type: 'danger', callback: async () => {
                             if (importType === 'v2') {
                                 leagueData = data.leagues;
                                 tournamentData = data.tournaments;
@@ -4841,7 +4841,7 @@
                                 });
                             }
                             saveDataToFirestore();
-                            switchMode(appMode);
+                            await switchMode(appMode);
                             closeModal();
                         }}
                     ]
@@ -5634,15 +5634,15 @@
             });
 
         // 공통 이벤트 리스너 설정
-        setupCommonEventListeners();
+        await setupCommonEventListeners();
     }
     
-    function setupCommonEventListeners() {
+    async function setupCommonEventListeners() {
         const savedTheme = localStorage.getItem("theme") || "light";
         document.body.dataset.theme = savedTheme;
-        switchMode(appMode);
+        await switchMode(appMode);
 
-        $$('.mode-switch-btn').forEach(btn => btn.addEventListener('click', () => switchMode(btn.dataset.mode)));
+        $$('.mode-switch-btn').forEach(btn => btn.addEventListener('click', async () => await switchMode(btn.dataset.mode)));
         $('#exportAllLeaguesBtn').addEventListener('click', exportAllLeaguesToExcel);
         $('#importAllLeaguesExcel').addEventListener('change', importAllLeaguesFromExcel);
         $('#theme-toggle-btn').addEventListener('click', () => {
@@ -5671,7 +5671,7 @@
         }
         
         // 공통 이벤트 리스너 설정
-        setupCommonEventListeners();
+        await setupCommonEventListeners();
     }
 
     function importAllLeaguesFromExcel(event) {
