@@ -253,6 +253,10 @@ export class ProgressManager {
         const sheetArea = this.$('#progressSheetArea');
         if (!sheetArea)
             return;
+        // records 배열이 없으면 초기화
+        if (!selectedClass.records) {
+            selectedClass.records = [];
+        }
         const weeks = 20; // 20주차까지
         const hours = selectedClass.weeklyHours;
         let tableHtml = `

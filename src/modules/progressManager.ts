@@ -334,16 +334,21 @@ export class ProgressManager {
     this.generateProgressSheet(selectedClass);
   }
 
-  /**
-   * 진도표를 생성합니다.
-   * @param selectedClass 선택된 반 정보
-   */
-  private generateProgressSheet(selectedClass: ProgressClass): void {
-    const sheetArea = this.$('#progressSheetArea');
-    if (!sheetArea) return;
+    /**
+     * 진도표를 생성합니다.
+     * @param selectedClass 선택된 반 정보
+     */
+    private generateProgressSheet(selectedClass: ProgressClass): void {
+        const sheetArea = this.$('#progressSheetArea');
+        if (!sheetArea) return;
 
-    const weeks = 20; // 20주차까지
-    const hours = selectedClass.weeklyHours;
+        // records 배열이 없으면 초기화
+        if (!selectedClass.records) {
+            selectedClass.records = [];
+        }
+
+        const weeks = 20; // 20주차까지
+        const hours = selectedClass.weeklyHours;
 
     let tableHtml = `
         <div class="progress-table-container">
