@@ -5111,10 +5111,10 @@
         checkFirebase();
         
         // 5초 후에도 Firebase가 초기화되지 않으면 로컬 모드로 전환
-        setTimeout(() => {
+        setTimeout(async () => {
             if (!firebaseInitialized) {
                 console.log('Firebase 초기화 시간 초과, 로컬 모드로 계속');
-                setupLocalMode();
+                await setupLocalMode();
             }
         }, 5000);
         
@@ -5144,10 +5144,10 @@
             }
         });
         
-        window.addEventListener('firebaseError', (event) => {
+        window.addEventListener('firebaseError', async (event) => {
             console.error('Firebase Error 이벤트 수신:', event.detail);
             console.log('Firebase 초기화 실패, 로컬 모드로 계속');
-            setupLocalMode();
+            await setupLocalMode();
         });
     });
     
@@ -5652,7 +5652,7 @@
         });
     }
     
-    function setupLocalMode() {
+    async function setupLocalMode() {
         console.log('Firebase를 사용할 수 없음, 로컬 모드로만 작동');
         
         // AuthManager가 초기화되었는지 확인
