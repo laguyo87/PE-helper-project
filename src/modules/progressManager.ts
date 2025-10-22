@@ -144,13 +144,22 @@ export class ProgressManager {
     const sidebarFooter = this.$('.sidebar-footer');
     if (sidebarFooter) {
         sidebarFooter.innerHTML = `
-            <div class="visitor-count">
-                <span>방문자 수: <span id="visitorCount">로딩 중...</span></span>
+            <div style="margin-bottom: 8px;">
+                <div class="visitor-info" style="justify-content: center; font-size: 0.8rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>총 방문자 수 : <span id="progress-visitor-count" style="font-weight: 600; color: var(--accent);">-</span></span>
+                </div>
             </div>
-            <div class="copyright">
-                <span>&copy; 2024 PE Helper Online. All rights reserved.</span>
-            </div>
+            <div>만든이: 김신회(laguyo87@gmail.com)</div>
         `;
+        
+        // 방문자 수 업데이트
+        this.updateProgressVisitorCount();
     }
 
     console.log('진도표 메인 콘텐츠 렌더링');
@@ -197,12 +206,17 @@ export class ProgressManager {
         `;
     }
 
-    // 이벤트 리스너 설정
-    this.setupEventListeners();
+    // 클래스 목록 렌더링
+    console.log('진도표 클래스 목록 렌더링 시작');
+    this.renderProgressClassList();
+    
+    // 이벤트 리스너 등록 (DOM이 생성된 후)
+    setTimeout(() => {
+        this.setupEventListeners();
+    }, 0);
     
     // 데이터 로드 및 초기화
     this.loadProgressSelected();
-    this.renderProgressClassList();
   }
 
   /**
@@ -604,6 +618,19 @@ export class ProgressManager {
    */
   public setSelectedClassId(classId: string | null): void {
     this.selectedClassId = classId;
+  }
+
+  /**
+   * 방문자 수를 업데이트합니다.
+   */
+  private updateProgressVisitorCount(): void {
+    const visitorCountElement = this.$('#progress-visitor-count');
+    if (visitorCountElement) {
+      // 방문자 수 로직은 기존 코드를 참조하여 구현
+      // 여기서는 간단히 로컬 스토리지에서 가져오거나 기본값 표시
+      const visitorCount = localStorage.getItem('visitorCount') || '0';
+      visitorCountElement.textContent = visitorCount;
+    }
   }
 }
 
