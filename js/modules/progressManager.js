@@ -86,6 +86,8 @@ export class ProgressManager {
         const contentWrapper = this.$('#content-wrapper');
         console.log('contentWrapper 찾기:', contentWrapper);
         if (contentWrapper) {
+            // 기존 CSS와 호환되도록 HTML 구조 수정
+            contentWrapper.className = 'progress-mode';
             contentWrapper.innerHTML = `
             <div class="progress-main-content">
                 <div class="progress-right">

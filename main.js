@@ -805,9 +805,6 @@
         } else if (appMode === 'progress') {
             console.log('진도표 UI 렌더링 시작');
             if (progressManager) {
-                // ProgressManager의 데이터 동기화
-                progressManager.setProgressClasses(progressClasses);
-                progressManager.setSelectedClassId(progressSelectedClassId);
                 progressManager.renderProgressUI();
             } else {
                 console.error('ProgressManager가 초기화되지 않음');
@@ -3404,7 +3401,7 @@
     const LS_PROGRESS_SELECTED = 'progressSelectedClassId';
     const LS_PROGRESS_SETTING_COLLAPSED = 'progressSettingCollapsed';
 
-    // renderProgressUI 함수는 ProgressManager로 이동됨
+    // DEPRECATED: ProgressManager 모듈로 이동됨
     function renderProgressUI_OLD() {
         console.log('renderProgressUI 시작');
         console.log('progressClasses.length:', progressClasses.length);
@@ -3522,16 +3519,10 @@
         $('#progressClassNameInput').addEventListener('keydown', (e) => {
             if(e.key === 'Enter') {
                 e.preventDefault();
-                if (progressManager) {
-                    progressManager.addProgressClass();
-                }
+                addProgressClass();
             }
         });
-        $('#progressAddClassBtn').addEventListener('click', () => {
-            if (progressManager) {
-                progressManager.addProgressClass();
-            }
-        });
+        $('#progressAddClassBtn').addEventListener('click', addProgressClass);
 
         // 설정 저장
         $('#progressSaveSettingBtn').addEventListener('click', () => {
@@ -3610,7 +3601,8 @@
     }
 
 
-    function renderProgressClassList(){
+    // DEPRECATED: ProgressManager 모듈로 이동됨
+    function renderProgressClassList_OLD(){
         console.log('=== renderProgressClassList 시작 ===');
         console.log('progressClasses.length:', progressClasses.length);
         console.log('progressClasses:', progressClasses);
@@ -3710,9 +3702,7 @@
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if(confirm(`"${c.name}" 반을 삭제하시겠습니까?`)) {
-                    if (progressManager) {
-                        progressManager.deleteProgressClass(c.id);
-                    }
+                    deleteProgressClass(c.id);
                 }
             });
 
@@ -3812,7 +3802,7 @@
         }
     }
 
-    // addProgressClass 함수는 ProgressManager로 이동됨
+    // DEPRECATED: ProgressManager 모듈로 이동됨
     function addProgressClass_OLD(){
         const name = $('#progressClassNameInput').value.trim();
         if(!name) return;
@@ -3828,7 +3818,7 @@
         $('#progressSettingHeader').parentElement.style.display = 'block';
     }
     
-    // deleteProgressClass 함수는 ProgressManager로 이동됨
+    // DEPRECATED: ProgressManager 모듈로 이동됨
     function deleteProgressClass_OLD(classId) {
         const classIndex = progressClasses.findIndex(c => c.id === classId);
         if (classIndex === -1) return;
@@ -3862,9 +3852,9 @@
         }
     }
     
-    // 전역 함수로 등록 (ProgressManager로 이동된 함수들은 제거)
-    // window.addProgressClass = addProgressClass; // ProgressManager로 이동됨
-    // window.deleteProgressClass = deleteProgressClass; // ProgressManager로 이동됨
+    // 전역 함수로 등록
+    window.addProgressClass = addProgressClass;
+    window.deleteProgressClass = deleteProgressClass;
     window.refreshData = refreshData;
 
     function makeProgressWeek(hours){
