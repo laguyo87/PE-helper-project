@@ -133,12 +133,28 @@
     let tournamentManagerInitialized = false;
     let appMode = 'progress';
     
-    // 버전 관리 시스템 초기화
+    // 버전 관리 시스템 지연 초기화
     console.log('main.js 로딩 시작');
-    if (!initializeVersionManager()) {
+    
+    // VersionManager 지연 로딩 함수
+    async function initializeVersionManagerLazy() {
+        try {
+            const versionModule = await loadModule('versionManager');
+            const result = versionModule.initializeVersionManager();
+            console.log('버전 관리 시스템 지연 초기화 완료');
+            return result;
+        } catch (error) {
+            console.error('버전 관리 시스템 지연 초기화 실패:', error);
+            return false;
+        }
+    }
+    
+    // 버전 관리 시스템 초기화 (지연 로딩)
+    initializeVersionManagerLazy().then(result => {
+        if (!result) {
       console.error('버전 관리 시스템 초기화 실패');
     }
-    console.log('버전 관리 시스템 초기화 완료');
+    });
     
     // AuthManager 지연 초기화 (필요할 때만 로드)
     console.log('AuthManager 지연 초기화 설정');
@@ -5128,9 +5144,7 @@
             // AuthManager 초기화 (Firebase 준비 후)
             if (!authManagerInitialized) {
                 console.log('AuthManager 초기화 시작');
-                authManager = initializeAuthManager();
-                setupGlobalAuthFunctions();
-                authManagerInitialized = true;
+                await initializeAuthManagerLazy();
                 console.log('AuthManager 초기화 완료');
             }
             
@@ -5547,11 +5561,10 @@
             btn.classList.toggle('active', btn.dataset.mode === appMode);
         });
         
-        // VisitorManager 초기화 확인
+        // VisitorManager 초기화 확인 (지연 로딩)
         if (!visitorManager) {
-            console.log('VisitorManager가 초기화되지 않음, 초기화 시도');
-            visitorManager = initializeVisitorManager();
-            visitorManagerInitialized = true;
+            console.log('VisitorManager가 초기화되지 않음, 지연 초기화 시도');
+            await initializeVisitorManagerLazy();
         }
         
         // HTML에서 이미 올바른 초기 상태로 설정되어 있음
