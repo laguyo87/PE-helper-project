@@ -5096,11 +5096,11 @@
         // Firebase 초기화 대기 (간단하고 안정적인 방법)
         let firebaseInitialized = false;
         
-        const checkFirebase = () => {
+        const checkFirebase = async () => {
             if (window.firebase && !firebaseInitialized) {
                 console.log('Firebase 초기화 완료, 인증 설정');
                 firebaseInitialized = true;
-                setupFirebaseAuth();
+                await setupFirebaseAuth();
             } else if (!firebaseInitialized) {
                 console.log('Firebase 초기화 대기 중...');
                 setTimeout(checkFirebase, 200);
@@ -5134,7 +5134,7 @@
                 console.log('AuthManager 초기화 완료');
             }
             
-            setupFirebaseAuth();
+            await setupFirebaseAuth();
             
             // Firebase 초기화 완료 후 방문자 수 업데이트
             setTimeout(async () => {
@@ -5565,7 +5565,7 @@
         }
     }
     
-    function setupFirebaseAuth() {
+    async function setupFirebaseAuth() {
         // AuthManager가 초기화되었는지 확인
         if (!authManager) {
             console.error('AuthManager가 초기화되지 않음');
