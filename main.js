@@ -5531,22 +5531,7 @@
             });
         }
         
-        // PAPS 매니저 초기화
-        try {
-            console.log('PapsManager 초기화 시작');
-            papsManager = new PapsManager(
-                papsData,
-                $,
-                saveDataToFirestore
-            );
-            papsManagerInitialized = true;
-            window.papsManager = papsManager;
-            console.log('PapsManager 초기화 완료');
-        } catch (error) {
-            console.error('PapsManager 초기화 실패:', error);
-            papsManager = null;
-            papsManagerInitialized = false;
-        }
+        // PAPS 매니저는 필요할 때만 지연 초기화 (이미 initializePapsManagerLazy 함수가 있음)
         
         // 초기 화면 설정 (로그인 상태에 따라 결정)
         console.log('앱 모드 설정:', appMode);
