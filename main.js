@@ -1,122 +1,45 @@
     // ========================================
-    // 동적 모듈 로딩 시스템
+    // 모듈 import
     // ========================================
+    import { 
+      initializeVersionManager, 
+      APP_VERSION, 
+      updateVersionDisplay 
+    } from './js/modules/versionManager.js';
     
-    // 모듈 캐시 (개선된 캐싱 전략)
-    const moduleCache = new Map();
-    const dataCache = new Map();
-    const cacheConfig = {
-        maxSize: 50, // 최대 캐시 항목 수
-        ttl: 5 * 60 * 1000, // 5분 TTL
-        cleanupInterval: 60 * 1000 // 1분마다 정리
-    };
+    import { 
+      initializeAuthManager,
+      setupGlobalAuthFunctions 
+    } from './js/modules/authManager.js';
     
-    // 캐시 정리 함수
-    function cleanupCache() {
-        const now = Date.now();
-        for (const [key, value] of dataCache.entries()) {
-            if (now - value.timestamp > cacheConfig.ttl) {
-                dataCache.delete(key);
-                console.log(`캐시 항목 만료: ${key}`);
-            }
-        }
-    }
+    import { 
+      initializeDataManager,
+      DataManager
+    } from './js/modules/dataManager.js';
     
-    // 주기적 캐시 정리
-    setInterval(cleanupCache, cacheConfig.cleanupInterval);
+    import { 
+      initializeVisitorManager,
+      VisitorManager
+    } from './js/modules/visitorManager.js';
     
-    // 데이터 캐싱 함수들
-    function setCache(key, data) {
-        if (dataCache.size >= cacheConfig.maxSize) {
-            // LRU 방식으로 오래된 항목 제거
-            const oldestKey = dataCache.keys().next().value;
-            dataCache.delete(oldestKey);
-        }
-        
-        dataCache.set(key, {
-            data: data,
-            timestamp: Date.now()
-        });
-        console.log(`데이터 캐시 저장: ${key}`);
-    }
+    import { 
+      initializeLeagueManager,
+      LeagueManager
+    } from './js/modules/leagueManager.js';
     
-    function getCache(key) {
-        const cached = dataCache.get(key);
-        if (cached && (Date.now() - cached.timestamp) < cacheConfig.ttl) {
-            console.log(`데이터 캐시 히트: ${key}`);
-            return cached.data;
-        }
-        
-        if (cached) {
-            dataCache.delete(key);
-            console.log(`데이터 캐시 만료: ${key}`);
-        }
-        
-        return null;
-    }
+    import { 
+      initializeTournamentManager,
+      TournamentManager
+    } from './js/modules/tournamentManager.js';
     
-    function clearCache(pattern = null) {
-        if (pattern) {
-            for (const key of dataCache.keys()) {
-                if (key.includes(pattern)) {
-                    dataCache.delete(key);
-                }
-            }
-            console.log(`패턴 캐시 정리: ${pattern}`);
-        } else {
-            dataCache.clear();
-            console.log('전체 캐시 정리');
-        }
-    }
+    import { 
+      PapsManager
+    } from './js/modules/papsManager.js';
     
-    // 동적 모듈 로더
-    async function loadModule(moduleName) {
-        if (moduleCache.has(moduleName)) {
-            console.log(`모듈 ${moduleName} 캐시에서 로드`);
-            return moduleCache.get(moduleName);
-        }
-        
-        console.log(`모듈 ${moduleName} 동적 로딩 시작`);
-        const startTime = performance.now();
-        
-        try {
-            let module;
-            switch (moduleName) {
-                case 'versionManager':
-                    module = await import('./js/modules/versionManager.js');
-                    break;
-                case 'authManager':
-                    module = await import('./js/modules/authManager.js');
-                    break;
-                case 'dataManager':
-                    module = await import('./js/modules/dataManager.js');
-                    break;
-                case 'visitorManager':
-                    module = await import('./js/modules/visitorManager.js');
-                    break;
-                case 'leagueManager':
-                    module = await import('./js/modules/leagueManager.js');
-                    break;
-                case 'tournamentManager':
-                    module = await import('./js/modules/tournamentManager.js');
-                    break;
-                case 'papsManager':
-                    module = await import('./js/modules/papsManager.js');
-                    break;
-                default:
-                    throw new Error(`알 수 없는 모듈: ${moduleName}`);
-            }
-            
-            const loadTime = performance.now() - startTime;
-            console.log(`모듈 ${moduleName} 로드 완료 (${loadTime.toFixed(2)}ms)`);
-            
-            moduleCache.set(moduleName, module);
-            return module;
-        } catch (error) {
-            console.error(`모듈 ${moduleName} 로드 실패:`, error);
-            throw error;
-        }
-    }
+    import { 
+      initializeProgressManager,
+      ProgressManager
+    } from './js/modules/progressManager.js';
     
     // ========================================
     // 앱 상태 및 전역 변수
@@ -133,136 +56,77 @@
     let tournamentManagerInitialized = false;
     let appMode = 'progress';
     
-    // 버전 관리 시스템 지연 초기화
+    // 버전 관리 시스템 초기화
     console.log('main.js 로딩 시작');
-    
-    // VersionManager 지연 로딩 함수
-    async function initializeVersionManagerLazy() {
-        try {
-            const versionModule = await loadModule('versionManager');
-            const result = versionModule.initializeVersionManager();
-            console.log('버전 관리 시스템 지연 초기화 완료');
-            return result;
-        } catch (error) {
-            console.error('버전 관리 시스템 지연 초기화 실패:', error);
-            return false;
-        }
-    }
-    
-    // 버전 관리 시스템 초기화 (지연 로딩)
-    initializeVersionManagerLazy().then(result => {
-        if (!result) {
+    if (!initializeVersionManager()) {
       console.error('버전 관리 시스템 초기화 실패');
     }
-    });
+    console.log('버전 관리 시스템 초기화 완료');
     
-    // AuthManager 지연 초기화 (필요할 때만 로드)
-    console.log('AuthManager 지연 초기화 설정');
-    
-    // AuthManager 지연 로딩 함수
-    async function initializeAuthManagerLazy() {
-        if (authManagerInitialized) return authManager;
-        
-        try {
-            const authModule = await loadModule('authManager');
-            authManager = authModule.initializeAuthManager();
-            authModule.setupGlobalAuthFunctions();
+    // AuthManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('AuthManager 즉시 초기화 시작');
+    authManager = initializeAuthManager();
+    setupGlobalAuthFunctions();
     authManagerInitialized = true;
-            console.log('AuthManager 지연 초기화 완료');
-            return authManager;
-        } catch (error) {
-            console.error('AuthManager 지연 초기화 실패:', error);
-            return null;
-        }
-    }
+    console.log('AuthManager 즉시 초기화 완료');
     
-    // DataManager 지연 로딩 함수
-    async function initializeDataManagerLazy() {
-        if (dataManagerInitialized) return dataManager;
-        
-        try {
-            const dataModule = await loadModule('dataManager');
-            dataManager = dataModule.initializeDataManager();
+    // DataManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('DataManager 즉시 초기화 시작');
+    try {
+        dataManager = initializeDataManager();
         dataManagerInitialized = true;
-            console.log('DataManager 지연 초기화 완료');
-            return dataManager;
+        console.log('DataManager 즉시 초기화 완료');
     } catch (error) {
-            console.error('DataManager 지연 초기화 실패:', error);
-            return null;
-        }
+        console.error('DataManager 초기화 실패:', error);
+        dataManager = null;
+        dataManagerInitialized = false;
     }
     
-    // VisitorManager 지연 로딩 함수
-    async function initializeVisitorManagerLazy() {
-        if (visitorManagerInitialized) return visitorManager;
-        
-        try {
-            const visitorModule = await loadModule('visitorManager');
-            visitorManager = visitorModule.initializeVisitorManager();
+    // VisitorManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('VisitorManager 즉시 초기화 시작');
+    try {
+        visitorManager = initializeVisitorManager();
         visitorManagerInitialized = true;
-            console.log('VisitorManager 지연 초기화 완료');
-            return visitorManager;
+        console.log('VisitorManager 즉시 초기화 완료');
     } catch (error) {
-            console.error('VisitorManager 지연 초기화 실패:', error);
-            return null;
-        }
+        console.error('VisitorManager 초기화 실패:', error);
+        visitorManager = null;
+        visitorManagerInitialized = false;
     }
     
     let leagueData = { classes: [], students: [], games: [], selectedClassId: null };
     
-    // LeagueManager 지연 로딩 함수
-    async function initializeLeagueManagerLazy() {
-        if (leagueManagerInitialized) return leagueManager;
-        
-        try {
-            const leagueModule = await loadModule('leagueManager');
-            leagueManager = leagueModule.initializeLeagueManager(leagueData);
+    // LeagueManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('LeagueManager 즉시 초기화 시작');
+    try {
+        leagueManager = initializeLeagueManager(leagueData);
         leagueManagerInitialized = true;
-            console.log('LeagueManager 지연 초기화 완료');
-            return leagueManager;
+        console.log('LeagueManager 즉시 초기화 완료');
     } catch (error) {
-            console.error('LeagueManager 지연 초기화 실패:', error);
-            return null;
-        }
+        console.error('LeagueManager 초기화 실패:', error);
+        leagueManager = null;
+        leagueManagerInitialized = false;
     }
     let tournamentData = { tournaments: [], activeTournamentId: null };
     
     // PAPS 데이터
     let papsData = { classes: [], activeClassId: null };
     
-    // TournamentManager 지연 로딩 함수
-    async function initializeTournamentManagerLazy() {
-        if (tournamentManagerInitialized) return tournamentManager;
-        
-        try {
-            const tournamentModule = await loadModule('tournamentManager');
-            tournamentManager = tournamentModule.initializeTournamentManager(tournamentData);
+    // TournamentManager 즉시 초기화 (DOM 로딩과 독립적으로)
+    console.log('TournamentManager 즉시 초기화 시작');
+    try {
+        tournamentManager = initializeTournamentManager(tournamentData);
         tournamentManagerInitialized = true;
-            console.log('TournamentManager 지연 초기화 완료');
-            return tournamentManager;
+        console.log('TournamentManager 즉시 초기화 완료');
     } catch (error) {
-            console.error('TournamentManager 지연 초기화 실패:', error);
-            return null;
-        }
+        console.error('TournamentManager 초기화 실패:', error);
+        tournamentManager = null;
+        tournamentManagerInitialized = false;
     }
     let papsManager = null;
     let papsManagerInitialized = false;
-    
-    // PapsManager 지연 로딩 함수
-    async function initializePapsManagerLazy() {
-        if (papsManagerInitialized) return papsManager;
-        
-        try {
-            const papsModule = await loadModule('papsManager');
-            papsManager = new papsModule.PapsManager(papsData, $, saveDataToFirestore);
-            papsManagerInitialized = true;
-            console.log('PapsManager 지연 초기화 완료');
-            return papsManager;
-        } catch (error) {
-            console.error('PapsManager 지연 초기화 실패:', error);
-            return null;
-        }
-    }
+    let progressManager = null;
+    let progressManagerInitialized = false;
     let progressClasses = [];
     let progressSelectedClassId = '';
     let currentUser = null;
@@ -506,8 +370,8 @@
             } catch (error) {
                 console.error('로컬 스토리지 저장 실패:', error);
             }
-          return;
-      }
+            return;
+        }
       
         // 현재 사용자 설정
         dataManager.setCurrentUser(currentUser);
@@ -517,38 +381,23 @@
             leagues: leagueData,
             tournaments: tournamentData,
             paps: papsData,
-                  progress: {
+            progress: {
                 classes: progressClasses,
-                      selectedClassId: progressSelectedClassId
-                  },
-                  lastUpdated: Date.now()
-              };
+                selectedClassId: progressSelectedClassId
+            },
+            lastUpdated: Date.now()
+        };
 
         console.log('저장할 데이터:', appData);
         console.log('papsData 상세:', papsData);
 
         // DataManager를 통해 저장
         await dataManager.saveDataToFirestore(appData, { retryCount });
-        
-        // 캐시 업데이트
-        if (currentUser) {
-            const cacheKey = `userData_${currentUser.uid}`;
-            setCache(cacheKey, appData);
-        }
     }
 
     async function loadDataFromFirestore(userId, retryCount = 0) {
         if (!dataManager) {
             console.error('DataManager가 초기화되지 않음');
-                  return;
-              }
-        
-        // 캐시에서 데이터 확인
-        const cacheKey = `userData_${userId}`;
-        const cachedData = getCache(cacheKey);
-        if (cachedData) {
-            console.log('=== 캐시에서 데이터 로드 ===');
-            applyLoadedData(cachedData);
                   return;
               }
               
@@ -560,11 +409,12 @@
         const appData = await dataManager.loadDataFromFirestore(userId, { retryCount });
         
         if (appData) {
-            // 캐시에 데이터 저장
-            setCache(cacheKey, appData);
-            
             // 로드된 데이터를 전역 변수에 설정
-            applyLoadedData(appData);
+            leagueData = appData.leagues;
+            tournamentData = appData.tournaments;
+            papsData = appData.paps;
+            progressClasses = appData.progress.classes;
+            progressSelectedClassId = appData.progress.selectedClassId;
                 
                 console.log('=== 데이터 로드 완료 ===');
                 console.log('leagueData:', leagueData);
@@ -577,23 +427,18 @@
             } else {
             console.log('데이터 로드 실패, 기본 데이터 사용');
             const defaultData = dataManager.getDefaultData();
-            applyLoadedData(defaultData);
+            leagueData = defaultData.leagues;
+            tournamentData = defaultData.tournaments;
+            papsData = defaultData.paps;
+            progressClasses = defaultData.progress.classes;
+            progressSelectedClassId = defaultData.progress.selectedClassId;
             }
             
             // 데이터 로드 완료 후 렌더링
             console.log('데이터 로드 완료, 앱 렌더링 시작');
-        setTimeout(async () => {
-            await renderApp();
+            setTimeout(() => {
+                renderApp();
             }, 100); // 약간의 지연을 두어 DOM이 준비되도록 함
-    }
-    
-    // 데이터 적용 함수 (중복 코드 제거)
-    function applyLoadedData(appData) {
-        leagueData = appData.leagues;
-        tournamentData = appData.tournaments;
-        papsData = appData.paps;
-        progressClasses = appData.progress.classes;
-        progressSelectedClassId = appData.progress.selectedClassId;
     }
     
 
@@ -752,7 +597,7 @@
     // ========================================
     // 모드 전환 및 메인 렌더링
     // ========================================
-    async function switchMode(mode) {
+    function switchMode(mode) {
         console.log('모드 전환:', appMode, '->', mode);
         
         appMode = mode;
@@ -778,10 +623,10 @@
         // 모드 전환 시 사이드바 정리
         cleanupSidebar();
         
-        await renderApp();
+        renderApp();
     }
 
-    async function renderApp() {
+    function renderApp() {
         console.log('renderApp 호출됨');
         console.log('currentUser:', currentUser);
         console.log('appMode:', appMode);
@@ -803,10 +648,12 @@
             $('#app-root').classList.remove('hidden');
         }
         
-        // 로그인 상태 UI 업데이트 (지연 로딩)
+        // 로그인 상태 UI 업데이트
         if (!authManager) {
-            console.log('AuthManager가 초기화되지 않음, 지연 초기화 시도');
-            await initializeAuthManagerLazy();
+            console.log('AuthManager가 초기화되지 않음, 초기화 시도');
+            authManager = initializeAuthManager();
+            setupGlobalAuthFunctions();
+            authManagerInitialized = true;
         }
         
         // AuthManager에 현재 사용자 정보 설정
@@ -817,31 +664,35 @@
         
         authManager.updateLoginStatus();
         
-        // DataManager 초기화 확인 (지연 로딩)
+        // DataManager 초기화 확인
         if (!dataManager) {
-            console.log('DataManager가 초기화되지 않음, 지연 초기화 시도');
-            await initializeDataManagerLazy();
+            console.log('DataManager가 초기화되지 않음, 초기화 시도');
+            dataManager = initializeDataManager();
+            dataManagerInitialized = true;
         }
         
         // DataManager에 현재 사용자 설정
         dataManager.setCurrentUser(currentUser);
         
-        // VisitorManager 초기화 확인 (지연 로딩)
+        // VisitorManager 초기화 확인
         if (!visitorManager) {
-            console.log('VisitorManager가 초기화되지 않음, 지연 초기화 시도');
-            await initializeVisitorManagerLazy();
+            console.log('VisitorManager가 초기화되지 않음, 초기화 시도');
+            visitorManager = initializeVisitorManager();
+            visitorManagerInitialized = true;
         }
         
-        // LeagueManager 초기화 확인 (지연 로딩)
+        // LeagueManager 초기화 확인
         if (!leagueManager) {
-            console.log('LeagueManager가 초기화되지 않음, 지연 초기화 시도');
-            await initializeLeagueManagerLazy();
+            console.log('LeagueManager가 초기화되지 않음, 초기화 시도');
+            leagueManager = initializeLeagueManager(leagueData);
+            leagueManagerInitialized = true;
         }
         
-        // TournamentManager 초기화 확인 (지연 로딩)
+        // TournamentManager 초기화 확인
         if (!tournamentManager) {
-            console.log('TournamentManager가 초기화되지 않음, 지연 초기화 시도');
-            await initializeTournamentManagerLazy();
+            console.log('TournamentManager가 초기화되지 않음, 초기화 시도');
+            tournamentManager = initializeTournamentManager(tournamentData);
+            tournamentManagerInitialized = true;
         }
         
         // LeagueManager에 저장 콜백 설정
@@ -936,19 +787,13 @@
         
         if (appMode === 'league') {
             console.log('리그 UI 렌더링 시작');
-            if (!leagueManager) {
-                await initializeLeagueManagerLazy();
-            }
             if (leagueManager) {
                 leagueManager.renderLeagueUI();
             } else {
                 console.error('LeagueManager가 초기화되지 않음');
             }
-        } else if (appMode === 'tournament') {
+        } else         if (appMode === 'tournament') {
             console.log('토너먼트 UI 렌더링 시작');
-            if (!tournamentManager) {
-                await initializeTournamentManagerLazy();
-            }
             if (tournamentManager) {
                 tournamentManager.renderTournamentUI();
             } else {
@@ -956,13 +801,17 @@
             }
         } else if (appMode === 'paps') {
             console.log('PAPS UI 렌더링 시작');
-            if (!papsManager) {
-                await initializePapsManagerLazy();
-            }
             renderPapsUI();
         } else if (appMode === 'progress') {
             console.log('진도표 UI 렌더링 시작');
-            renderProgressUI();
+            if (progressManager) {
+                // ProgressManager의 데이터 동기화
+                progressManager.setProgressClasses(progressClasses);
+                progressManager.setSelectedClassId(progressSelectedClassId);
+                progressManager.renderProgressUI();
+            } else {
+                console.error('ProgressManager가 초기화되지 않음');
+            }
         } else {
             console.log('알 수 없는 모드:', appMode);
         }
@@ -1012,10 +861,10 @@
         }
     }
 
-    async function selectClass(id) {
+    function selectClass(id) {
         leagueData.selectedClassId = id;
         $('#liveRankingBtn').classList.remove('hidden');
-        await renderApp();
+        renderApp();
         saveDataToFirestore();
     }
 
@@ -1024,7 +873,7 @@
             title: '반 삭제', body: '반을 삭제하면 모든 학생과 경기 기록이 사라집니다. 정말 삭제하시겠습니까?',
             actions: [
                 { text: '취소', callback: closeModal },
-                { text: '삭제', type: 'danger', callback: async () => {
+                { text: '삭제', type: 'danger', callback: () => {
                     leagueData.classes = leagueData.classes.filter(c => c.id !== id);
                     leagueData.students = leagueData.students.filter(s => s.classId !== id);
                     leagueData.games = leagueData.games.filter(g => g.classId !== id);
@@ -1033,7 +882,7 @@
                         $('#liveRankingBtn').classList.add('hidden');
                     }
                     saveDataToFirestore();
-                    await renderApp();
+                    renderApp();
                     updateGenerateGamesButtonState(false);
                     closeModal();
                 }}
@@ -1630,13 +1479,13 @@
             title: '토너먼트 삭제', body: '이 토너먼트의 모든 데이터가 삭제됩니다. 계속하시겠습니까?',
             actions: [
                 { text: '취소', callback: closeModal },
-                { text: '삭제', type: 'danger', callback: async () => {
+                { text: '삭제', type: 'danger', callback: () => {
                     tournamentData.tournaments = tournamentData.tournaments.filter(t => t.id !== id);
                     if (tournamentData.activeTournamentId === id) {
                         tournamentData.activeTournamentId = null;
                     }
                     saveDataToFirestore();
-                    await renderApp();
+                    renderApp();
                     closeModal();
                 }}
             ]
@@ -3555,7 +3404,8 @@
     const LS_PROGRESS_SELECTED = 'progressSelectedClassId';
     const LS_PROGRESS_SETTING_COLLAPSED = 'progressSettingCollapsed';
 
-    function renderProgressUI() {
+    // renderProgressUI 함수는 ProgressManager로 이동됨
+    function renderProgressUI_OLD() {
         console.log('renderProgressUI 시작');
         console.log('progressClasses.length:', progressClasses.length);
         console.log('progressClasses:', progressClasses);
@@ -3954,7 +3804,8 @@
         }
     }
 
-    function addProgressClass(){
+    // addProgressClass 함수는 ProgressManager로 이동됨
+    function addProgressClass_OLD(){
         const name = $('#progressClassNameInput').value.trim();
         if(!name) return;
         const newClass = { id: uuid(), name, teacherName: '', unitContent: '', weeklyHours: 0, weeks: [] };
@@ -3969,7 +3820,8 @@
         $('#progressSettingHeader').parentElement.style.display = 'block';
     }
     
-    function deleteProgressClass(classId) {
+    // deleteProgressClass 함수는 ProgressManager로 이동됨
+    function deleteProgressClass_OLD(classId) {
         const classIndex = progressClasses.findIndex(c => c.id === classId);
         if (classIndex === -1) return;
         
@@ -4831,7 +4683,7 @@
                     title: '데이터 복원', body: `'${file.name}' 파일 데이터를 복원하시겠습니까? 현재 클라우드 데이터는 덮어씌워집니다.`,
                     actions: [
                         { text: '취소', callback: closeModal },
-                        { text: '복원', type: 'danger', callback: async () => {
+                        { text: '복원', type: 'danger', callback: () => {
                             if (importType === 'v2') {
                                 leagueData = data.leagues;
                                 tournamentData = data.tournaments;
@@ -4857,7 +4709,7 @@
                                 });
                             }
                             saveDataToFirestore();
-                            await switchMode(appMode);
+                            switchMode(appMode);
                             closeModal();
                         }}
                     ]
@@ -5112,11 +4964,11 @@
         // Firebase 초기화 대기 (간단하고 안정적인 방법)
         let firebaseInitialized = false;
         
-        const checkFirebase = async () => {
+        const checkFirebase = () => {
             if (window.firebase && !firebaseInitialized) {
                 console.log('Firebase 초기화 완료, 인증 설정');
                 firebaseInitialized = true;
-                await setupFirebaseAuth();
+                setupFirebaseAuth();
             } else if (!firebaseInitialized) {
                 console.log('Firebase 초기화 대기 중...');
                 setTimeout(checkFirebase, 200);
@@ -5127,10 +4979,10 @@
         checkFirebase();
         
         // 5초 후에도 Firebase가 초기화되지 않으면 로컬 모드로 전환
-        setTimeout(async () => {
+        setTimeout(() => {
             if (!firebaseInitialized) {
                 console.log('Firebase 초기화 시간 초과, 로컬 모드로 계속');
-                await setupLocalMode();
+                setupLocalMode();
             }
         }, 5000);
         
@@ -5140,28 +4992,30 @@
             
             if (!firebaseInitialized) {
                 firebaseInitialized = true;
-            
-            // AuthManager 초기화 (Firebase 준비 후)
-            if (!authManagerInitialized) {
-                console.log('AuthManager 초기화 시작');
-                await initializeAuthManagerLazy();
-                console.log('AuthManager 초기화 완료');
-            }
-            
-            await setupFirebaseAuth();
-            
-            // Firebase 초기화 완료 후 방문자 수 업데이트
-            setTimeout(async () => {
-                await loadVisitorCount();
-                await updateVisitorCount();
-            }, 500);
+                
+                // AuthManager 초기화 (Firebase 준비 후)
+                if (!authManagerInitialized) {
+                    console.log('AuthManager 초기화 시작');
+                    authManager = initializeAuthManager();
+                    setupGlobalAuthFunctions();
+                    authManagerInitialized = true;
+                    console.log('AuthManager 초기화 완료');
+                }
+                
+                setupFirebaseAuth();
+                
+                // Firebase 초기화 완료 후 방문자 수 업데이트
+                setTimeout(async () => {
+                    await loadVisitorCount();
+                    await updateVisitorCount();
+                }, 500);
             }
         });
         
-        window.addEventListener('firebaseError', async (event) => {
+        window.addEventListener('firebaseError', (event) => {
             console.error('Firebase Error 이벤트 수신:', event.detail);
             console.log('Firebase 초기화 실패, 로컬 모드로 계속');
-            await setupLocalMode();
+            setupLocalMode();
         });
     });
     
@@ -5511,7 +5365,7 @@
 
     // ========================================
 
-    async function initialize_app() {
+    function initialize_app() {
         console.log('initialize_app 함수 시작');
         
         // Service Worker 등록 (지원하는 브라우저에서만)
@@ -5531,13 +5385,47 @@
             });
         }
         
-        // PAPS 매니저는 필요할 때만 지연 초기화 (이미 initializePapsManagerLazy 함수가 있음)
+        // PAPS 매니저 초기화
+        try {
+            console.log('PapsManager 초기화 시작');
+            papsManager = new PapsManager(
+                papsData,
+                $,
+                saveDataToFirestore
+            );
+            papsManagerInitialized = true;
+            window.papsManager = papsManager;
+            console.log('PapsManager 초기화 완료');
+        } catch (error) {
+            console.error('PapsManager 초기화 실패:', error);
+            papsManager = null;
+            papsManagerInitialized = false;
+        }
+        
+        // Progress 매니저 초기화
+        try {
+            console.log('ProgressManager 초기화 시작');
+            progressManager = initializeProgressManager(
+                progressClasses,
+                progressSelectedClassId,
+                $,
+                $$,
+                saveDataToFirestore
+            );
+            progressManagerInitialized = true;
+            window.progressManager = progressManager;
+            console.log('ProgressManager 초기화 완료');
+        } catch (error) {
+            console.error('ProgressManager 초기화 실패:', error);
+            progressManager = null;
+            progressManagerInitialized = false;
+        }
         
         // 초기 화면 설정 (로그인 상태에 따라 결정)
         console.log('앱 모드 설정:', appMode);
         if (!appMode) {
             // 기본 모드는 progress로 설정
-        appMode = 'progress';
+            appMode = 'progress';
             console.log('앱 모드 기본값 설정:', appMode);
         }
         
@@ -5546,15 +5434,16 @@
             btn.classList.toggle('active', btn.dataset.mode === appMode);
         });
         
-        // VisitorManager 초기화 확인 (지연 로딩)
+        // VisitorManager 초기화 확인
         if (!visitorManager) {
-            console.log('VisitorManager가 초기화되지 않음, 지연 초기화 시도');
-            await initializeVisitorManagerLazy();
+            console.log('VisitorManager가 초기화되지 않음, 초기화 시도');
+            visitorManager = initializeVisitorManager();
+            visitorManagerInitialized = true;
         }
         
         // HTML에서 이미 올바른 초기 상태로 설정되어 있음
         console.log('renderApp 호출 시작');
-        await renderApp();
+        renderApp();
         console.log('renderApp 호출 완료');
         
         // 초기 사용자 상태 UI 업데이트
@@ -5563,7 +5452,7 @@
         }
     }
     
-    async function setupFirebaseAuth() {
+    function setupFirebaseAuth() {
         // AuthManager가 초기화되었는지 확인
         if (!authManager) {
             console.error('AuthManager가 초기화되지 않음');
@@ -5580,7 +5469,7 @@
         }
         
         // 인증 상태 변경 콜백 등록
-        authManager.onAuthStateChange(async (user) => {
+        authManager.onAuthStateChange((user) => {
             console.log('=== Firebase 인증 상태 변경 ===');
             console.log('상태:', user ? '로그인됨' : '로그아웃됨');
             console.log('사용자 정보:', user);
@@ -5617,9 +5506,6 @@
                 // 로그인 상태 UI 즉시 업데이트
                 authManager.updateLoginStatus();
                 
-                // 사용자 데이터 캐시 정리
-                clearCache('userData_');
-                
                 // 로컬 스토리지에서 데이터 로드
                 loadLocalData();
                 
@@ -5627,20 +5513,20 @@
                 cleanupSidebar();
                 
                 // 앱 다시 렌더링
-                await renderApp();
+                renderApp();
             }
             });
 
         // 공통 이벤트 리스너 설정
-        await setupCommonEventListeners();
+        setupCommonEventListeners();
     }
     
-    async function setupCommonEventListeners() {
+    function setupCommonEventListeners() {
         const savedTheme = localStorage.getItem("theme") || "light";
         document.body.dataset.theme = savedTheme;
-        await switchMode(appMode);
+        switchMode(appMode);
 
-        $$('.mode-switch-btn').forEach(btn => btn.addEventListener('click', async () => await switchMode(btn.dataset.mode)));
+        $$('.mode-switch-btn').forEach(btn => btn.addEventListener('click', () => switchMode(btn.dataset.mode)));
         $('#exportAllLeaguesBtn').addEventListener('click', exportAllLeaguesToExcel);
         $('#importAllLeaguesExcel').addEventListener('change', importAllLeaguesFromExcel);
         $('#theme-toggle-btn').addEventListener('click', () => {
@@ -5650,7 +5536,7 @@
         });
     }
     
-    async function setupLocalMode() {
+    function setupLocalMode() {
         console.log('Firebase를 사용할 수 없음, 로컬 모드로만 작동');
         
         // AuthManager가 초기화되었는지 확인
@@ -5669,7 +5555,7 @@
         }
         
         // 공통 이벤트 리스너 설정
-        await setupCommonEventListeners();
+        setupCommonEventListeners();
     }
 
     function importAllLeaguesFromExcel(event) {
@@ -5686,7 +5572,7 @@
                 }},
                 { text: '가져오기', type: 'danger', callback: () => {
                     const reader = new FileReader();
-                    reader.onload = async (e) => {
+                    reader.onload = (e) => {
                         try {
                             const data = new Uint8Array(e.target.result);
                             const workbook = XLSX.read(data, { type: 'array' });
@@ -5743,7 +5629,7 @@
 
                             leagueData = newLeagueData;
                             saveDataToFirestore();
-                            await renderApp();
+                            renderApp();
                         } catch (error) {
                             console.error("엑셀 파일 처리 중 오류 발생:", error);
                             alert('파일을 처리하는 중 오류가 발생했습니다. 파일 형식을 확인해주세요.');
