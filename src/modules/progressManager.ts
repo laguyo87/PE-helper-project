@@ -196,6 +196,9 @@ export class ProgressManager {
                 </div>
             </div>
         `;
+        console.log('contentWrapper innerHTML 설정 완료');
+    } else {
+        console.error('contentWrapper를 찾을 수 없습니다!');
     }
 
     // 이벤트 리스너 설정
@@ -220,7 +223,7 @@ export class ProgressManager {
         return;
     }
 
-    classList.innerHTML = this.progressClasses.map(cls => `
+    const classListHtml = this.progressClasses.map(cls => `
         <div class="progress-class-item ${cls.id === this.selectedClassId ? 'active' : ''}" 
              data-class-id="${cls.id}">
             <div class="class-info">
@@ -241,6 +244,10 @@ export class ProgressManager {
             </div>
         </div>
     `).join('');
+    
+    console.log('생성된 classList HTML:', classListHtml);
+    classList.innerHTML = classListHtml;
+    console.log('classList innerHTML 설정 완료');
   }
 
   /**
