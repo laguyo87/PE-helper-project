@@ -42,6 +42,8 @@ export declare class PapsManager {
     private $;
     private saveDataToFirestore;
     private cleanupSidebar;
+    private currentRankingData;
+    private updateInterval;
     constructor(papsData: PapsData, $: (id: string) => HTMLElement, saveDataToFirestore: () => void, cleanupSidebar: () => void);
     /**
      * PAPS UI를 렌더링합니다.
@@ -175,5 +177,21 @@ export declare class PapsManager {
      * 이해하기 쉬운 기록 분포 그래프를 그립니다.
      */
     private drawStandardDeviationChart;
+    /**
+     * 실시간 업데이트를 시작합니다.
+     */
+    private startRealtimeUpdate;
+    /**
+     * 실시간 업데이트를 중지합니다.
+     */
+    private stopRealtimeUpdate;
+    /**
+     * 랭킹 데이터를 업데이트합니다.
+     */
+    private updateRankingData;
+    /**
+     * 랭킹을 닫습니다.
+     */
+    private closeRanking;
 }
 //# sourceMappingURL=papsManager.d.ts.map

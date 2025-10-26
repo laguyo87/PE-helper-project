@@ -125,6 +125,12 @@ async function initialize_app() {
             visitorManagerInitialized = true;
         console.log('VisitorManager 초기화 완료');
         
+        // 방문자 수 업데이트
+        if (visitorManager) {
+            console.log('방문자 수 업데이트 시작');
+            await visitorManager.updateVisitorCount();
+        }
+        
         // 리그 관리자 초기화
         leagueManager = new LeagueManager(leagueData, { saveCallback: saveDataToFirestore });
             leagueManagerInitialized = true;
