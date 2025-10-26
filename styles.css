@@ -547,10 +547,43 @@ h2 { font-size: 1.25rem; font-weight: 700; margin-top: 0; margin-bottom: 1rem; }
     margin-left: 0.25rem;
 }
 
-.sidebar-form-group { display: flex; border: 1px solid var(--accent); border-radius: 8px; overflow: hidden; }
-.sidebar-form-group input { border: none !important; flex-grow: 1; padding: 10px 12px; }
-.sidebar-form-group input:focus { outline: none !important; }
-.sidebar-form-group .btn { border-radius: 0; border: none; border-left: 1px solid var(--accent); padding: 10px; }
+.sidebar-form-group { 
+    display: flex; 
+    border: 1px solid var(--accent); 
+    border-radius: 8px; 
+    overflow: hidden; 
+    background: white;
+}
+.sidebar-form-group input { 
+    border: none !important; 
+    flex-grow: 1; 
+    padding: 10px 12px; 
+    background: transparent;
+    color: var(--ink);
+}
+.sidebar-form-group input:focus { 
+    outline: none !important; 
+}
+.sidebar-form-group input::placeholder {
+    color: var(--ink-muted);
+}
+.sidebar-form-group button { 
+    border-radius: 0; 
+    border: none; 
+    border-left: 1px solid var(--accent); 
+    padding: 10px 12px; 
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+}
+.sidebar-form-group button:hover {
+    background: var(--accent-dark);
+}
 
 /* 메인 콘텐츠용 폼 그룹 스타일 */
 .form-group { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -1012,6 +1045,189 @@ h2 svg { width: 1.25em; height: 1.25em; }
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     background: var(--card-bg);
+}
+
+/* PAPS 설정 컨테이너 스타일 */
+.paps-setup-container {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.paps-setup-container .setup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+}
+
+.paps-setup-container .setup-header h2 {
+    margin: 0;
+    color: var(--ink);
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.paps-setup-container .setup-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.paps-setup-container .setup-actions .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--line);
+}
+
+.paps-setup-container .setup-actions .btn-primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+    border-color: var(--accent);
+}
+
+.paps-setup-container .setup-actions .btn-primary:hover {
+    background: var(--accent-dark);
+}
+
+.paps-setup-container .setup-actions .btn-secondary {
+    background: var(--card-bg);
+    color: var(--ink);
+    border-color: var(--line);
+}
+
+.paps-setup-container .setup-actions .btn-secondary:hover {
+    background: var(--input-bg);
+    border-color: var(--accent);
+}
+
+.paps-settings-row {
+    display: flex;
+    gap: 20px;
+    align-items: end;
+    flex-wrap: wrap;
+}
+
+.paps-settings-row .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 150px;
+}
+
+.paps-settings-row .form-group label {
+    font-weight: 500;
+    color: var(--ink);
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+.paps-settings-row .form-group select {
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--ink);
+    font-size: 0.9rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.paps-settings-row .form-group select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(25, 113, 194, 0.2);
+}
+
+.paps-placeholder {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 2px dashed var(--line);
+}
+
+/* PAPS 등급 셀 스타일 */
+.grade-cell {
+    font-weight: bold;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.grade-cell.grade-1 {
+    background-color: #4CAF50 !important;
+    color: white !important;
+}
+
+.grade-cell.grade-2 {
+    background-color: #2196F3 !important;
+    color: white !important;
+}
+
+.grade-cell.grade-3 {
+    background-color: #FF9800 !important;
+    color: white !important;
+}
+
+.grade-cell.grade-4 {
+    background-color: #F44336 !important;
+    color: white !important;
+}
+
+.grade-cell.grade-5 {
+    background-color: #9C27B0 !important;
+    color: white !important;
+}
+
+/* PAPS 테이블 개선 */
+#paps-record-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+#paps-record-table th,
+#paps-record-table td {
+    border: 1px solid var(--line);
+    padding: 8px 4px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+#paps-record-table th {
+    background: var(--input-bg);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#paps-record-table input[type="number"],
+#paps-record-table input[type="text"],
+#paps-record-table select {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 4px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+#paps-record-table input[type="number"]:focus,
+#paps-record-table input[type="text"]:focus,
+#paps-record-table select:focus {
+    outline: 2px solid var(--accent);
+    background: var(--input-bg);
 }
 
 /* PAPS 테이블 전용 스타일 */
@@ -1559,5 +1775,1042 @@ body[data-theme="dark"] .progress-mode .progress-week-col .week-head .remove-wee
     width: 100%;
     min-width: auto;
   }
+}
+
+/* ========================================
+   새로운 ProgressManager 스타일
+   ======================================== */
+
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-light);
+}
+
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.progress-class-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-class-selector label {
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.progress-class-selector select {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+  min-width: 200px;
+}
+
+.progress-class-info {
+  flex: 1;
+  margin-left: 24px;
+}
+
+.class-details h4 {
+  margin: 0 0 8px 0;
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+.class-details p {
+  margin: 4px 0;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.progress-main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.progress-sidebar {
+  width: 300px;
+  background: var(--card-bg);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+
+.progress-class-list {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.progress-class-list h3 {
+  margin: 0 0 16px 0;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.add-class-section {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.add-class-section input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.add-class-section button {
+  padding: 8px 16px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.add-class-section button:hover {
+  background: var(--accent-dark);
+}
+
+.class-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.class-item {
+  padding: 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.class-item:hover {
+  background: var(--card-bg);
+  border-color: var(--accent);
+}
+
+.class-item.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent-dark);
+}
+
+.class-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+
+.class-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  margin-bottom: 12px;
+}
+
+.class-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.class-actions button {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.class-actions .edit-btn:hover {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+.class-actions .delete-btn:hover {
+  background: var(--lose);
+  color: white;
+  border-color: var(--lose);
+}
+
+.progress-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.progress-sheet-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.progress-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.progress-sheet-header h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.progress-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.progress-actions button {
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.progress-actions #addWeekBtn {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+.progress-actions #addWeekBtn:hover {
+  background: var(--accent-dark);
+}
+
+.progress-actions #saveProgressBtn {
+  background: var(--win);
+  color: white;
+  border-color: var(--win);
+}
+
+.progress-actions #saveProgressBtn:hover {
+  background: #2f9e44;
+}
+
+.progress-sheet {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background: var(--bg-light);
+}
+
+.progress-table {
+  background: var(--card-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.progress-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.progress-table th {
+  background: var(--accent);
+  color: var(--accent-fg);
+  padding: 16px 12px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.progress-table th:last-child {
+  border-right: none;
+}
+
+.progress-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.progress-table td:last-child {
+  border-right: none;
+}
+
+.week-number {
+  background: var(--input-bg);
+  font-weight: 600;
+  text-align: center;
+  min-width: 80px;
+}
+
+.session-cell {
+  min-width: 200px;
+}
+
+.session-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.session-content textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-family: 'Noto Sans KR', sans-serif;
+  resize: vertical;
+}
+
+.session-content textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(25, 113, 194, 0.1);
+}
+
+.session-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8rem;
+}
+
+.session-controls label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.session-controls input[type="checkbox"] {
+  margin: 0;
+}
+
+.session-controls input[type="text"] {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 0.8rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+}
+
+.no-selection {
+  color: var(--ink-muted);
+  font-style: italic;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 1200px) {
+  .progress-sidebar {
+    width: 250px;
+  }
+}
+
+@media (max-width: 768px) {
+  .progress-main {
+    flex-direction: column;
+  }
+  
+  .progress-sidebar {
+    width: 100%;
+    height: 200px;
+  }
+  
+  .progress-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .progress-class-info {
+    margin-left: 0;
+  }
+}
+
+/* 수업 설정 컨테이너 스타일 */
+.class-settings-container {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.class-settings-container h3 {
+  margin: 0 0 16px 0;
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: row;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(25, 113, 194, 0.2);
+}
+
+#saveSettingsBtn {
+  align-self: end;
+  padding: 8px 16px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#saveSettingsBtn:hover {
+  background: var(--accent-dark);
+}
+
+/* ProgressManager 사이드바 스타일 */
+.progress-mode .sidebar {
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--line);
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+.progress-mode .sidebar #sidebarTitle {
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.progress-mode .sidebar #sidebar-form-container {
+  padding: 16px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.progress-mode .sidebar #sidebar-list-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  min-height: 0;
+}
+
+.progress-mode .sidebar .add-class-section {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.progress-mode .sidebar .add-class-section input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.progress-mode .sidebar .add-class-section button {
+  padding: 8px 16px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.progress-mode .sidebar .add-class-section button:hover {
+  background: var(--accent-dark);
+}
+
+.progress-mode .sidebar .class-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-mode .sidebar .class-item {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.progress-mode .sidebar .class-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(25, 113, 194, 0.1);
+}
+
+.progress-mode .sidebar .class-item.active {
+  border-color: var(--accent);
+  background: rgba(25, 113, 194, 0.05);
+}
+
+.progress-mode .sidebar .class-item h4 {
+  margin: 0 0 4px 0;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.progress-mode .sidebar .class-item .class-info {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+
+.progress-mode .sidebar .class-item .class-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.progress-mode .sidebar .class-item .class-actions button {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.progress-mode .sidebar .class-item .class-actions button:hover {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+/* 진도표 테이블 스타일 */
+.progress-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  background: var(--card-bg);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.progress-table th {
+  background: var(--accent);
+  color: var(--accent-fg);
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-right: 1px solid var(--accent-light);
+}
+
+.progress-table th:last-child {
+  border-right: none;
+}
+
+.progress-table td {
+  padding: 8px;
+  border: 1px solid var(--line);
+  vertical-align: top;
+  background: var(--bg);
+}
+
+.progress-table tr:nth-child(even) td {
+  background: var(--card-bg);
+}
+
+/* 주차 컬럼 스타일 */
+.progress-table .week-cell {
+  background: var(--accent) !important;
+  color: var(--accent-fg) !important;
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-align: center;
+  vertical-align: middle;
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+  border-right: 2px solid var(--accent-hover);
+  padding: 8px 4px;
+}
+
+/* 세션 콘텐츠 스타일 */
+.session-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+}
+
+.date-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-input {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.day-of-week {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 30px;
+  text-align: center;
+}
+
+.content-textarea {
+  width: 100%;
+  min-height: 60px; /* 기존 높이의 2배 */
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--ink);
+  resize: vertical;
+}
+
+.content-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.content-textarea::placeholder {
+  color: var(--ink-muted);
+}
+
+/* Grammarly 아이콘 숨기기 */
+.content-textarea[data-gramm="true"] {
+  position: relative;
+}
+
+.content-textarea[data-gramm="true"]::after {
+  display: none !important;
+}
+
+/* Grammarly 관련 요소 숨기기 */
+[data-gramm-editor],
+[data-gramm="true"],
+.grammarly-extension {
+  display: none !important;
+}
+
+/* Grammarly 버튼 숨기기 */
+div[data-gramm="true"] > div[style*="position: absolute"] {
+  display: none !important;
+}
+
+/* Grammarly 오버레이 완전 제거 */
+.grammarly-extension,
+[data-gramm-editor="true"],
+div[data-gramm="true"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Grammarly 아이콘과 버튼 숨기기 */
+.content-textarea + div[style*="position: absolute"],
+.content-textarea + div[style*="z-index"],
+div[style*="position: absolute"][style*="z-index"] {
+  display: none !important;
+}
+
+/* 빈 상태 메시지 */
+.progress-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 2px dashed var(--line);
+}
+
+/* 수업 진도 관리 모드에서 실시간 순위표 버튼 숨기기 */
+.progress-mode #liveRankingBtn {
+  display: none !important;
+}
+
+/* PAPS 수업 모드에서 실시간 순위표 버튼 숨기기 */
+.paps-mode #liveRankingBtn {
+  display: none !important;
+}
+
+/* 토너먼트 모드에서 실시간 순위표 버튼 숨기기 */
+.tournament-mode #liveRankingBtn {
+  display: none !important;
+}
+
+/* PAPS 랭킹 기능 스타일 */
+.ranking-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.ranking-controls .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.ranking-controls .form-group label {
+  font-weight: 500;
+  color: var(--ink);
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.ranking-controls .form-group select,
+.ranking-controls .form-group input {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.ranking-controls .form-group select:focus,
+.ranking-controls .form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(25, 113, 194, 0.2);
+}
+
+.ranking-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.ranking-table-container {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.ranking-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pagination-controls .btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+#ranking-table {
+  width: 100%;
+  margin-bottom: 0;
+  border-collapse: collapse;
+}
+
+#ranking-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  padding: 12px 8px;
+  text-align: center;
+}
+
+#ranking-table td {
+  vertical-align: middle;
+  padding: 12px 8px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+#ranking-table tr.table-warning {
+  background-color: #fff3cd !important;
+}
+
+#ranking-table tr.table-warning td {
+  border-color: #ffeaa7;
+}
+
+#ranking-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+#ranking-table tr.table-warning:hover {
+  background-color: #fff3cd !important;
+}
+
+/* 공유 기능 스타일 */
+.dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f9fa !important;
+}
+
+/* 순위표 레이아웃 스타일 */
+.ranking-content-container {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.ranking-table-container {
+  flex: 0 0 calc(50% - 10px);
+  width: calc(50% - 10px);
+  max-width: calc(50% - 10px);
+  min-width: calc(50% - 10px);
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.ranking-chart-container {
+  flex: 0 0 calc(50% - 10px);
+  width: calc(50% - 10px);
+  max-width: calc(50% - 10px);
+  min-width: calc(50% - 10px);
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 20px;
+}
+
+#ranking-distribution-chart {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* 진도표 제어 버튼 스타일 */
+.progress-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.progress-controls .btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--line);
+}
+
+.progress-controls .btn.primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+.progress-controls .btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+.progress-controls .btn.secondary {
+  background: var(--bg);
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.progress-controls .btn.secondary:hover {
+  background: var(--card-bg);
+  border-color: var(--accent);
+}
+
+.progress-controls .btn.secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#weekCounter {
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+/* 차시 번호 표시 스타일 */
+.session-header {
+  margin-bottom: 8px;
+}
+
+.session-number {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* PAPS 빈 상태 스타일 */
+.paps-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 

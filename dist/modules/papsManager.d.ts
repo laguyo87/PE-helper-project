@@ -2,15 +2,13 @@
  * PAPS 수업 관리 모듈
  *
  * 이 모듈은 PAPS(Physical Activity Promotion System) 수업의 모든 기능을 관리합니다.
- * PAPS 반 생성/삭제, 학생 관리, 체력 측정 기록, 평가 기준 적용 등을 담당합니다.
+ * PAPS 반 생성/삭제, 학생 관리, 기록 입력, 등급 계산, 엑셀 내보내기 등을 담당합니다.
  *
  * 현재 지원하는 기능:
- * - PAPS 반 관리 (생성, 수정, 삭제)
+ * - PAPS 반 관리 (생성, 편집, 삭제, 선택)
  * - 학생 명단 관리 (추가, 삭제, 엑셀 업로드)
- * - 체력 측정 기록 입력 및 등급 계산
- * - PAPS 평가 기준 적용 (2024년 기준)
+ * - PAPS 기록 입력 및 등급 계산
  * - 엑셀 내보내기/가져오기
- * - 차트 및 통계 분석
  *
  * @author PE Helper Online
  * @version 2.2.1
@@ -21,42 +19,30 @@ export interface PapsStudent {
     number: number;
     name: string;
     gender: '남자' | '여자';
-    records: Record<string, any>;
+    records: Record<string, number>;
 }
 export interface PapsClass {
     id: number;
     name: string;
-    gradeLevel?: string;
-    eventSettings?: Record<string, string>;
+    gradeLevel: string;
     students: PapsStudent[];
+    settings?: PapsSettings;
+    eventSettings?: Record<string, string>;
+}
+export interface PapsSettings {
+    gradeLevel: string;
+    customCategories?: Record<string, any>;
 }
 export interface PapsData {
     classes: PapsClass[];
     activeClassId: number | null;
 }
-export interface PapsCriteria {
-    [gender: string]: {
-        [grade: string]: {
-            [test: string]: number[][];
-        };
-    };
-}
-export interface PapsItems {
-    [category: string]: {
-        id: string;
-        options: string[];
-    };
-}
-/**
- * PAPS 관리자 클래스
- */
 export declare class PapsManager {
     private papsData;
     private $;
-    private saveDataCallback;
-    static readonly PAPS_ITEMS: PapsItems;
-    static readonly PAPS_CRITERIA: PapsCriteria;
-    constructor(papsData: PapsData, $: (selector: string) => HTMLElement, saveDataCallback: () => void);
+    private saveDataToFirestore;
+    private cleanupSidebar;
+    constructor(papsData: PapsData, $: (id: string) => HTMLElement, saveDataToFirestore: () => void, cleanupSidebar: () => void);
     /**
      * PAPS UI를 렌더링합니다.
      */
@@ -70,13 +56,17 @@ export declare class PapsManager {
      */
     createPapsClass(): void;
     /**
-     * PAPS 반을 선택합니다.
+     * PAPS 반을 편집합니다.
      */
-    selectPapsClass(id: number): void;
+    editPapsClass(id: number): void;
     /**
      * PAPS 반을 삭제합니다.
      */
     deletePapsClass(id: number): void;
+    /**
+     * PAPS 반을 선택합니다.
+     */
+    selectPapsClass(id: number): void;
     /**
      * PAPS 대시보드를 렌더링합니다.
      */
@@ -86,11 +76,11 @@ export declare class PapsManager {
      */
     buildPapsTable(cls: PapsClass): void;
     /**
-     * PAPS 입력 이벤트를 처리합니다.
+     * PAPS 입력을 처리합니다.
      */
-    onPapsInput(e: Event, classId: number): void;
+    onPapsInput(e: Event, cls: PapsClass): void;
     /**
-     * PAPS 행의 등급을 업데이트합니다.
+     * PAPS 행 등급을 업데이트합니다.
      */
     updatePapsRowGrades(tr: HTMLTableRowElement, cls: PapsClass): void;
     /**
@@ -98,56 +88,92 @@ export declare class PapsManager {
      */
     calcPapsGrade(categoryId: string, value: number, gender: string, gradeLevel: string, cls: PapsClass): string;
     /**
+     * 전체 등급을 계산합니다.
+     */
+    calcOverallGrade(tr: HTMLTableRowElement): string;
+    /**
      * PAPS 학생을 추가합니다.
      */
     addPapsStudent(cls: PapsClass): void;
     /**
-     * 선택된 PAPS 학생들을 삭제합니다.
+     * 선택된 PAPS 학생을 삭제합니다.
      */
     deleteSelectedPapsStudents(cls: PapsClass): void;
     /**
-     * PAPS 설정을 표시합니다.
+     * PAPS 템플릿을 다운로드합니다.
      */
-    showPapsSettings(): void;
+    papsDownloadTemplate(): void;
     /**
      * PAPS 설정을 저장합니다.
      */
     savePapsSettings(): void;
     /**
-     * PAPS 이벤트 리스너를 설정합니다.
+     * PAPS 설정을 표시합니다.
      */
-    private setupPapsEventListeners;
+    showPapsSettings(): void;
     /**
-     * PAPS 대시보드 이벤트를 설정합니다.
+     * 랭킹 조회 컨트롤을 설정합니다.
      */
-    private setupPapsDashboardEvents;
+    private setupRankingControls;
     /**
-     * 사이드바를 정리합니다.
+     * 랭킹을 조회합니다.
      */
-    private cleanupSidebar;
+    private searchRanking;
     /**
-     * 모든 PAPS 데이터를 엑셀로 내보냅니다.
+     * 순위 테이블을 렌더링합니다.
+     */
+    private renderRankingTable;
+    /**
+     * 공유 기능 컨트롤을 설정합니다.
+     */
+    private setupShareControls;
+    /**
+     * 실시간 공유를 생성합니다.
+     */
+    private createRealtimeShare;
+    /**
+     * 공유 ID를 생성합니다.
+     */
+    private generateShareId;
+    /**
+     * 공유 성공 모달을 표시합니다.
+     */
+    private showShareSuccessModal;
+    /**
+     * 순위표를 텍스트로 복사합니다.
+     */
+    private copyRankingAsText;
+    /**
+     * 순위표를 이미지로 저장합니다.
+     */
+    private saveRankingAsImage;
+    /**
+     * PAPS 학생 업로드를 처리합니다.
+     */
+    handlePapsStudentUpload(event: Event, cls: PapsClass): void;
+    /**
+     * PAPS를 엑셀로 내보냅니다.
+     */
+    exportPapsToExcel(cls: PapsClass): void;
+    /**
+     * 모든 PAPS를 엑셀로 내보냅니다.
      */
     exportAllPapsToExcel(): void;
     /**
-     * PAPS 엑셀 파일을 업로드합니다.
+     * PAPS 기록 업로드를 처리합니다.
+     */
+    handlePapsRecordUpload(event: Event, cls: PapsClass): void;
+    /**
+     * 모든 PAPS 엑셀 업로드를 처리합니다.
      */
     handleAllPapsExcelUpload(event: Event): void;
     /**
-     * PAPS 데이터를 가져옵니다.
+     * PAPS 차트를 렌더링합니다.
      */
-    getPapsData(): PapsData;
+    renderPapsCharts(cls: PapsClass): void;
     /**
-     * PAPS 데이터를 설정합니다.
+     * 이해하기 쉬운 기록 분포 그래프를 그립니다.
      */
-    setPapsData(data: PapsData): void;
-}
-declare global {
-    interface Window {
-        papsManager: PapsManager;
-        papsItems: PapsItems;
-        showModal: (options: any) => void;
-        closeModal: () => void;
-    }
+    private drawStandardDeviationChart;
 }
 //# sourceMappingURL=papsManager.d.ts.map

@@ -247,7 +247,17 @@ export class AuthManager {
     async handleLogin(event) {
         event.preventDefault();
         if (!this.firebase) {
-            this.showAlert('Firebase가 초기화되지 않아 로그인을 할 수 없습니다. 로컬 모드로 사용해주세요.');
+            // Firebase가 아직 초기화되지 않았으면 잠시 대기 후 재시도
+            console.log('Firebase 초기화 대기 중, 1초 후 재시도...');
+            setTimeout(() => {
+                if (window.firebase) {
+                    this.firebase = window.firebase;
+                    this.handleLogin(event);
+                }
+                else {
+                    this.showAlert('Firebase 연결에 문제가 있습니다. 잠시 후 다시 시도해주세요.');
+                }
+            }, 1000);
             return;
         }
         const emailInput = $('#login-email');
@@ -277,7 +287,17 @@ export class AuthManager {
      */
     async signInWithGoogle() {
         if (!this.firebase) {
-            this.showAlert('Firebase가 초기화되지 않아 Google 로그인을 할 수 없습니다.');
+            // Firebase가 아직 초기화되지 않았으면 잠시 대기 후 재시도
+            console.log('Firebase 초기화 대기 중, 1초 후 재시도...');
+            setTimeout(() => {
+                if (window.firebase) {
+                    this.firebase = window.firebase;
+                    this.signInWithGoogle();
+                }
+                else {
+                    this.showAlert('Firebase 연결에 문제가 있습니다. 잠시 후 다시 시도해주세요.');
+                }
+            }, 1000);
             return;
         }
         try {
