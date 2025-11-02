@@ -79,7 +79,7 @@ function cleanupSidebar() {
 // 앱 초기화
     // ========================================
 async function initialize_app() {
-    console.log('앱 초기화 시작');
+    console.log('=== 앱 초기화 시작 ===');
     
     // 버전 체크
     checkVersion();
@@ -121,14 +121,36 @@ async function initialize_app() {
         }
         
         // 방문자 관리자 초기화
+        console.log('=== 방문자 매니저 초기화 시작 ===');
+        console.log('initializeVisitorManager 함수 존재 여부:', typeof initializeVisitorManager);
+        
+        try {
             visitorManager = initializeVisitorManager();
             visitorManagerInitialized = true;
-        console.log('VisitorManager 초기화 완료');
-        
-        // 방문자 수 업데이트
-        if (visitorManager) {
-            console.log('방문자 수 업데이트 시작');
-            await visitorManager.updateVisitorCount();
+            console.log('VisitorManager 초기화 완료:', visitorManager);
+            console.log('VisitorManager 타입:', typeof visitorManager);
+            
+            // 방문자 수 업데이트
+            if (visitorManager) {
+                console.log('방문자 수 업데이트 시작');
+                try {
+                    const result = await visitorManager.updateVisitorCount();
+                    console.log('방문자 수 업데이트 결과:', result);
+                    
+                    // 방문자 수 표시 확인
+                    const visitorCountElement = document.querySelector('#visitor-count');
+                    console.log('방문자 수 요소 찾기:', visitorCountElement);
+                    if (visitorCountElement) {
+                        console.log('현재 방문자 수 요소 값:', visitorCountElement.textContent);
+                    }
+                } catch (error) {
+                    console.error('방문자 수 업데이트 오류:', error);
+                }
+            } else {
+                console.error('VisitorManager가 초기화되지 않음');
+            }
+        } catch (error) {
+            console.error('VisitorManager 초기화 오류:', error);
         }
         
         // 리그 관리자 초기화
@@ -696,29 +718,29 @@ function setupModeButtons() {
 }
 
 function setupAuthButtons() {
-    const loginBtn = $('#loginBtn');
-    const logoutBtn = $('#logoutBtn');
-    
-    if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
-            if (authManager && authManagerInitialized) {
-                authManager.signInWithGoogle();
-                                    } else {
-                console.error('AuthManager가 초기화되지 않음');
-            }
-        });
-    }
+    // 로그인 버튼은 HTML에 없을 수 있음 (showLoginModal 함수 사용)
+    // 로그아웃 버튼 ID 확인: #logout-btn (하이픈 포함)
+    const logoutBtn = $('#logout-btn');
     
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
+        console.log('로그아웃 버튼 찾음, 이벤트 리스너 등록');
+        logoutBtn.addEventListener('click', async () => {
+            console.log('로그아웃 버튼 클릭됨');
             if (authManager && authManagerInitialized) {
-                authManager.signOut();
-                } else {
+                try {
+                    await authManager.signOut();
+                    console.log('로그아웃 처리 완료');
+                } catch (error) {
+                    console.error('로그아웃 중 오류:', error);
+                }
+            } else {
                 console.error('AuthManager가 초기화되지 않음');
             }
         });
+    } else {
+        console.warn('로그아웃 버튼을 찾을 수 없음: #logout-btn');
     }
-    }
+}
     
     // ========================================
 // 모드 전환
@@ -978,6 +1000,42 @@ window.saveDataToFirestore = saveDataToFirestore;
 window.appMode = appMode;
 window.$ = $; // $ 함수도 전역으로 등록
 window.$$ = $$; // $$ 함수도 전역으로 등록
+
+// ========================================
+// LeagueManager 전역 함수 등록
+// ========================================
+// 리그전 수업 모드에서 사용되는 전역 함수들
+window.selectClass = function(id) {
+    if (leagueManager && leagueManagerInitialized) {
+        leagueManager.selectClass(id);
+    } else {
+        console.error('LeagueManager가 초기화되지 않음');
+    }
+};
+
+window.editClassNote = function(id) {
+    if (leagueManager && leagueManagerInitialized) {
+        leagueManager.editClassNote(id);
+    } else {
+        console.error('LeagueManager가 초기화되지 않음');
+    }
+};
+
+window.editClassName = function(id) {
+    if (leagueManager && leagueManagerInitialized) {
+        leagueManager.editClassName(id);
+    } else {
+        console.error('LeagueManager가 초기화되지 않음');
+    }
+};
+
+window.deleteClass = function(id) {
+    if (leagueManager && leagueManagerInitialized) {
+        leagueManager.deleteClass(id);
+    } else {
+        console.error('LeagueManager가 초기화되지 않음');
+    }
+};
     
     // 안전한 모달 닫기 함수
     window.closeModal = function() {
@@ -993,3 +1051,80 @@ window.$$ = $$; // $$ 함수도 전역으로 등록
             console.log('모달 닫기 중 오류:', error);
         }
     };
+
+// ========================================
+// 전역 에러 핸들러 - COOP 경고 필터링
+// ========================================
+// Firebase 팝업 로그인 시 발생하는 Cross-Origin-Opener-Policy 경고를 필터링합니다.
+// 이 경고는 실제 기능에는 영향을 주지 않지만 콘솔을 지저분하게 만들 수 있습니다.
+
+// 에러 메시지가 COOP 관련인지 확인하는 함수
+function isCOOPError(message, stack) {
+    if (!message && !stack) return false;
+    const text = String(message || '') + ' ' + String(stack || '');
+    return text.includes('Cross-Origin-Opener-Policy') ||
+           text.includes('window.close') ||
+           text.includes('window.closed') ||
+           text.includes('popup.ts:') ||
+           (text.includes('window.close') && text.includes('block'));
+}
+
+// 전역 에러 이벤트 리스너 (가장 먼저 실행되도록)
+window.addEventListener('error', (event) => {
+    // Cross-Origin-Opener-Policy 관련 에러를 필터링
+    if (isCOOPError(event.message, event.error?.stack)) {
+        // COOP 관련 에러는 무시 (기능에는 영향 없음)
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        return false;
+    }
+    // 다른 에러는 정상적으로 처리
+    return true;
+}, true);
+
+// unhandledrejection 이벤트도 처리
+window.addEventListener('unhandledrejection', (event) => {
+    const message = event.reason?.message || String(event.reason || '');
+    const stack = event.reason?.stack || '';
+    if (isCOOPError(message, stack)) {
+        event.preventDefault();
+        return false;
+    }
+    return true;
+}, true);
+
+// 콘솔 에러 필터링 (Firebase SDK 내부 에러)
+const originalError = console.error;
+console.error = function(...args) {
+    // 모든 인자를 문자열로 변환하여 검사
+    const message = args.map(arg => {
+        if (typeof arg === 'string') return arg;
+        if (arg instanceof Error) return arg.message + ' ' + (arg.stack || '');
+        if (typeof arg === 'object') return JSON.stringify(arg);
+        return String(arg);
+    }).join(' ');
+    
+    if (isCOOPError(message, message)) {
+        // 이 에러는 무시 (Firebase SDK 내부 에러로 기능에 영향 없음)
+        return;
+    }
+    // 다른 에러는 정상적으로 출력
+    originalError.apply(console, args);
+};
+
+// console.warn도 필터링 (일부 브라우저가 경고로 표시할 수 있음)
+const originalWarn = console.warn;
+console.warn = function(...args) {
+    const message = args.map(arg => {
+        if (typeof arg === 'string') return arg;
+        if (arg instanceof Error) return arg.message + ' ' + (arg.stack || '');
+        if (typeof arg === 'object') return JSON.stringify(arg);
+        return String(arg);
+    }).join(' ');
+    
+    if (isCOOPError(message, message)) {
+        return;
+    }
+    originalWarn.apply(console, args);
+};

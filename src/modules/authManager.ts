@@ -275,11 +275,12 @@ export class AuthManager {
       googleLoginBtn.addEventListener('click', () => this.signInWithGoogle());
     }
 
-    // 로그아웃 버튼
-    const logoutBtn = $('#logout-btn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => this.signOut());
-    }
+    // 로그아웃 버튼은 main.js에서 관리하므로 여기서는 설정하지 않음
+    // 중복 등록을 방지하기 위해 주석 처리
+    // const logoutBtn = $('#logout-btn');
+    // if (logoutBtn) {
+    //   logoutBtn.addEventListener('click', () => this.signOut());
+    // }
   }
 
   /**

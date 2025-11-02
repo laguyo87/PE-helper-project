@@ -8,6 +8,85 @@
   <meta name="naver-site-verification" content="8e3626d5e947128b60282a78fdfe9a1a2e6a1d8b" />
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1971c2"/>
+  
+  <!-- COOP 에러 필터링 - 모든 스크립트 로드 전에 실행 -->
+  <script>
+    (function() {
+      'use strict';
+      
+      // 콘솔 API를 가장 먼저 오버라이드
+      const originalError = window.console?.error || function() {};
+      const originalWarn = window.console?.warn || function() {};
+      const originalLog = window.console?.log || function() {};
+      
+      // COOP 에러인지 확인
+      function isCOOPError(text) {
+        if (!text) return false;
+        const str = String(text);
+        return str.includes('Cross-Origin-Opener-Policy') ||
+               (str.includes('window.close') && (str.includes('block') || str.includes('policy'))) ||
+               (str.includes('window.closed') && str.includes('block')) ||
+               str.includes('popup.ts:');
+      }
+      
+      // 모든 콘솔 메서드 필터링
+      ['error', 'warn', 'log'].forEach(method => {
+        const original = window.console[method];
+        window.console[method] = function(...args) {
+          const message = args.map(arg => {
+            if (typeof arg === 'string') return arg;
+            if (arg instanceof Error) return arg.message + ' ' + (arg.stack || '');
+            try {
+              return JSON.stringify(arg);
+            } catch {
+              return String(arg);
+            }
+          }).join(' ');
+          
+          if (isCOOPError(message)) {
+            return; // COOP 에러는 무시
+          }
+          original.apply(this, args);
+        };
+      });
+      
+      // 에러 이벤트 리스너
+      window.addEventListener('error', function(event) {
+        const message = event.message || '';
+        const stack = event.error?.stack || '';
+        if (isCOOPError(message + ' ' + stack)) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          return false;
+        }
+      }, true);
+      
+      // Promise rejection 이벤트
+      window.addEventListener('unhandledrejection', function(event) {
+        const message = event.reason?.message || String(event.reason || '');
+        const stack = event.reason?.stack || '';
+        if (isCOOPError(message + ' ' + stack)) {
+          event.preventDefault();
+          return false;
+        }
+      }, true);
+      
+      // 콘솔 메시지를 감시하는 MutationObserver (최후의 수단)
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          setupConsoleObserver();
+        });
+      } else {
+        setupConsoleObserver();
+      }
+      
+      function setupConsoleObserver() {
+        // 콘솔에 직접 출력되는 메시지를 제거하기 어려우므로
+        // 최소한 이벤트 차단에 집중
+      }
+    })();
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
