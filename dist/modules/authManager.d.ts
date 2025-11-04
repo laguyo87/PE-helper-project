@@ -53,7 +53,15 @@ export declare class AuthManager {
     private authStateCallbacks;
     private config;
     private firebase;
+    private abortController;
+    private googleLoginHandler;
+    private logoutHandler;
     constructor(config?: Partial<AuthConfig>);
+    /**
+     * 리소스 정리 (메모리 누수 방지)
+     * 이벤트 리스너를 정리합니다.
+     */
+    cleanup(): void;
     /**
      * Firebase 초기화
      */
@@ -102,6 +110,7 @@ export declare class AuthManager {
     private handleLogin;
     /**
      * Google 로그인을 처리합니다.
+     * 팝업 방식을 사용하며, COOP 에러는 필터링으로 처리됩니다.
      */
     signInWithGoogle(): Promise<void>;
     /**
@@ -126,6 +135,14 @@ export declare class AuthManager {
      * 로그인 상태 UI를 업데이트합니다.
      */
     updateLoginStatus(): void;
+    /**
+     * Google 로그인 버튼 이벤트 리스너를 설정합니다.
+     */
+    private setupGoogleLoginButton;
+    /**
+     * 로그아웃 버튼 이벤트 리스너를 설정합니다.
+     */
+    private setupLogoutButton;
     /**
      * 인증 오류를 처리합니다.
      * @param error 오류 객체

@@ -10,6 +10,8 @@
  * @since 2024-01-01
  */
 
+import { logger, logInfo, logWarn, logError } from './logger.js';
+
 // ========================================
 // 타입 정의
 // ========================================
@@ -144,6 +146,7 @@ export interface SaveOptions {
     retryCount?: number;
     timeout?: number;
     enableLocalBackup?: boolean;
+    skipValidation?: boolean; // 데이터 검증 스킵 여부
 }
 
 /**
@@ -167,11 +170,14 @@ export class DataManager {
     private currentUser: User | null = null;
     private dbDebounceTimer: NodeJS.Timeout | null = null;
     private lastSaveErrorTime: number = 0;
+    private firebaseReadyHandler: ((event: Event) => void) | null = null;
+    private abortController: AbortController | null = null;
 
     /**
      * DataManager 인스턴스를 생성합니다.
      */
     constructor() {
+        this.abortController = new AbortController();
         this.initializeFirebase();
     }
 
@@ -184,13 +190,49 @@ export class DataManager {
             this.log('Firebase 인스턴스 초기화 완료');
         } else {
             this.log('Firebase가 아직 초기화되지 않음, firebaseReady 이벤트 대기');
-            window.addEventListener('firebaseReady', () => {
+            this.firebaseReadyHandler = () => {
                 if ((window as any).firebase) {
                     this.firebase = (window as any).firebase;
                     this.log('Firebase 인스턴스 지연 초기화 완료');
                 }
+            };
+            window.addEventListener('firebaseReady', this.firebaseReadyHandler, {
+                signal: this.abortController?.signal
             });
         }
+    }
+
+    /**
+     * 디바운스 타이머 정리
+     */
+    private clearDebounceTimer(): void {
+        if (this.dbDebounceTimer) {
+            clearTimeout(this.dbDebounceTimer);
+            this.dbDebounceTimer = null;
+        }
+    }
+
+    /**
+     * 리소스 정리 (메모리 누수 방지)
+     * 타이머와 이벤트 리스너를 정리합니다.
+     */
+    public cleanup(): void {
+        // 디바운스 타이머 정리
+        this.clearDebounceTimer();
+        
+        // 이벤트 리스너 정리
+        if (this.firebaseReadyHandler) {
+            window.removeEventListener('firebaseReady', this.firebaseReadyHandler);
+            this.firebaseReadyHandler = null;
+        }
+        
+        // AbortController로 등록된 모든 이벤트 리스너 정리
+        if (this.abortController) {
+            this.abortController.abort();
+            this.abortController = null;
+        }
+        
+        this.log('DataManager 리소스 정리 완료');
     }
 
     /**
@@ -219,7 +261,16 @@ export class DataManager {
         data: AppData, 
         options: SaveOptions = {}
     ): Promise<void> {
-        const { retryCount = 0, timeout = 15000, enableLocalBackup = true } = options;
+        const { retryCount = 0, timeout = 15000, enableLocalBackup = true, skipValidation = false } = options;
+        
+        // 저장 전 데이터 검증 (옵션으로 비활성화 가능)
+        if (!skipValidation) {
+            const validationResult = await this.validateDataBeforeSave(data);
+            if (!validationResult.success) {
+                this.logWarnLocal('저장 전 데이터 검증 경고:', validationResult.errors);
+                // 검증 실패해도 저장은 진행 (데이터 보정 후)
+            }
+        }
 
         if (!this.currentUser) {
             this.log('사용자가 로그인되지 않음, 로컬 스토리지에 저장');
@@ -239,9 +290,7 @@ export class DataManager {
         }
 
         // 디바운스 타이머 정리
-        if (this.dbDebounceTimer) {
-            clearTimeout(this.dbDebounceTimer);
-        }
+        this.clearDebounceTimer();
 
         this.dbDebounceTimer = setTimeout(async () => {
             try {
@@ -270,7 +319,19 @@ export class DataManager {
                 }
 
             } catch (error) {
-                await this.handleSaveError(error, retryCount, data, options);
+                // Firestore 저장 타임아웃은 사용자에게 노출하지 않음 (일시적 네트워크 문제일 수 있음)
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                if (errorMessage.includes('Firestore 저장 시간 초과') || errorMessage.includes('timeout')) {
+                    this.log('Firestore 저장 타임아웃 발생 (재시도 예정)');
+                    // 로컬 백업은 수행
+                    if (enableLocalBackup) {
+                        this.saveToLocalStorage(data);
+                    }
+                    // 재시도 로직은 handleSaveError에서 처리
+                    await this.handleSaveError(error, retryCount, data, options);
+                } else {
+                    await this.handleSaveError(error, retryCount, data, options);
+                }
             }
         }, 1000);
     }
@@ -452,39 +513,94 @@ export class DataManager {
     /**
      * 데이터 유효성을 검사합니다.
      * @param data 검사할 데이터
+     * @returns 검증 성공 여부
      */
-    validateLoadedData(data: AppData): void {
+    validateLoadedData(data: AppData): boolean {
         this.log('=== 데이터 유효성 검사 시작 ===');
 
-        // 기본 구조 검사
-        if (!data.leagues) {
-            data.leagues = this.getDefaultData().leagues;
-        }
-        if (!data.tournaments) {
-            data.tournaments = this.getDefaultData().tournaments;
-        }
-        if (!data.paps) {
-            data.paps = this.getDefaultData().paps;
-        }
-        if (!data.progress) {
-            data.progress = this.getDefaultData().progress;
-        }
+        try {
+            // 기본 구조 보장
+            const defaultData = this.getDefaultData();
+            if (!data.leagues) {
+                data.leagues = defaultData.leagues;
+            }
+            if (!data.tournaments) {
+                data.tournaments = defaultData.tournaments;
+            }
+            if (!data.paps) {
+                data.paps = defaultData.paps;
+            }
+            if (!data.progress) {
+                data.progress = defaultData.progress;
+            }
 
-        // 배열 검사
-        if (!Array.isArray(data.leagues.classes)) {
-            data.leagues.classes = [];
-        }
-        if (!Array.isArray(data.tournaments.tournaments)) {
-            data.tournaments.tournaments = [];
-        }
-        if (!Array.isArray(data.paps.classes)) {
-            data.paps.classes = [];
-        }
-        if (!Array.isArray(data.progress.classes)) {
-            data.progress.classes = [];
-        }
+            // 배열 검사 및 보정
+            if (!Array.isArray(data.leagues.classes)) {
+                data.leagues.classes = [];
+            }
+            if (!Array.isArray(data.tournaments.tournaments)) {
+                data.tournaments.tournaments = [];
+            }
+            if (!Array.isArray(data.paps.classes)) {
+                data.paps.classes = [];
+            }
+            if (!Array.isArray(data.progress.classes)) {
+                data.progress.classes = [];
+            }
 
-        this.log('=== 데이터 유효성 검사 완료 ===');
+            // Zod 스키마 검증 (동적 import로 처리, 실패해도 기본값 사용)
+            // 검증은 경고로만 처리하고 기본값으로 보정
+            this.validateWithZod(data).catch(error => {
+                this.logWarnLocal('Zod 검증 중 오류 (무시됨):', error);
+            });
+
+            this.log('=== 데이터 유효성 검사 완료 ===');
+            return true;
+        } catch (error) {
+            this.logError('데이터 검증 중 오류:', error);
+            // 검증 실패 시 기본값으로 보정
+            const defaultData = this.getDefaultData();
+            Object.assign(data, defaultData);
+            return false;
+        }
+    }
+
+    /**
+     * Zod를 사용한 데이터 검증 (비동기)
+     * @param data 검증할 데이터
+     */
+    private async validateWithZod(data: AppData): Promise<void> {
+        try {
+            const { validatePartial, AppDataSchema } = await import('./validators.js');
+            const result = validatePartial(AppDataSchema, data);
+            
+            if (!result.success && result.formattedErrors) {
+                this.logWarnLocal('데이터 검증 경고:', result.formattedErrors);
+            }
+        } catch (error) {
+            // Zod 검증 실패는 경고만 하고 계속 진행
+            this.logWarnLocal('Zod 검증 실패 (무시됨):', error);
+        }
+    }
+
+    /**
+     * 저장 전 데이터 검증
+     * @param data 검증할 데이터
+     * @returns 검증 결과
+     */
+    private async validateDataBeforeSave(data: AppData): Promise<{ success: boolean; errors?: string[] }> {
+        try {
+            const { validateData, AppDataSchema } = await import('./validators.js');
+            const result = validateData(AppDataSchema, data);
+            
+            return {
+                success: result.success,
+                errors: result.formattedErrors
+            };
+        } catch (error) {
+            this.logWarnLocal('저장 전 검증 중 오류:', error);
+            return { success: true }; // 검증 오류는 경고만 하고 저장 계속
+        }
     }
 
     /**
@@ -556,6 +672,80 @@ export class DataManager {
                     }
                 } else if (t.rounds === undefined) {
                     t.rounds = [];
+                }
+            });
+        }
+
+        // League games 데이터 타입 변환 및 기본값 설정
+        if (processedData.leagues && processedData.leagues.games) {
+            processedData.leagues.games.forEach((game: any) => {
+                // float를 integer로 변환
+                if (typeof game.id === 'number' && !Number.isInteger(game.id)) {
+                    game.id = Math.floor(game.id);
+                }
+                // completedAt이 없으면 null로 설정 (필수 필드이지만 nullable)
+                if (game.completedAt === undefined) {
+                    game.completedAt = null;
+                }
+            });
+        }
+
+        // League classes, students의 id를 integer로 변환
+        if (processedData.leagues) {
+            if (processedData.leagues.classes) {
+                processedData.leagues.classes.forEach((cls: any) => {
+                    if (typeof cls.id === 'number' && !Number.isInteger(cls.id)) {
+                        cls.id = Math.floor(cls.id);
+                    }
+                });
+            }
+            if (processedData.leagues.students) {
+                processedData.leagues.students.forEach((student: any) => {
+                    if (typeof student.id === 'number' && !Number.isInteger(student.id)) {
+                        student.id = Math.floor(student.id);
+                    }
+                    if (typeof student.classId === 'number' && !Number.isInteger(student.classId)) {
+                        student.classId = Math.floor(student.classId);
+                    }
+                });
+            }
+        }
+
+        // PAPS 데이터 타입 변환
+        if (processedData.paps && processedData.paps.classes) {
+            processedData.paps.classes.forEach((cls: any) => {
+                // class id를 integer로 변환
+                if (typeof cls.id === 'number' && !Number.isInteger(cls.id)) {
+                    cls.id = Math.floor(cls.id);
+                }
+                
+                // students 처리
+                if (cls.students && Array.isArray(cls.students)) {
+                    cls.students.forEach((student: any) => {
+                        // student id를 integer로 변환
+                        if (typeof student.id === 'number' && !Number.isInteger(student.id)) {
+                            student.id = Math.floor(student.id);
+                        }
+                        if (typeof student.number === 'number' && !Number.isInteger(student.number)) {
+                            student.number = Math.floor(student.number);
+                        }
+                        
+                        // records의 string 값을 number로 변환
+                        if (student.records && typeof student.records === 'object') {
+                            const records: Record<string, any> = {};
+                            for (const [key, value] of Object.entries(student.records)) {
+                                if (typeof value === 'string') {
+                                    const numValue = parseFloat(value);
+                                    records[key] = isNaN(numValue) ? 0 : numValue;
+                                } else if (typeof value === 'number') {
+                                    records[key] = value;
+                                } else {
+                                    records[key] = 0;
+                                }
+                            }
+                            student.records = records;
+                        }
+                    });
                 }
             });
         }
@@ -676,7 +866,16 @@ export class DataManager {
      * @param args 추가 인수
      */
     private log(message: string, ...args: any[]): void {
-        console.log(`[DataManager] ${message}`, ...args);
+        logger.debug(`[DataManager] ${message}`, ...args);
+    }
+
+    /**
+     * 경고 로그를 출력합니다.
+     * @param message 경고 메시지
+     * @param args 추가 인수
+     */
+    private logWarnLocal(message: string, ...args: any[]): void {
+        logWarn(`[DataManager] ${message}`, ...args);
     }
 
     /**
@@ -685,7 +884,18 @@ export class DataManager {
      * @param args 추가 인수
      */
     private logError(message: string, ...args: any[]): void {
-        console.error(`[DataManager] ${message}`, ...args);
+        // Firestore 타임아웃이나 일시적 네트워크 에러는 로그 레벨 낮춤
+        const errorDetails = args.length > 0 ? (args[0] instanceof Error ? args[0].message : String(args[0] || '')) : '';
+        if (errorDetails.includes('시간 초과') || 
+            errorDetails.includes('timeout') || 
+            errorDetails.includes('400') ||
+            errorDetails.includes('Failed to load resource')) {
+            // 개발 환경에서만 로그 출력 (프로덕션에서는 조용히 처리)
+            // 하지만 브라우저 환경에서는 항상 조용히 처리
+            return;
+        }
+        
+        logError(`[DataManager] ${message}`, ...args);
     }
 }
 

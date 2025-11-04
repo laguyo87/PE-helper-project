@@ -41,10 +41,24 @@ export declare class PapsManager {
     private papsData;
     private $;
     private saveDataToFirestore;
-    private cleanupSidebar;
     private currentRankingData;
     private updateInterval;
-    constructor(papsData: PapsData, $: (id: string) => HTMLElement, saveDataToFirestore: () => void, cleanupSidebar: () => void);
+    constructor(papsData: PapsData, $: (id: string) => HTMLElement, saveDataToFirestore: () => void, cleanupSidebar?: () => void);
+    /**
+     * 리소스 정리 (메모리 누수 방지)
+     * 타이머와 이벤트 리스너를 정리합니다.
+     */
+    cleanup(): void;
+    /**
+     * PAPS 데이터를 설정합니다.
+     * @param data PAPS 데이터
+     */
+    setPapsData(data: PapsData): void;
+    /**
+     * PAPS 데이터를 가져옵니다.
+     * @returns PAPS 데이터
+     */
+    getPapsData(): PapsData;
     /**
      * PAPS UI를 렌더링합니다.
      */
@@ -193,5 +207,10 @@ export declare class PapsManager {
      * 랭킹을 닫습니다.
      */
     private closeRanking;
+    /**
+     * 사이드바를 정리합니다.
+     * sidebar-list-container는 renderPapsClassList()에서 관리하므로 여기서 비우지 않습니다.
+     */
+    private cleanupSidebar;
 }
 //# sourceMappingURL=papsManager.d.ts.map

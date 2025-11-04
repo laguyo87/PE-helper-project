@@ -10,6 +10,8 @@
  * @since 2024-01-01
  */
 
+import { logger, logInfo, logWarn, logError } from './logger.js';
+
 // ========================================
 // 타입 정의
 // ========================================
@@ -94,7 +96,7 @@ const $ = (selector: string): HTMLElement | null => {
   try {
     return document.querySelector(selector);
   } catch (error) {
-    console.warn(`querySelector error (${selector}):`, error);
+    logWarn(`querySelector error (${selector}):`, error);
     return null;
   }
 };
@@ -105,7 +107,7 @@ const $ = (selector: string): HTMLElement | null => {
  * @param data 추가 데이터
  */
 const log = (message: string, data?: any): void => {
-  console.log(`[AuthManager] ${message}`, data || '');
+  logger.debug(`[AuthManager] ${message}`, data || '');
 };
 
 /**
@@ -113,8 +115,8 @@ const log = (message: string, data?: any): void => {
  * @param message 오류 메시지
  * @param error 오류 객체
  */
-const logError = (message: string, error?: any): void => {
-  console.error(`[AuthManager] ${message}`, error || '');
+const logErrorLocal = (message: string, error?: any): void => {
+  logError(`[AuthManager] ${message}`, error || '');
 };
 
 // ========================================
@@ -129,11 +131,35 @@ export class AuthManager {
   private authStateCallbacks: AuthStateChangeCallback[] = [];
   private config: AuthConfig;
   private firebase: any = null;
+  private abortController: AbortController | null = null;
+  private googleLoginHandler: ((e: Event) => void) | null = null;
+  private logoutHandler: ((e: Event) => void) | null = null;
 
   constructor(config: Partial<AuthConfig> = {}) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     this.config = { ...DEFAULT_AUTH_CONFIG, ...config };
+    this.abortController = new AbortController();
     this.initializeFirebase();
+  }
+
+  /**
+   * 리소스 정리 (메모리 누수 방지)
+   * 이벤트 리스너를 정리합니다.
+   */
+  public cleanup(): void {
+    // AbortController로 등록된 모든 이벤트 리스너 정리
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+    
+    // 수동으로 등록된 이벤트 리스너 정리
+    // (cloneNode를 사용한 경우 DOM에서 제거되므로 별도 정리 불필요)
+    
+    // 콜백 목록 정리
+    this.authStateCallbacks = [];
+    
+    log('AuthManager 리소스 정리 완료');
   }
 
   /**
@@ -182,7 +208,7 @@ export class AuthManager {
       try {
         callback(user);
       } catch (error) {
-        logError('인증 상태 변경 콜백 실행 중 오류:', error);
+        logErrorLocal('인증 상태 변경 콜백 실행 중 오류:', error);
       }
     });
   }
@@ -269,11 +295,8 @@ export class AuthManager {
       });
     }
 
-    // Google 로그인 버튼
-    const googleLoginBtn = $('#google-login-btn');
-    if (googleLoginBtn) {
-      googleLoginBtn.addEventListener('click', () => this.signInWithGoogle());
-    }
+    // Google 로그인 버튼 이벤트 리스너 설정
+    this.setupGoogleLoginButton();
 
     // 로그아웃 버튼은 main.js에서 관리하므로 여기서는 설정하지 않음
     // 중복 등록을 방지하기 위해 주석 처리
@@ -299,7 +322,7 @@ export class AuthManager {
     const passwordInput = $('#signup-password') as HTMLInputElement;
 
     if (!emailInput || !passwordInput) {
-      logError('회원가입 폼 요소를 찾을 수 없음');
+      logErrorLocal('회원가입 폼 요소를 찾을 수 없음');
       return;
     }
 
@@ -316,7 +339,7 @@ export class AuthManager {
       await createUserWithEmailAndPassword(auth, email, password);
       log('회원가입 성공:', email);
     } catch (error: any) {
-      logError('회원가입 실패:', error);
+      logErrorLocal('회원가입 실패:', error);
       this.handleAuthError(error, 'signup');
     }
   }
@@ -330,7 +353,7 @@ export class AuthManager {
     
     if (!this.firebase) {
       // Firebase가 아직 초기화되지 않았으면 잠시 대기 후 재시도
-      console.log('Firebase 초기화 대기 중, 1초 후 재시도...');
+      logInfo('Firebase 초기화 대기 중, 1초 후 재시도...');
       setTimeout(() => {
         if ((window as any).firebase) {
           this.firebase = (window as any).firebase;
@@ -346,7 +369,7 @@ export class AuthManager {
     const passwordInput = $('#login-password') as HTMLInputElement;
 
     if (!emailInput || !passwordInput) {
-      logError('로그인 폼 요소를 찾을 수 없음');
+      logErrorLocal('로그인 폼 요소를 찾을 수 없음');
       return;
     }
 
@@ -363,18 +386,19 @@ export class AuthManager {
       await signInWithEmailAndPassword(auth, email, password);
       log('로그인 성공:', email);
     } catch (error: any) {
-      logError('로그인 실패:', error);
+      logErrorLocal('로그인 실패:', error);
       this.handleAuthError(error, 'login');
     }
   }
 
   /**
    * Google 로그인을 처리합니다.
+   * 팝업 방식을 사용하며, COOP 에러는 필터링으로 처리됩니다.
    */
   public async signInWithGoogle(): Promise<void> {
     if (!this.firebase) {
       // Firebase가 아직 초기화되지 않았으면 잠시 대기 후 재시도
-      console.log('Firebase 초기화 대기 중, 1초 후 재시도...');
+      logInfo('Firebase 초기화 대기 중, 1초 후 재시도...');
       setTimeout(() => {
         if ((window as any).firebase) {
           this.firebase = (window as any).firebase;
@@ -389,10 +413,16 @@ export class AuthManager {
     try {
       const { auth, GoogleAuthProvider, signInWithPopup } = this.firebase;
       const provider = new GoogleAuthProvider();
+      // 팝업 방식 사용 (COOP 에러는 콘솔 필터링으로 처리)
       await signInWithPopup(auth, provider);
       log('Google 로그인 성공');
     } catch (error: any) {
-      logError('Google 로그인 실패:', error);
+      logErrorLocal('Google 로그인 실패:', error);
+      // 팝업이 닫힌 경우는 정상적인 플로우
+      if (error.code === 'auth/popup-closed-by-user') {
+        log('사용자가 로그인 팝업을 닫음');
+        return;
+      }
       this.handleAuthError(error, 'login');
     }
   }
@@ -412,7 +442,7 @@ export class AuthManager {
       await signOut(auth);
       log('로그아웃 성공');
     } catch (error: any) {
-      logError('로그아웃 실패:', error);
+      logErrorLocal('로그아웃 실패:', error);
     }
   }
 
@@ -432,7 +462,7 @@ export class AuthManager {
     const messageElement = $('#reset-message');
 
     if (!emailInput) {
-      logError('비밀번호 재설정 폼 요소를 찾을 수 없음');
+      logErrorLocal('비밀번호 재설정 폼 요소를 찾을 수 없음');
       return;
     }
 
@@ -449,7 +479,7 @@ export class AuthManager {
       this.showResetMessage('비밀번호 재설정 이메일이 발송되었습니다. 받은편지함을 확인해주세요.', 'success');
       log('비밀번호 재설정 이메일 발송 성공:', email);
     } catch (error: any) {
-      logError('비밀번호 재설정 실패:', error);
+      logErrorLocal('비밀번호 재설정 실패:', error);
       this.handleAuthError(error, 'reset');
     }
   }
@@ -468,7 +498,7 @@ export class AuthManager {
     const authTitle = $('#auth-title');
 
     if (!loginForm || !signupForm || !resetForm) {
-      logError('인증 폼 요소를 찾을 수 없음');
+      logErrorLocal('인증 폼 요소를 찾을 수 없음');
       return;
     }
 
@@ -522,7 +552,7 @@ export class AuthManager {
     const guestStatus = $('#guest-status');
 
     if (!loginStatus || !guestStatus) {
-      logError('로그인 상태 UI 요소를 찾을 수 없음');
+      logErrorLocal('로그인 상태 UI 요소를 찾을 수 없음');
       return;
     }
 
@@ -535,10 +565,86 @@ export class AuthManager {
       if (userEmailElement) {
         userEmailElement.textContent = userEmail;
       }
+      
+      // 로그아웃 버튼 이벤트 리스너 설정 (로그인 상태일 때)
+      this.setupLogoutButton();
     } else {
       loginStatus.classList.add('hidden');
       guestStatus.classList.remove('hidden');
+      
+      // 로그아웃 상태일 때 Google 로그인 버튼 이벤트 리스너 재설정
+      this.setupGoogleLoginButton();
     }
+  }
+
+  /**
+   * Google 로그인 버튼 이벤트 리스너를 설정합니다.
+   */
+  private setupGoogleLoginButton(): void {
+    const googleLoginBtn = $('#google-login-btn');
+    if (!googleLoginBtn) {
+      log('Google 로그인 버튼을 찾을 수 없음');
+      return;
+    }
+
+    // 기존 이벤트 리스너 제거 (중복 방지)
+    // cloneNode를 사용하여 기존 리스너 제거
+    const newGoogleLoginBtn = googleLoginBtn.cloneNode(true) as HTMLElement;
+    if (googleLoginBtn.parentNode) {
+      googleLoginBtn.parentNode.replaceChild(newGoogleLoginBtn, googleLoginBtn);
+    }
+
+    // 새 이벤트 리스너 등록 (AbortController signal로 관리)
+    this.googleLoginHandler = async (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      log('Google 로그인 버튼 클릭됨');
+      try {
+        await this.signInWithGoogle();
+        log('Google 로그인 처리 완료');
+      } catch (error: any) {
+        logErrorLocal('Google 로그인 중 오류:', error);
+      }
+    };
+    
+    newGoogleLoginBtn.addEventListener('click', this.googleLoginHandler, {
+      signal: this.abortController?.signal
+    });
+  }
+
+  /**
+   * 로그아웃 버튼 이벤트 리스너를 설정합니다.
+   */
+  private setupLogoutButton(): void {
+    const logoutBtn = $('#logout-btn');
+    if (!logoutBtn) {
+      log('로그아웃 버튼을 찾을 수 없음');
+      return;
+    }
+
+    // 기존 이벤트 리스너 제거 (중복 방지)
+    // cloneNode를 사용하여 기존 리스너 제거
+    const newLogoutBtn = logoutBtn.cloneNode(true) as HTMLElement;
+    if (logoutBtn.parentNode) {
+      logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+    }
+
+    // 새 이벤트 리스너 등록 (AbortController signal로 관리)
+    this.logoutHandler = async (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      log('로그아웃 버튼 클릭됨');
+      try {
+        await this.signOut();
+        log('로그아웃 처리 완료');
+      } catch (error: any) {
+        logErrorLocal('로그아웃 중 오류:', error);
+      }
+    };
+    
+    newLogoutBtn.addEventListener('click', this.logoutHandler, {
+      signal: this.abortController?.signal
+    });
   }
 
   /**

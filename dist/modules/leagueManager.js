@@ -8,6 +8,10 @@
  * @version 2.2.1
  * @since 2024-01-01
  */
+import { validateData, LeagueClassSchema, LeagueStudentSchema } from './validators.js';
+import { showError, showSuccess } from './errorHandler.js';
+import { setInnerHTMLSafe } from './utils.js';
+import { logger, logError } from './logger.js';
 // ========================================
 // LeagueManager 클래스
 // ========================================
@@ -21,6 +25,7 @@ export class LeagueManager {
      * @param options 리그전 관리 옵션
      */
     constructor(leagueData, options = {}) {
+        this.dataManager = null; // DataManager 인스턴스
         this.saveCallback = null;
         this.dataUpdateCallback = null;
         this.leagueData = leagueData;
@@ -69,22 +74,30 @@ export class LeagueManager {
      * 리그전 UI를 렌더링합니다.
      */
     renderLeagueUI() {
+        logger.debug('=== LeagueManager.renderLeagueUI() 시작 ===');
         this.log('renderLeagueUI 시작');
         this.log('leagueData.classes.length:', this.leagueData.classes.length);
         this.log('leagueData:', this.leagueData);
-        // 기존 요소들 정리
-        this.cleanupSidebar();
-        const sidebarTitle = this.getElement('#sidebarTitle');
-        if (sidebarTitle) {
-            sidebarTitle.textContent = '리그전 목록';
-        }
-        const isFirstTimeUser = this.leagueData.classes.length === 0;
-        this.log('isFirstTimeUser:', isFirstTimeUser);
-        const formHtml = `
+        try {
+            // 기존 요소들 정리
+            this.cleanupSidebar();
+            logger.debug('사이드바 정리 완료');
+            const sidebarTitle = this.getElement('#sidebarTitle');
+            logger.debug('sidebarTitle 요소:', sidebarTitle);
+            if (sidebarTitle) {
+                sidebarTitle.textContent = '리그전 목록';
+                logger.debug('사이드바 제목 설정 완료');
+            }
+            else {
+                logError('❌ sidebarTitle 요소를 찾을 수 없음');
+            }
+            const isFirstTimeUser = this.leagueData.classes.length === 0;
+            this.log('isFirstTimeUser:', isFirstTimeUser);
+            const formHtml = `
             <div style="position: relative;" class="${isFirstTimeUser ? 'intro-container-active' : ''}">
                 <div class="sidebar-form-group ${isFirstTimeUser ? 'intro-highlight' : ''}">
                     <input id="className" type="text" placeholder="새로운 반(팀) 이름">
-                    <button onclick="window.leagueManager.createClass()" class="btn primary" data-tooltip="새로운 리그를 목록에 추가합니다.">
+                    <button id="createLeagueClassBtn" class="btn primary" data-tooltip="새로운 리그를 목록에 추가합니다.">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     </button>
                 </div>
@@ -95,35 +108,82 @@ export class LeagueManager {
                 </div>
             </div>
         `;
-        const formContainer = this.getElement('#sidebar-form-container');
-        if (formContainer) {
-            formContainer.innerHTML = formHtml;
-        }
-        this.renderClassList();
-        const selectedClass = this.leagueData.classes.find(c => c.id === this.leagueData.selectedClassId);
-        if (selectedClass) {
-            this.renderLeagueDashboard(selectedClass);
-        }
-        else {
-            this.log('리그 데이터가 없음, 플레이스홀더 표시');
-            const contentWrapper = this.getElement('#content-wrapper');
-            if (contentWrapper) {
-                contentWrapper.innerHTML = `
-                    <div class="placeholder-view">
-                        <div class="placeholder-content">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                                <polyline points="10 9 9 9 8 9"></polyline>
-                            </svg>
-                            <h3>반을 선택하여 시작하세요</h3>
-                            <p>왼쪽에서 반을 선택하거나 새로 만들어주세요.</p>
-                        </div>
-                    </div>
-                `;
+            const formContainer = this.getElement('#sidebar-form-container');
+            logger.debug('formContainer 요소:', formContainer);
+            if (formContainer) {
+                setInnerHTMLSafe(formContainer, formHtml);
+                logger.debug('폼 HTML 설정 완료');
+                // 버튼에 이벤트 리스너 직접 추가 (onclick이 제대로 작동하지 않을 수 있으므로)
+                // setInnerHTMLSafe 이후 약간의 지연을 주어 DOM이 완전히 업데이트되도록 함
+                setTimeout(() => {
+                    const createBtn = this.getElement('#createLeagueClassBtn');
+                    if (createBtn) {
+                        // 기존 리스너 제거 (중복 방지)
+                        const newBtn = createBtn.cloneNode(true);
+                        createBtn.parentNode?.replaceChild(newBtn, createBtn);
+                        newBtn.addEventListener('click', () => {
+                            this.log('createLeagueClassBtn 클릭 이벤트 발생');
+                            if (typeof window.leagueManager?.createClass === 'function') {
+                                this.log('window.leagueManager.createClass 호출');
+                                window.leagueManager.createClass();
+                            }
+                            else {
+                                this.log('❌ window.leagueManager.createClass가 함수가 아님:', typeof window.leagueManager?.createClass);
+                                // 직접 호출
+                                this.createClass();
+                            }
+                        });
+                        logger.debug('createLeagueClassBtn 이벤트 리스너 등록 완료');
+                    }
+                    else {
+                        logError('❌ createLeagueClassBtn 요소를 찾을 수 없음');
+                    }
+                }, 0);
             }
+            else {
+                logError('❌ sidebar-form-container 요소를 찾을 수 없음');
+            }
+            this.renderClassList();
+            logger.debug('반 목록 렌더링 완료');
+            const selectedClass = this.leagueData.classes.find(c => c.id === this.leagueData.selectedClassId);
+            logger.debug('선택된 반:', selectedClass);
+            if (selectedClass) {
+                logger.debug('대시보드 렌더링 시작...');
+                this.renderLeagueDashboard(selectedClass);
+                logger.debug('대시보드 렌더링 완료');
+            }
+            else {
+                this.log('리그 데이터가 없음, 플레이스홀더 표시');
+                const contentWrapper = this.getElement('#content-wrapper');
+                logger.debug('contentWrapper 요소:', contentWrapper);
+                if (contentWrapper) {
+                    const placeholderHtml = `
+                        <div class="placeholder-view">
+                            <div class="placeholder-content">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                    <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                <h3>반을 선택하여 시작하세요</h3>
+                                <p>왼쪽에서 반을 선택하거나 새로 만들어주세요.</p>
+                            </div>
+                        </div>
+                    `;
+                    setInnerHTMLSafe(contentWrapper, placeholderHtml);
+                    logger.debug('플레이스홀더 표시 완료');
+                }
+                else {
+                    logError('❌ content-wrapper 요소를 찾을 수 없음');
+                }
+            }
+            logger.debug('=== LeagueManager.renderLeagueUI() 완료 ===');
+        }
+        catch (error) {
+            logError('❌ LeagueManager.renderLeagueUI() 오류:', error);
+            throw error;
         }
     }
     /**
@@ -140,19 +200,92 @@ export class LeagueManager {
             const isActive = String(c.id) === String(this.leagueData.selectedClassId) ? 'active' : '';
             const hasNote = (c.note || '').trim() ? 'has-note' : '';
             const studentCount = this.leagueData.students.filter(s => s.classId === c.id).length;
-            return `<div class="list-card ${isActive}" onclick="selectClass('${c.id || ''}')">
+            return `<div class="list-card ${isActive}" data-class-id="${c.id}">
                 <div style="flex-grow: 1;">
                     <div class="name">${c.name}</div>
                     <div class="details">${studentCount}명</div>
                 </div>
                 <div class="action-buttons row">
-                    <button class="${hasNote}" onclick="event.stopPropagation(); editClassNote('${c.id || ''}')" data-tooltip="메모"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></button>
-                    <button onclick="event.stopPropagation(); editClassName('${c.id || ''}')" data-tooltip="수정"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-                    <button onclick="event.stopPropagation(); deleteClass('${c.id || ''}');" data-tooltip="삭제"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                    <button class="${hasNote}" data-action="edit-note" data-class-id="${c.id}" data-tooltip="메모"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></button>
+                    <button data-action="edit-name" data-class-id="${c.id}" data-tooltip="수정"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                    <button data-action="delete" data-class-id="${c.id}" data-tooltip="삭제"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                 </div>
             </div>`;
         }).join('');
-        classList.innerHTML = html;
+        setInnerHTMLSafe(classList, html);
+        // 이벤트 리스너 등록 (onclick이 제대로 작동하지 않을 수 있으므로)
+        setTimeout(() => {
+            const cards = classList.querySelectorAll('.list-card');
+            cards.forEach(card => {
+                const classId = card.getAttribute('data-class-id');
+                if (!classId)
+                    return;
+                // 카드 클릭 시 반 선택
+                card.addEventListener('click', (e) => {
+                    // 버튼 클릭이 아닌 경우에만 반 선택
+                    if (e.target.closest('button')) {
+                        return;
+                    }
+                    this.selectClass(parseInt(classId));
+                });
+                // 메모 버튼
+                const editNoteBtn = card.querySelector('[data-action="edit-note"]');
+                if (editNoteBtn) {
+                    editNoteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (typeof window.editClassNote === 'function') {
+                            window.editClassNote(parseInt(classId));
+                        }
+                        else {
+                            this.log('❌ editClassNote 함수를 찾을 수 없음');
+                        }
+                    });
+                }
+                // 수정 버튼
+                const editNameBtn = card.querySelector('[data-action="edit-name"]');
+                if (editNameBtn) {
+                    editNameBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (typeof window.editClassName === 'function') {
+                            window.editClassName(parseInt(classId));
+                        }
+                        else {
+                            this.log('❌ editClassName 함수를 찾을 수 없음');
+                        }
+                    });
+                }
+                // 삭제 버튼
+                const deleteBtn = card.querySelector('[data-action="delete"]');
+                if (deleteBtn) {
+                    // 기존 리스너 제거 (중복 방지)
+                    const newDeleteBtn = deleteBtn.cloneNode(true);
+                    deleteBtn.parentNode?.replaceChild(newDeleteBtn, deleteBtn);
+                    newDeleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const btnClassId = newDeleteBtn.getAttribute('data-class-id');
+                        this.log('삭제 버튼 클릭, classId:', btnClassId || classId);
+                        // ID를 숫자로 변환
+                        const numericId = parseInt(btnClassId || classId, 10);
+                        if (isNaN(numericId)) {
+                            this.log('❌ 잘못된 ID:', btnClassId || classId);
+                            showError(new Error('잘못된 반 ID입니다.'));
+                            return;
+                        }
+                        // window.deleteClass가 있으면 사용, 없으면 직접 호출
+                        if (typeof window.deleteClass === 'function') {
+                            this.log('window.deleteClass 호출, ID:', numericId);
+                            window.deleteClass(numericId);
+                        }
+                        else {
+                            this.log('window.deleteClass가 없음, 직접 호출, ID:', numericId);
+                            this.deleteClass(numericId);
+                        }
+                    });
+                }
+            });
+            this.log('반 목록 이벤트 리스너 등록 완료, 카드 수:', cards.length);
+        }, 0);
     }
     /**
      * 리그전 대시보드를 렌더링합니다.
@@ -221,7 +354,7 @@ export class LeagueManager {
             <div id="rankingsTableContainer" class="section-box" style="margin: 0 -24px; padding: 0 24px; overflow-x:auto;"></div>
         `;
         this.log('HTML 생성 완료, 길이:', htmlContent.length);
-        contentWrapper.innerHTML = htmlContent;
+        setInnerHTMLSafe(contentWrapper, htmlContent);
         this.log('content-wrapper에 HTML 삽입 완료');
         // 이벤트 리스너 설정
         const studentNameInput = this.getElement('#studentName');
@@ -247,22 +380,91 @@ export class LeagueManager {
      * 반을 생성합니다.
      */
     createClass() {
-        const input = this.getElement('#className');
-        if (!input)
-            return;
-        const name = input.value.trim();
-        if (name && !this.leagueData.classes.some(c => c.name === name)) {
-            const newClass = {
-                id: Date.now(),
-                name,
-                note: ''
-            };
-            this.leagueData.classes.push(newClass);
-            input.value = '';
-            this.saveData();
-            this.renderClassList(); // 반 목록 업데이트
-            this.selectClass(newClass.id);
+        this.log('createClass 호출됨');
+        // 여러 방법으로 input 요소 찾기 시도
+        let input = this.getElement('#className');
+        // 첫 번째 시도가 실패하면 formContainer 내부에서 찾기
+        if (!input) {
+            const formContainer = this.getElement('#sidebar-form-container');
+            if (formContainer) {
+                input = formContainer.querySelector('#className');
+                this.log('formContainer 내부에서 #className 찾기 시도:', !!input);
+                // 여전히 못 찾으면 placeholder로 찾기
+                if (!input) {
+                    input = formContainer.querySelector('input[placeholder="새로운 반(팀) 이름"]');
+                    this.log('placeholder로 찾기 시도:', !!input);
+                }
+                // 여전히 못 찾으면 첫 번째 input 찾기
+                if (!input) {
+                    input = formContainer.querySelector('input[type="text"]');
+                    this.log('첫 번째 text input 찾기 시도:', !!input);
+                }
+            }
         }
+        // 여전히 못 찾으면 document에서 직접 찾기
+        if (!input) {
+            input = document.querySelector('#className');
+            this.log('document에서 #className 직접 찾기 시도:', !!input);
+        }
+        // 모든 시도가 실패하면 에러
+        if (!input) {
+            this.log('❌ className input 요소를 찾을 수 없음');
+            this.log('현재 DOM 상태 확인:');
+            const formContainer = this.getElement('#sidebar-form-container');
+            if (formContainer) {
+                this.log('formContainer 내용:', formContainer.innerHTML.substring(0, 300));
+            }
+            showError(new Error('입력 필드를 찾을 수 없습니다. 페이지를 새로고침해주세요.'));
+            return;
+        }
+        this.log('✅ input 요소 찾기 성공:', input.id || 'id 없음', input.placeholder || 'placeholder 없음');
+        const name = input.value.trim();
+        this.log('입력된 이름:', name);
+        // 이름 유효성 검사
+        if (!name) {
+            this.log('❌ 이름이 비어있음');
+            showError(new Error('반 이름을 입력해주세요.'));
+            return;
+        }
+        // 중복 검사
+        if (this.leagueData.classes.some(c => c.name === name)) {
+            this.log('❌ 중복된 이름:', name);
+            showError(new Error('이미 존재하는 반 이름입니다.'));
+            return;
+        }
+        // 데이터 생성 및 검증
+        const newClassData = {
+            id: Date.now(),
+            name,
+            note: ''
+        };
+        this.log('새 반 데이터 생성:', newClassData);
+        const validation = validateData(LeagueClassSchema, newClassData);
+        if (!validation.success) {
+            this.log('❌ 데이터 검증 실패:', validation.errors || validation.formattedErrors);
+            if (validation.errors) {
+                showError(validation.errors);
+            }
+            else if (validation.formattedErrors) {
+                showError(new Error(validation.formattedErrors.join(', ')));
+            }
+            else {
+                showError(new Error('데이터 검증에 실패했습니다.'));
+            }
+            return;
+        }
+        // 검증 통과 후 추가
+        const newClass = validation.data;
+        this.log('검증 통과, 반 추가 중:', newClass);
+        this.leagueData.classes.push(newClass);
+        this.log('반 추가 완료, 현재 반 수:', this.leagueData.classes.length);
+        input.value = '';
+        this.saveData();
+        this.log('데이터 저장 완료, UI 업데이트 시작');
+        this.renderClassList(); // 반 목록 업데이트
+        this.selectClass(newClass.id);
+        showSuccess('반이 생성되었습니다.');
+        this.log('createClass 완료');
     }
     /**
      * 반을 선택합니다.
@@ -282,14 +484,47 @@ export class LeagueManager {
     }
     /**
      * 반을 삭제합니다.
-     * @param id 반 ID
+     * @param id 반 ID (숫자 또는 문자열)
      */
     deleteClass(id) {
+        // ID를 숫자로 변환
+        const classId = typeof id === 'string' ? parseInt(id, 10) : id;
+        this.log('deleteClass 호출됨, 원본 ID:', id, '변환된 ID:', classId);
+        this.log('현재 반 목록:', this.leagueData.classes.map(c => ({ id: c.id, name: c.name })));
+        // ID 유효성 검사
+        if (isNaN(classId)) {
+            this.log('❌ 잘못된 ID:', id);
+            showError(new Error('잘못된 반 ID입니다.'));
+            return;
+        }
+        // 삭제할 반이 존재하는지 확인
+        const classToDelete = this.leagueData.classes.find(c => c.id === classId);
+        if (!classToDelete) {
+            this.log('❌ 삭제할 반을 찾을 수 없음, ID:', classId);
+            showError(new Error('삭제할 반을 찾을 수 없습니다.'));
+            return;
+        }
+        this.log('삭제할 반:', classToDelete);
         if (confirm('반을 삭제하면 모든 학생과 경기 기록이 사라집니다. 정말 삭제하시겠습니까?')) {
-            this.leagueData.classes = this.leagueData.classes.filter(c => c.id !== id);
-            this.leagueData.students = this.leagueData.students.filter(s => s.classId !== id);
-            this.leagueData.games = this.leagueData.games.filter(g => g.classId !== id);
-            if (this.leagueData.selectedClassId === id) {
+            // 삭제 전 개수 확인
+            const beforeClassesCount = this.leagueData.classes.length;
+            const beforeStudentsCount = this.leagueData.students.length;
+            const beforeGamesCount = this.leagueData.games.length;
+            // 반 삭제
+            this.leagueData.classes = this.leagueData.classes.filter(c => c.id !== classId);
+            this.leagueData.students = this.leagueData.students.filter(s => s.classId !== classId);
+            this.leagueData.games = this.leagueData.games.filter(g => g.classId !== classId);
+            // 삭제 후 개수 확인
+            const afterClassesCount = this.leagueData.classes.length;
+            const afterStudentsCount = this.leagueData.students.length;
+            const afterGamesCount = this.leagueData.games.length;
+            this.log('삭제 결과:', {
+                classes: `${beforeClassesCount} -> ${afterClassesCount}`,
+                students: `${beforeStudentsCount} -> ${afterStudentsCount}`,
+                games: `${beforeGamesCount} -> ${afterGamesCount}`
+            });
+            // 선택된 반이 삭제된 반이면 선택 해제
+            if (this.leagueData.selectedClassId === classId) {
                 this.leagueData.selectedClassId = null;
                 const liveRankingBtn = this.getElement('#liveRankingBtn');
                 if (liveRankingBtn) {
@@ -297,8 +532,14 @@ export class LeagueManager {
                 }
             }
             this.saveData();
+            this.log('데이터 저장 완료, UI 업데이트 시작');
             this.renderClassList();
             this.renderLeagueUI();
+            this.log('deleteClass 완료');
+            showSuccess('반이 삭제되었습니다.');
+        }
+        else {
+            this.log('삭제 취소됨');
         }
     }
     /**
@@ -310,18 +551,48 @@ export class LeagueManager {
             return;
         const name = input.value.trim();
         const classId = this.leagueData.selectedClassId;
-        if (name && classId && !this.leagueData.students.some(s => s.name === name && s.classId === classId)) {
-            this.leagueData.students.push({
-                id: Date.now(),
-                name,
-                classId,
-                note: ''
-            });
-            input.value = '';
-            this.saveData();
-            this.renderStudentList();
-            this.renderClassList(); // 학생 수 변경을 반영하기 위해 반 목록도 다시 렌더링
+        // 유효성 검사
+        if (!name) {
+            showError(new Error('학생 이름을 입력해주세요.'));
+            return;
         }
+        if (!classId) {
+            showError(new Error('반을 먼저 선택해주세요.'));
+            return;
+        }
+        // 중복 검사
+        if (this.leagueData.students.some(s => s.name === name && s.classId === classId)) {
+            showError(new Error('이미 존재하는 학생 이름입니다.'));
+            return;
+        }
+        // 데이터 생성 및 검증
+        const studentData = {
+            id: Date.now(),
+            name,
+            classId,
+            note: ''
+        };
+        const validation = validateData(LeagueStudentSchema, studentData);
+        if (!validation.success) {
+            if (validation.errors) {
+                showError(validation.errors);
+            }
+            else if (validation.formattedErrors) {
+                showError(new Error(validation.formattedErrors.join(', ')));
+            }
+            else {
+                showError(new Error('데이터 검증에 실패했습니다.'));
+            }
+            return;
+        }
+        // 검증 통과 후 추가
+        const student = validation.data;
+        this.leagueData.students.push(student);
+        input.value = '';
+        this.saveData();
+        this.renderStudentList();
+        this.renderClassList(); // 학생 수 변경을 반영하기 위해 반 목록도 다시 렌더링
+        showSuccess('학생이 추가되었습니다.');
     }
     /**
      * 학생을 일괄 추가합니다.
@@ -377,7 +648,7 @@ export class LeagueManager {
                 </div>
             </div>
         `).join('');
-        container.innerHTML = html;
+        setInnerHTMLSafe(container, html);
     }
     /**
      * 학생을 제거합니다.
@@ -557,18 +828,18 @@ export class LeagueManager {
      * @param gameId 게임 ID
      */
     toggleGameHighlight(gameId) {
-        console.log('toggleGameHighlight 호출됨, gameId:', gameId, 'type:', typeof gameId);
+        logger.debug('toggleGameHighlight 호출됨, gameId:', gameId, 'type:', typeof gameId);
         const game = this.leagueData.games.find(g => g.id === gameId);
-        console.log('찾은 게임:', game);
+        logger.debug('찾은 게임:', game);
         if (game) {
             game.isHighlighted = !game.isHighlighted;
-            console.log('게임 강조 상태 변경:', game.isHighlighted);
+            logger.debug('게임 강조 상태 변경:', game.isHighlighted);
             this.saveData();
             this.renderGamesTable();
         }
         else {
-            console.error('게임을 찾을 수 없음, gameId:', gameId);
-            console.log('사용 가능한 게임 ID들:', this.leagueData.games.map(g => g.id));
+            logError('게임을 찾을 수 없음, gameId:', gameId);
+            logger.debug('사용 가능한 게임 ID들:', this.leagueData.games.map(g => g.id));
         }
     }
     /**
@@ -590,10 +861,12 @@ export class LeagueManager {
         if (!button)
             return;
         if (hasGames) {
-            button.textContent = '일정 재생성';
-            button.setAttribute('data-tooltip', '기존 경기를 삭제하고 새로 생성합니다.');
+            // 일정이 이미 있으면 버튼 숨기기 (일정 재생성 버튼 제거)
+            button.style.display = 'none';
         }
         else {
+            // 일정이 없으면 '일정 생성' 버튼 표시
+            button.style.display = '';
             button.textContent = '일정 생성';
             button.setAttribute('data-tooltip', '현재 학생 명단으로 새 경기 일정을 생성합니다.');
         }
@@ -620,7 +893,7 @@ export class LeagueManager {
         // 일정 생성 버튼 상태 업데이트
         this.updateGenerateGamesButtonState(classGames.length > 0);
         if (classGames.length === 0) {
-            container.innerHTML = `<div style="text-align:center; padding: 2rem; color: var(--ink-muted);">생성된 경기가 없습니다.</div>`;
+            setInnerHTMLSafe(container, `<div style="text-align:center; padding: 2rem; color: var(--ink-muted);">생성된 경기가 없습니다.</div>`);
             return;
         }
         let html = `<table class="styled-table" style="min-width: 1000px;">
@@ -679,7 +952,7 @@ export class LeagueManager {
             </tr>`;
         }).join('');
         html += '</tbody></table>';
-        container.innerHTML = html;
+        setInnerHTMLSafe(container, html);
     }
     /**
      * 순위표를 렌더링합니다.
@@ -695,7 +968,7 @@ export class LeagueManager {
         const classId = this.leagueData.selectedClassId;
         this.log('renderRankingsTable - classId:', classId);
         if (!classId) {
-            container.innerHTML = `<div style="text-align:center; padding: 2rem;">반을 선택해주세요.</div>`;
+            setInnerHTMLSafe(container, `<div style="text-align:center; padding: 2rem;">반을 선택해주세요.</div>`);
             return;
         }
         const ranks = this.getRankingsData(classId);
@@ -717,14 +990,14 @@ export class LeagueManager {
         });
         tableContent += `</tbody>`;
         if (ranks.length === 0) {
-            container.innerHTML = `<div style="text-align:center; padding: 2rem;">참가자가 없습니다.</div>`;
+            setInnerHTMLSafe(container, `<div style="text-align:center; padding: 2rem;">참가자가 없습니다.</div>`);
         }
         else {
             if (container.tagName.toLowerCase() === 'table') {
-                container.innerHTML = tableContent;
+                setInnerHTMLSafe(container, tableContent);
             }
             else {
-                container.innerHTML = `<table class="styled-table">${tableContent}</table>`;
+                setInnerHTMLSafe(container, `<table class="styled-table">${tableContent}</table>`);
             }
         }
     }
@@ -787,7 +1060,7 @@ export class LeagueManager {
             container.innerHTML = '';
             return;
         }
-        container.innerHTML = `
+        const statsHtml = `
             <div class="game-stats">
                 <span class="stat-item">총 경기: ${total}</span>
                 <span class="stat-item">완료: ${completed}</span>
@@ -795,6 +1068,7 @@ export class LeagueManager {
                 <span class="stat-item">진행률: ${((completed / total) * 100).toFixed(1)}%</span>
             </div>
         `;
+        setInnerHTMLSafe(container, statsHtml);
     }
     /**
      * 모든 리그전을 엑셀로 내보냅니다.
@@ -838,13 +1112,12 @@ export class LeagueManager {
      * 사이드바를 정리합니다.
      */
     cleanupSidebar() {
-        const elements = ['#classList', '#sidebar-form-container'];
-        elements.forEach(selector => {
-            const element = this.getElement(selector);
-            if (element) {
-                element.innerHTML = '';
-            }
-        });
+        // sidebar-form-container만 비우고, sidebar-list-container는 renderClassList에서 관리
+        const formContainer = this.getElement('#sidebar-form-container');
+        if (formContainer) {
+            formContainer.innerHTML = '';
+        }
+        // sidebar-list-container는 renderClassList()에서 다시 채우므로 여기서 비우지 않음
     }
     /**
      * DOM 요소를 가져옵니다.
@@ -866,7 +1139,7 @@ export class LeagueManager {
      * @param args 추가 인수
      */
     log(message, ...args) {
-        console.log(`[LeagueManager] ${message}`, ...args);
+        logger.debug(`[LeagueManager] ${message}`, ...args);
     }
     /**
      * 오류 로그를 출력합니다.
@@ -874,7 +1147,7 @@ export class LeagueManager {
      * @param args 추가 인수
      */
     logError(message, ...args) {
-        console.error(`[LeagueManager] ${message}`, ...args);
+        logError(`[LeagueManager] ${message}`, ...args);
     }
     /**
      * 현재 리그전 데이터를 반환합니다.

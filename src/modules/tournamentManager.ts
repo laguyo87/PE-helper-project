@@ -12,6 +12,10 @@
  * @since 2024-01-01
  */
 
+import { validateData, TournamentSchema } from './validators.js';
+import { showError, showSuccess } from './errorHandler.js';
+import { logger, logInfo, logWarn, logError } from './logger.js';
+
 // 타입 정의
 export interface TournamentMatch {
     id: string;
@@ -144,9 +148,9 @@ export class TournamentManager {
      */
     private log(message: string, data?: any): void {
         if (data !== undefined) {
-            console.log(`[TournamentManager] ${message}`, data);
+            logger.debug(`[TournamentManager] ${message}`, data);
         } else {
-            console.log(`[TournamentManager] ${message}`);
+            logger.debug(`[TournamentManager] ${message}`);
         }
     }
 
@@ -155,7 +159,7 @@ export class TournamentManager {
      * @param message 에러 메시지
      */
     private logError(message: string): void {
-        console.error(`[TournamentManager] ${message}`);
+        logError(`[TournamentManager] ${message}`);
     }
 
     /**
@@ -166,11 +170,10 @@ export class TournamentManager {
         
         const sidebarTitle = this.getElement('#sidebarTitle');
         const sidebarFormContainer = this.getElement('#sidebar-form-container');
-        const sidebarListContainer = this.getElement('#sidebar-list-container');
         
         if (sidebarTitle) sidebarTitle.textContent = '';
         if (sidebarFormContainer) sidebarFormContainer.innerHTML = '';
-        if (sidebarListContainer) sidebarListContainer.innerHTML = '';
+        // sidebar-list-container는 renderTournamentList()에서 다시 채우므로 여기서 비우지 않음
         
         this.log('사이드바 정리 완료');
     }
@@ -317,25 +320,46 @@ export class TournamentManager {
         if (!input) return;
         
         const name = input.value.trim();
-        if (name) {
-            const newTourney: Tournament = {
-                id: 't_' + Date.now(),
-                name,
-                teams: [],
-                rounds: [],
-                sport: '',
-                format: 'single',
-                seeding: 'input'
-            };
-            
-            this.tournamentData.tournaments.unshift(newTourney);
-            this.tournamentData.activeTournamentId = newTourney.id;
-            
-            input.value = '';
-            this.saveData();
-            this.renderTournamentList();
-            this.renderTournamentDashboard(newTourney);
+        
+        // 이름 유효성 검사
+        if (!name) {
+            showError(new Error('토너먼트 이름을 입력해주세요.'));
+            return;
         }
+        
+        // 데이터 생성 및 검증
+        const newTourneyData = {
+            id: 't_' + Date.now(),
+            name,
+            teams: [],
+            rounds: [],
+            sport: '',
+            format: 'single' as const,
+            seeding: 'input' as const
+        };
+        
+        const validation = validateData(TournamentSchema, newTourneyData);
+        if (!validation.success) {
+            if (validation.errors) {
+                showError(validation.errors);
+            } else if (validation.formattedErrors) {
+                showError(new Error(validation.formattedErrors.join(', ')));
+            } else {
+                showError(new Error('데이터 검증에 실패했습니다.'));
+            }
+            return;
+        }
+        
+        // 검증 통과 후 추가
+        const newTourney: Tournament = validation.data!;
+        this.tournamentData.tournaments.unshift(newTourney);
+        this.tournamentData.activeTournamentId = newTourney.id;
+        
+        input.value = '';
+        this.saveData();
+        this.renderTournamentList();
+        this.renderTournamentDashboard(newTourney);
+        showSuccess('토너먼트가 생성되었습니다.');
     }
 
     /**
@@ -1472,7 +1496,7 @@ export class TournamentManager {
                     
                 } else {
                     // 25팀 이상: 현재 미지원 (일반적인 부전승 로직으로 대체)
-                    console.warn(`25팀 이상의 토너먼트는 현재 미지원입니다. 24팀 이하로 설정해주세요. (현재: ${numTeams}팀)`);
+                    logWarn(`25팀 이상의 토너먼트는 현재 미지원입니다. 24팀 이하로 설정해주세요. (현재: ${numTeams}팀)`);
                     const byeTeams = seededTeams.slice(0, byeCount);
                     const firstRoundTeams = seededTeams.slice(byeCount);
                     

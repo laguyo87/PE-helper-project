@@ -14,6 +14,10 @@
  * @version 2.2.1
  * @since 2024-01-01
  */
+import { validateData, PapsClassSchema } from './validators.js';
+import { showError, showSuccess } from './errorHandler.js';
+import { setInnerHTMLSafe } from './utils.js';
+import { logger, logError } from './logger.js';
 // PAPS 항목 정의
 const PAPS_ITEMS = {
     "심폐지구력": { id: "endurance", options: ["왕복오래달리기", "오래달리기", "스텝검사"] },
@@ -72,14 +76,40 @@ const PAPS_CRITERIA_DATA = {
     }
 };
 export class PapsManager {
-    constructor(papsData, $, saveDataToFirestore, cleanupSidebar) {
+    constructor(papsData, $, saveDataToFirestore, cleanupSidebar // 사용하지 않지만 호환성을 위해 유지
+    ) {
         this.papsData = papsData;
         this.$ = $;
         this.saveDataToFirestore = saveDataToFirestore;
-        this.cleanupSidebar = cleanupSidebar;
+        // cleanupSidebar는 더 이상 사용하지 않음 (자체 메서드 사용)
         // 실시간 업데이트 관련 속성
         this.currentRankingData = null;
         this.updateInterval = null;
+    }
+    /**
+     * 리소스 정리 (메모리 누수 방지)
+     * 타이머와 이벤트 리스너를 정리합니다.
+     */
+    cleanup() {
+        // 실시간 업데이트 중지
+        this.stopRealtimeUpdate();
+        // 추가 리소스 정리가 필요한 경우 여기에 추가
+        // logger는 아직 import하지 않음 (점진적 전환)
+        logger.debug('PapsManager 리소스 정리 완료');
+    }
+    /**
+     * PAPS 데이터를 설정합니다.
+     * @param data PAPS 데이터
+     */
+    setPapsData(data) {
+        this.papsData = data;
+    }
+    /**
+     * PAPS 데이터를 가져옵니다.
+     * @returns PAPS 데이터
+     */
+    getPapsData() {
+        return this.papsData;
     }
     /**
      * PAPS UI를 렌더링합니다.
@@ -125,7 +155,9 @@ export class PapsManager {
      * PAPS 반 목록을 렌더링합니다.
      */
     renderPapsClassList() {
-        this.$('#sidebar-list-container').innerHTML = this.papsData.classes.map(c => `
+        const sidebarList = this.$('#sidebar-list-container');
+        if (sidebarList) {
+            const html = this.papsData.classes.map(c => `
             <div class="list-card ${c.id === this.papsData.activeClassId ? 'active' : ''}" onclick="papsManager.selectPapsClass(${c.id})">
                 <div style="flex-grow:1;">
                     <div class="name">${c.name}</div>
@@ -138,24 +170,51 @@ export class PapsManager {
                 </div>
             </div>
         `).join('');
+            setInnerHTMLSafe(sidebarList, html);
+        }
     }
     /**
      * PAPS 반을 생성합니다.
      */
     createPapsClass() {
         const name = this.$('#papsClassName').value.trim();
-        if (!name)
+        // 이름 유효성 검사
+        if (!name) {
+            showError(new Error('반 이름을 입력해주세요.'));
             return;
-        const id = Date.now();
-        this.papsData.classes.push({
-            id,
+        }
+        // 중복 검사
+        if (this.papsData.classes.some(c => c.name === name)) {
+            showError(new Error('이미 존재하는 반 이름입니다.'));
+            return;
+        }
+        // 데이터 생성 및 검증
+        const newClassData = {
+            id: Date.now(),
             name,
             gradeLevel: '1학년',
             students: []
-        });
+        };
+        const validation = validateData(PapsClassSchema, newClassData);
+        if (!validation.success) {
+            if (validation.errors) {
+                showError(validation.errors);
+            }
+            else if (validation.formattedErrors) {
+                showError(new Error(validation.formattedErrors.join(', ')));
+            }
+            else {
+                showError(new Error('데이터 검증에 실패했습니다.'));
+            }
+            return;
+        }
+        // 검증 통과 후 추가
+        const newClass = validation.data;
+        this.papsData.classes.push(newClass);
         this.$('#papsClassName').value = '';
         this.saveDataToFirestore();
         this.renderPapsUI();
+        showSuccess('반이 생성되었습니다.');
     }
     /**
      * PAPS 반을 편집합니다.
@@ -399,6 +458,14 @@ export class PapsManager {
     buildPapsTable(cls) {
         const head = this.$('#paps-record-head');
         const body = this.$('#paps-record-body');
+        if (!head || !body) {
+            logger.error('[PAPS 테이블] 테이블 요소를 찾을 수 없음', { head: !!head, body: !!body });
+            return;
+        }
+        logger.debug('[PAPS 테이블] 테이블 구성 시작', {
+            className: cls.name,
+            studentCount: cls.students?.length || 0
+        });
         // Header build
         let header1 = '<tr><th rowspan="2"><input type="checkbox" id="paps-select-all"></th><th rowspan="2">번호</th><th rowspan="2">이름</th><th rowspan="2">성별</th>';
         let header2 = '<tr>';
@@ -428,50 +495,191 @@ export class PapsManager {
             body.querySelectorAll('.paps-row-checkbox').forEach(cb => cb.checked = this.checked);
         });
         // Body
-        body.innerHTML = '';
+        body.innerHTML = ''; // 빈 문자열은 안전
         const students = (cls.students || []).slice();
+        if (students.length === 0) {
+            logger.debug('[PAPS 테이블] 학생 데이터가 없음 - 빈 테이블 표시');
+            // 빈 테이블 메시지 표시 (선택사항)
+            // body.innerHTML = '<tr><td colspan="100%" style="text-align: center; padding: 2rem; color: var(--ink-muted);">학생 데이터가 없습니다.</td></tr>';
+            return;
+        }
         // number가 없는 학생들에게 자동으로 번호 할당
         students.forEach((st, index) => {
             if (!st.number) {
                 st.number = index + 1;
-                console.log(`[PAPS 테이블] 학생 ${st.id}에게 번호 ${st.number} 할당`);
+                logger.debug(`[PAPS 테이블] 학생 ${st.id}에게 번호 ${st.number} 할당`);
             }
         });
         students.sort((a, b) => (a.number || 0) - (b.number || 0));
-        console.log('[PAPS 테이블] 학생 데이터:', students.map(s => ({ id: s.id, number: s.number, name: s.name })));
+        logger.debug('[PAPS 테이블] 학생 데이터:', students.map(s => ({
+            id: s.id,
+            number: s.number,
+            name: s.name,
+            records: s.records,
+            recordsKeys: s.records ? Object.keys(s.records) : []
+        })));
         students.forEach(st => {
             const tr = document.createElement('tr');
             tr.dataset.sid = st.id.toString();
-            console.log(`[PAPS 테이블] 학생 ${st.id}: number=${st.number}, name=${st.name}`);
-            tr.innerHTML = `
-                <td><input type="checkbox" class="paps-row-checkbox"></td>
-                <td><input type="number" class="paps-input number" value="${st.number || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>
-                <td><input type="text" class="paps-input name" value="${st.name || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>
-                <td><select class="paps-input gender" onchange="window.papsManager.onPapsInput(event, ${cls.id})"><option value="남자" ${st.gender === '남자' ? 'selected' : ''}>남</option><option value="여자" ${st.gender === '여자' ? 'selected' : ''}>여</option></select></td>
-                ${Object.keys(PAPS_ITEMS).filter(k => k !== "체지방").map(k => {
+            // 학생 레코드 데이터 확인
+            const records = st.records || {};
+            logger.debug(`[PAPS 테이블] 학생 ${st.id} 레코드:`, records);
+            // 체크박스
+            const tdCheckbox = document.createElement('td');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.className = 'paps-row-checkbox';
+            tdCheckbox.appendChild(checkbox);
+            tr.appendChild(tdCheckbox);
+            // 번호
+            const tdNumber = document.createElement('td');
+            const inputNumber = document.createElement('input');
+            inputNumber.type = 'number';
+            inputNumber.className = 'paps-input number';
+            inputNumber.value = String(st.number || '');
+            inputNumber.onchange = (e) => this.onPapsInput(e, cls);
+            tdNumber.appendChild(inputNumber);
+            tr.appendChild(tdNumber);
+            // 이름
+            const tdName = document.createElement('td');
+            const inputName = document.createElement('input');
+            inputName.type = 'text';
+            inputName.className = 'paps-input name';
+            inputName.value = st.name || '';
+            inputName.onchange = (e) => this.onPapsInput(e, cls);
+            tdName.appendChild(inputName);
+            tr.appendChild(tdName);
+            // 성별
+            const tdGender = document.createElement('td');
+            const selectGender = document.createElement('select');
+            selectGender.className = 'paps-input gender';
+            selectGender.onchange = (e) => this.onPapsInput(e, cls);
+            const optionMale = document.createElement('option');
+            optionMale.value = '남자';
+            optionMale.textContent = '남';
+            if (st.gender === '남자')
+                optionMale.selected = true;
+            const optionFemale = document.createElement('option');
+            optionFemale.value = '여자';
+            optionFemale.textContent = '여';
+            if (st.gender === '여자')
+                optionFemale.selected = true;
+            selectGender.appendChild(optionMale);
+            selectGender.appendChild(optionFemale);
+            tdGender.appendChild(selectGender);
+            tr.appendChild(tdGender);
+            // 각 종목별 입력 필드
+            Object.keys(PAPS_ITEMS).filter(k => k !== "체지방").forEach(k => {
                 const id = PAPS_ITEMS[k].id;
                 const eventName = cls.eventSettings?.[id] || PAPS_ITEMS[k].options[0];
                 // 악력 종목은 왼손/오른손으로 분리
                 if (eventName === '악력') {
-                    const leftVal = (st.records || {})[`${id}_left`] || '';
-                    const rightVal = (st.records || {})[`${id}_right`] || '';
-                    return `<td><input type="number" step="any" class="paps-input rec" data-id="${id}_left" value="${leftVal}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td><td class="grade-cell" data-id="${id}_left"></td><td><input type="number" step="any" class="paps-input rec" data-id="${id}_right" value="${rightVal}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td><td class="grade-cell" data-id="${id}_right"></td>`;
+                    // 왼손 입력
+                    const tdLeftInput = document.createElement('td');
+                    const inputLeft = document.createElement('input');
+                    inputLeft.type = 'number';
+                    inputLeft.step = 'any';
+                    inputLeft.className = 'paps-input rec';
+                    inputLeft.dataset.id = `${id}_left`;
+                    inputLeft.value = String(records[`${id}_left`] || '');
+                    inputLeft.onchange = (e) => this.onPapsInput(e, cls);
+                    tdLeftInput.appendChild(inputLeft);
+                    tr.appendChild(tdLeftInput);
+                    // 왼손 등급
+                    const tdLeftGrade = document.createElement('td');
+                    tdLeftGrade.className = 'grade-cell';
+                    tdLeftGrade.dataset.id = `${id}_left`;
+                    tr.appendChild(tdLeftGrade);
+                    // 오른손 입력
+                    const tdRightInput = document.createElement('td');
+                    const inputRight = document.createElement('input');
+                    inputRight.type = 'number';
+                    inputRight.step = 'any';
+                    inputRight.className = 'paps-input rec';
+                    inputRight.dataset.id = `${id}_right`;
+                    inputRight.value = String(records[`${id}_right`] || '');
+                    inputRight.onchange = (e) => this.onPapsInput(e, cls);
+                    tdRightInput.appendChild(inputRight);
+                    tr.appendChild(tdRightInput);
+                    // 오른손 등급
+                    const tdRightGrade = document.createElement('td');
+                    tdRightGrade.className = 'grade-cell';
+                    tdRightGrade.dataset.id = `${id}_right`;
+                    tr.appendChild(tdRightGrade);
                 }
                 else {
-                    const val = (st.records || {})[id] || '';
-                    return `<td><input type="number" step="any" class="paps-input rec" data-id="${id}" value="${val}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td><td class="grade-cell" data-id="${id}"></td>`;
+                    // 기록 입력
+                    const tdInput = document.createElement('td');
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.step = 'any';
+                    input.className = 'paps-input rec';
+                    input.dataset.id = id;
+                    input.value = String(records[id] || '');
+                    input.onchange = (e) => this.onPapsInput(e, cls);
+                    tdInput.appendChild(input);
+                    tr.appendChild(tdInput);
+                    // 등급
+                    const tdGrade = document.createElement('td');
+                    tdGrade.className = 'grade-cell';
+                    tdGrade.dataset.id = id;
+                    tr.appendChild(tdGrade);
                 }
-            }).join('')}
-                <td><input type="number" step="any" class="paps-input height" value="${(st.records || {}).height || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>
-                <td><input type="number" step="any" class="paps-input weight" value="${(st.records || {}).weight || ''}" onchange="window.papsManager.onPapsInput(event, ${cls.id})"></td>
-                <td class="bmi-cell"></td>
-                <td class="grade-cell" data-id="bodyfat"></td>
-                <td class="overall-grade-cell"></td>
-            `;
+            });
+            // 신장
+            const tdHeight = document.createElement('td');
+            const inputHeight = document.createElement('input');
+            inputHeight.type = 'number';
+            inputHeight.step = 'any';
+            inputHeight.className = 'paps-input height';
+            inputHeight.value = String(records.height || '');
+            inputHeight.onchange = (e) => this.onPapsInput(e, cls);
+            tdHeight.appendChild(inputHeight);
+            tr.appendChild(tdHeight);
+            // 체중
+            const tdWeight = document.createElement('td');
+            const inputWeight = document.createElement('input');
+            inputWeight.type = 'number';
+            inputWeight.step = 'any';
+            inputWeight.className = 'paps-input weight';
+            inputWeight.value = String(records.weight || '');
+            inputWeight.onchange = (e) => this.onPapsInput(e, cls);
+            tdWeight.appendChild(inputWeight);
+            tr.appendChild(tdWeight);
+            // BMI 셀
+            const tdBMI = document.createElement('td');
+            tdBMI.className = 'bmi-cell';
+            tr.appendChild(tdBMI);
+            // 체지방 등급
+            const tdBodyfatGrade = document.createElement('td');
+            tdBodyfatGrade.className = 'grade-cell';
+            tdBodyfatGrade.dataset.id = 'bodyfat';
+            tr.appendChild(tdBodyfatGrade);
+            // 종합 등급
+            const tdOverallGrade = document.createElement('td');
+            tdOverallGrade.className = 'overall-grade-cell';
+            tr.appendChild(tdOverallGrade);
             body.appendChild(tr);
+            // DOM이 추가된 직후 바로 등급 업데이트
             this.updatePapsRowGrades(tr, cls);
         });
-        body.addEventListener('input', e => this.onPapsInput(e, cls));
+        // 모든 행이 추가된 후 등급 업데이트 (DOM이 완전히 준비된 후)
+        // 두 번의 requestAnimationFrame을 사용하여 DOM이 완전히 렌더링된 후 실행
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const rows = body.querySelectorAll('tr[data-sid]');
+                logger.debug('[PAPS 테이블] 등급 업데이트 시작 (2차)', { rowCount: rows.length });
+                rows.forEach(row => {
+                    if (row.dataset.sid) {
+                        this.updatePapsRowGrades(row, cls);
+                    }
+                });
+            });
+        });
+        logger.debug('[PAPS 테이블] 테이블 구성 완료', {
+            rowCount: body.querySelectorAll('tr').length
+        });
+        // Enter 키 처리를 위한 keydown 리스너 (이벤트 위임)
         body.addEventListener('keydown', e => {
             if (e.key !== 'Enter' || !e.target.matches('input'))
                 return;
@@ -488,6 +696,17 @@ export class PapsManager {
                 if (ninp) {
                     ninp.focus();
                     ninp.select();
+                }
+            }
+            else {
+                const first = body.querySelector('tr');
+                if (first) {
+                    const fcell = first.children[idx];
+                    const finp = fcell?.querySelector('input');
+                    if (finp) {
+                        finp.focus();
+                        finp.select();
+                    }
                 }
             }
         });
@@ -540,26 +759,41 @@ export class PapsManager {
         const w = parseFloat(tr.querySelector('.weight')?.value || '');
         const bmiCell = tr.querySelector('.bmi-cell');
         let bmi = null;
-        if (h > 0 && w > 0) {
-            const m = h / 100;
-            bmi = w / (m * m);
-            bmiCell.textContent = bmi.toFixed(2);
+        if (bmiCell) {
+            if (h > 0 && w > 0) {
+                const m = h / 100;
+                bmi = w / (m * m);
+                bmiCell.textContent = bmi.toFixed(2);
+            }
+            else {
+                bmiCell.textContent = '';
+            }
         }
         else {
-            bmiCell.textContent = '';
+            logger.warn('[PAPS 등급 업데이트] BMI 셀을 찾을 수 없음');
         }
         // Each category
         const studentGender = tr.querySelector('.gender')?.value || '남자';
         const gradeLevel = cls.gradeLevel || '';
-        tr.querySelectorAll('.grade-cell').forEach(td => {
+        // grade-cell 요소들을 찾아서 초기화
+        const gradeCells = tr.querySelectorAll('.grade-cell');
+        if (gradeCells.length === 0) {
+            logger.warn('[PAPS 등급 업데이트] grade-cell 요소를 찾을 수 없음', {
+                rowId: tr.dataset.sid,
+                hasRow: !!tr,
+                rowChildrenCount: tr.children.length
+            });
+            return;
+        }
+        gradeCells.forEach(td => {
             td.textContent = '';
             td.className = 'grade-cell';
         });
-        console.log(`[PAPS 등급 업데이트] 학생 성별: ${studentGender}, 학년: ${gradeLevel}`);
+        logger.debug(`[PAPS 등급 업데이트] 학생 성별: ${studentGender}, 학년: ${gradeLevel}`);
         Object.keys(PAPS_ITEMS).forEach(k => {
             const id = PAPS_ITEMS[k].id;
             const eventName = cls.eventSettings?.[id] || PAPS_ITEMS[k].options[0];
-            console.log(`[PAPS 등급 업데이트] 카테고리: ${k}, ID: ${id}, 이벤트명: ${eventName}`);
+            logger.debug(`[PAPS 등급 업데이트] 카테고리: ${k}, ID: ${id}, 이벤트명: ${eventName}`);
             if (id === 'bodyfat') {
                 const value = bmi;
                 const td = tr.querySelector(`.grade-cell[data-id="${id}"]`);
@@ -606,11 +840,11 @@ export class PapsManager {
             }
             else {
                 const value = parseFloat(tr.querySelector(`.rec[data-id="${id}"]`)?.value || '');
-                console.log(`[PAPS 등급 업데이트] ${k} - 입력값: ${value}, isNaN: ${isNaN(value)}`);
+                logger.debug(`[PAPS 등급 업데이트] ${k} - 입력값: ${value}, isNaN: ${isNaN(value)}`);
                 if (!isNaN(value)) {
                     const grade = this.calcPapsGrade(id, value, studentGender, gradeLevel, cls);
                     const td = tr.querySelector(`.grade-cell[data-id="${id}"]`);
-                    console.log(`[PAPS 등급 업데이트] ${k} - 계산된 등급: ${grade}, TD 요소:`, td);
+                    logger.debug(`[PAPS 등급 업데이트] ${k} - 계산된 등급: ${grade}, TD 요소:`, td);
                     if (td) {
                         td.textContent = grade || '';
                         if (grade) {
@@ -620,7 +854,7 @@ export class PapsManager {
                             const gradeNumber = grade.replace('등급', '');
                             td.classList.add(`grade-${gradeNumber}`);
                         }
-                        console.log(`[PAPS 등급 업데이트] ${k} - UI 적용 완료: ${td.textContent}`);
+                        logger.debug(`[PAPS 등급 업데이트] ${k} - UI 적용 완료: ${td.textContent}`);
                     }
                 }
             }
@@ -643,9 +877,9 @@ export class PapsManager {
      * PAPS 등급을 계산합니다.
      */
     calcPapsGrade(categoryId, value, gender, gradeLevel, cls) {
-        console.log(`[calcPapsGrade 호출] categoryId: ${categoryId}, value: ${value}, gender: ${gender}, gradeLevel: ${gradeLevel}`);
+        logger.debug(`[calcPapsGrade 호출] categoryId: ${categoryId}, value: ${value}, gender: ${gender}, gradeLevel: ${gradeLevel}`);
         if (value == null || isNaN(value) || !gender || !gradeLevel) {
-            console.log(`[calcPapsGrade 조기 종료] value: ${value}, gender: ${gender}, gradeLevel: ${gradeLevel}`);
+            logger.debug(`[calcPapsGrade 조기 종료] value: ${value}, gender: ${gender}, gradeLevel: ${gradeLevel}`);
             return '';
         }
         let selectedTest = null;
@@ -684,13 +918,13 @@ export class PapsManager {
         if (!ranges)
             return '';
         // 디버깅을 위한 로그 추가
-        console.log(`[PAPS 등급 계산] 종목: ${selectedTest}, 성별: ${gender}, 학년: ${gradeLevel}, 값: ${value}`);
-        console.log(`[PAPS 등급 계산] 기준표:`, ranges);
+        logger.debug(`[PAPS 등급 계산] 종목: ${selectedTest}, 성별: ${gender}, 학년: ${gradeLevel}, 값: ${value}`);
+        logger.debug(`[PAPS 등급 계산] 기준표:`, ranges);
         // 범위를 역순으로 확인 (높은 값부터 확인하여 최고 등급부터 매칭)
         for (let i = ranges.length - 1; i >= 0; i--) {
             const [a, b, g] = ranges[i];
             const min = Math.min(a, b), max = Math.max(a, b);
-            console.log(`[PAPS 등급 계산] 범위 확인: ${min} <= ${value} <= ${max} ? ${value >= min && value <= max} → ${g}등급`);
+            logger.debug(`[PAPS 등급 계산] 범위 확인: ${min} <= ${value} <= ${max} ? ${value >= min && value <= max} → ${g}등급`);
             if (value >= min && value <= max)
                 return typeof g === 'number' ? `${g}등급` : String(g);
         }
@@ -815,7 +1049,10 @@ export class PapsManager {
             Object.keys(PAPS_ITEMS).forEach(category => {
                 const item = PAPS_ITEMS[category];
                 const eventName = cls.eventSettings?.[item.id] || item.options[0];
-                eventSelect.innerHTML += `<option value="${item.id}">${eventName}</option>`;
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = eventName;
+                eventSelect.appendChild(option);
             });
         }
         // 랭킹 조회 버튼 이벤트 리스너
@@ -868,18 +1105,18 @@ export class PapsManager {
             return;
         }
         // 디버깅: 수집된 데이터 확인
-        console.log('수집된 기록 데이터:', recordsWithNames);
+        logger.debug('수집된 기록 데이터:', recordsWithNames);
         // 통계 계산
         const records = recordsWithNames.map(item => item.record);
         records.sort((a, b) => b - a); // 내림차순 정렬 (높은 기록이 좋은 경우)
         // 디버깅: 정렬된 기록 확인
-        console.log('정렬된 기록:', records);
-        console.log('기록 합계:', records.reduce((sum, record) => sum + record, 0));
-        console.log('기록 개수:', records.length);
+        logger.debug('정렬된 기록:', records);
+        logger.debug('기록 합계:', records.reduce((sum, record) => sum + record, 0));
+        logger.debug('기록 개수:', records.length);
         // 평균 기록 계산 (모든 기록의 합을 인원수로 나누기)
         const avgRecord = records.reduce((sum, record) => sum + record, 0) / records.length;
         // 디버깅: 평균 계산 결과 확인
-        console.log('계산된 평균:', avgRecord);
+        logger.debug('계산된 평균:', avgRecord);
         // 평균 기록을 순위표 제목에 표시
         const avgRecordDisplay = this.$('#avg-record-display');
         if (avgRecordDisplay) {
@@ -922,21 +1159,48 @@ export class PapsManager {
             const tbody = this.$('#ranking-table-body');
             if (!tbody)
                 return;
-            tbody.innerHTML = pageRecords.map((item, index) => {
+            // 기존 내용 제거
+            tbody.innerHTML = '';
+            // DOM API를 사용하여 직접 행 생성
+            pageRecords.forEach((item, index) => {
                 const rank = startIndex + index + 1;
                 const isPersonalRecord = studentName && item.name === studentName;
-                const rowClass = isPersonalRecord ? 'table-warning' : '';
+                const tr = document.createElement('tr');
+                tr.dataset.rank = String(rank);
+                if (isPersonalRecord) {
+                    tr.className = 'table-warning';
+                }
+                // 순위 셀
+                const tdRank = document.createElement('td');
+                tdRank.style.textAlign = 'center';
+                tdRank.style.fontWeight = 'bold';
+                tdRank.style.color = '#007bff';
+                tdRank.textContent = String(rank);
+                tr.appendChild(tdRank);
+                // 이름 셀
+                const tdName = document.createElement('td');
+                tdName.style.textAlign = 'center';
+                tdName.style.fontWeight = '500';
+                tdName.textContent = item.name || '';
+                tr.appendChild(tdName);
+                // 기록 셀
+                const tdRecord = document.createElement('td');
+                tdRecord.style.textAlign = 'center';
+                tdRecord.style.fontWeight = 'bold';
+                tdRecord.style.color = '#28a745';
+                tdRecord.textContent = String(item.record);
+                tr.appendChild(tdRecord);
                 // 퍼센트 계산: 낮은 순위일수록 높은 퍼센트 (1위 = 0%, 마지막 순위 = 100%에 가까움)
                 const percentile = ((rank - 1) / sortedRecords.length * 100).toFixed(1);
-                return `
-                    <tr class="${rowClass}" data-rank="${rank}">
-                        <td style="text-align: center; font-weight: bold; color: #007bff;">${rank}</td>
-                        <td style="text-align: center; font-weight: 500;">${item.name}</td>
-                        <td style="text-align: center; font-weight: bold; color: #28a745;">${item.record}</td>
-                        <td style="text-align: center; font-weight: bold; color: #6f42c1;">${percentile}%</td>
-                    </tr>
-                `;
-            }).join('');
+                // 퍼센트 셀
+                const tdPercent = document.createElement('td');
+                tdPercent.style.textAlign = 'center';
+                tdPercent.style.fontWeight = 'bold';
+                tdPercent.style.color = '#6f42c1';
+                tdPercent.textContent = `${percentile}%`;
+                tr.appendChild(tdPercent);
+                tbody.appendChild(tr);
+            });
             // 페이지 정보 업데이트
             const pageInfo = this.$('#page-info');
             if (pageInfo) {
@@ -1049,7 +1313,7 @@ export class PapsManager {
             this.showShareSuccessModal(shareUrl, shareId);
         }
         catch (error) {
-            console.error('실시간 공유 생성 실패:', error);
+            logError('실시간 공유 생성 실패:', error);
             alert('실시간 공유 생성에 실패했습니다.');
         }
     }
@@ -1081,7 +1345,7 @@ export class PapsManager {
             align-items: center;
             z-index: 10000;
         `;
-        modal.innerHTML = `
+        const modalHtml = `
             <div style="background: white; padding: 24px; border-radius: 8px; max-width: 500px; width: 90%;">
                 <h3 style="margin: 0 0 16px 0; color: #28a745;">✅ 실시간 공유 생성 완료!</h3>
                 <p style="margin: 0 0 16px 0; color: #666;">공유 링크가 클립보드에 복사되었습니다.</p>
@@ -1098,6 +1362,7 @@ export class PapsManager {
                 </div>
             </div>
         `;
+        setInnerHTMLSafe(modal, modalHtml);
         document.body.appendChild(modal);
         // 모달 닫기
         const closeBtn = modal.querySelector('#close-modal');
@@ -1618,7 +1883,7 @@ export class PapsManager {
         this.updateInterval = setInterval(() => {
             this.updateRankingData(cls);
         }, 5000);
-        console.log('실시간 업데이트 시작:', this.currentRankingData);
+        logger.debug('실시간 업데이트 시작:', this.currentRankingData);
     }
     /**
      * 실시간 업데이트를 중지합니다.
@@ -1629,7 +1894,7 @@ export class PapsManager {
             this.updateInterval = null;
         }
         this.currentRankingData = null;
-        console.log('실시간 업데이트 중지');
+        logger.debug('실시간 업데이트 중지');
     }
     /**
      * 랭킹 데이터를 업데이트합니다.
@@ -1670,7 +1935,7 @@ export class PapsManager {
             }
         });
         if (recordsWithNames.length === 0) {
-            console.log('업데이트할 데이터가 없습니다.');
+            logger.debug('업데이트할 데이터가 없습니다.');
             return;
         }
         // 기록 정렬 (내림차순)
@@ -1693,7 +1958,7 @@ export class PapsManager {
         }
         // 순위 테이블 업데이트
         this.renderRankingTable(recordsWithNames, studentName);
-        console.log('랭킹 데이터 업데이트 완료:', {
+        logger.debug('랭킹 데이터 업데이트 완료:', {
             totalRecords: records.length,
             avgRecord: avgRecord.toFixed(2),
             personalRank: personalRecord ? records.findIndex(record => record === personalRecord) + 1 : null
@@ -1707,7 +1972,19 @@ export class PapsManager {
         this.stopRealtimeUpdate();
         // 결과 섹션 숨기기
         this.$('#ranking-results').style.display = 'none';
-        console.log('랭킹 닫기 완료');
+        logger.debug('랭킹 닫기 완료');
+    }
+    /**
+     * 사이드바를 정리합니다.
+     * sidebar-list-container는 renderPapsClassList()에서 관리하므로 여기서 비우지 않습니다.
+     */
+    cleanupSidebar() {
+        // sidebar-form-container만 비우고, sidebar-list-container는 renderPapsClassList에서 관리
+        const formContainer = this.$('#sidebar-form-container');
+        if (formContainer) {
+            formContainer.innerHTML = '';
+        }
+        // sidebar-list-container는 renderPapsClassList()에서 다시 채우므로 여기서 비우지 않음
     }
 }
 //# sourceMappingURL=papsManager.js.map

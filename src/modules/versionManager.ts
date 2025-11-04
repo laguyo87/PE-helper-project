@@ -132,12 +132,14 @@ export const checkVersion = (): void => {
     const timestamp = Date.now().toString();
     setLocalStorage(CACHE_BUSTER_KEY, timestamp);
     
-    // 사용자에게 새 버전 알림 (이전 버전이 있는 경우에만)
+    // 버전이 변경되었으면 자동으로 새로고침하여 최신 버전 사용
+    // 알림 없이 바로 새로고침하여 항상 최신 버전을 사용하도록 함
     if (storedVersion) {
-      showVersionNotification({
-        newVersion: APP_VERSION,
-        oldVersion: storedVersion
-      });
+      console.log('버전이 변경되었습니다. 최신 버전으로 자동 새로고침합니다.');
+      // 약간의 지연 후 새로고침 (데이터 저장 완료 대기)
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     }
   }
 };

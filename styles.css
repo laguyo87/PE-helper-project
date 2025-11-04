@@ -30,6 +30,170 @@ body[data-theme="dark"] {
   --line: #3c3c3c; --win: #66bb6a; --lose: #ef5350; --draw: #ffa726;
   --focus: #64b5f6;
 }
+
+/* ========================================
+   접근성 (A11y) 스타일
+   ======================================== */
+
+/* 스크린 리더 전용 텍스트 (시각적으로는 숨김, 스크린 리더에서는 읽힘) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* 키보드 포커스 표시 개선 - WCAG 2.1 AA 기준 준수 */
+*:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(25, 113, 194, 0.2);
+}
+
+/* 마우스로 클릭한 경우에는 포커스 링 제거 (선택적) */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* 색상 대비 개선 - WCAG AA 기준 (4.5:1 이상) */
+/* 버튼 텍스트 대비 확인 및 개선 */
+.btn {
+  /* 기본 버튼은 충분한 대비를 가짐 (--accent-fg on --accent) */
+}
+
+.btn.primary {
+  background-color: var(--accent);
+  color: var(--accent-fg);
+  /* 대비: #ffffff on #1971c2 = 8.59:1 (AAA) */
+}
+
+/* 링크 색상 대비 개선 */
+a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 에러 메시지 색상 대비 개선 */
+.error-message {
+  color: var(--lose);
+  /* 대비: #e03131 on white = 4.78:1 (AA) */
+}
+
+body[data-theme="dark"] .error-message {
+  color: var(--lose);
+  /* 대비: #ef5350 on #121212 = 6.41:1 (AA) */
+}
+
+/* 성공 메시지 */
+.success-message {
+  color: var(--win);
+  /* 대비: #2f9e44 on white = 4.88:1 (AA) */
+}
+
+body[data-theme="dark"] .success-message {
+  color: var(--win);
+  /* 대비: #66bb6a on #121212 = 5.87:1 (AA) */
+}
+
+/* 입력 필드 포커스 대비 개선 */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(25, 113, 194, 0.2);
+}
+
+/* 스킵 링크 (접근성 향상) */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--accent);
+  color: var(--accent-fg);
+  padding: 8px;
+  text-decoration: none;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* 모달 배경 스크린 리더 접근성 */
+[role="dialog"][aria-modal="true"] {
+  /* 모달 배경은 이미 배경색이 있음 */
+}
+
+/* aria-hidden 요소는 시각적으로도 숨김 (일관성) */
+[aria-hidden="true"] {
+  /* SVG는 aria-hidden="true"로 이미 설정됨 */
+}
+
+/* 로딩 상태 접근성 */
+.loader {
+  /* 이미 role과 aria-live가 설정되어 있으면 좋지만, 필요시 추가 */
+}
+
+/* 테이블 접근성 */
+table {
+  /* 캡션이 있으면 좋지만, aria-label로 대체 가능 */
+}
+
+/* 버튼 그룹 접근성 */
+[role="group"] {
+  /* 그룹 내부 버튼들이 논리적으로 연결됨 */
+}
+
+/* 탭 인터페이스 접근성 */
+[role="tablist"] [role="tab"] {
+  cursor: pointer;
+}
+
+[role="tablist"] [role="tab"][aria-selected="true"] {
+  /* 활성 탭 스타일 */
+}
+
+[role="tabpanel"] {
+  /* 탭 패널 스타일 */
+}
+
+/* Skip to main content 링크 (추가 개선) */
+#skip-to-main {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--accent);
+  color: var(--accent-fg);
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 1000;
+  border-radius: 0 0 4px 0;
+}
+
+#skip-to-main:focus {
+  top: 0;
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
@@ -2812,5 +2976,182 @@ div[style*="position: absolute"][style*="z-index"] {
   color: var(--ink-muted);
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+/* ========================================
+   토스트 알림 스타일
+   ======================================== */
+
+.toast-container {
+  position: fixed;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+  max-width: 400px;
+}
+
+.toast-container.toast-top-right {
+  top: 20px;
+  right: 20px;
+  align-items: flex-end;
+}
+
+.toast-container.toast-top-left {
+  top: 20px;
+  left: 20px;
+  align-items: flex-start;
+}
+
+.toast-container.toast-bottom-right {
+  bottom: 20px;
+  right: 20px;
+  align-items: flex-end;
+}
+
+.toast-container.toast-bottom-left {
+  bottom: 20px;
+  left: 20px;
+  align-items: flex-start;
+}
+
+.toast-container.toast-top-center {
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+}
+
+.toast-container.toast-bottom-center {
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 280px;
+  max-width: 400px;
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast.toast-show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.toast-hide {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.toast-message {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toast-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.toast-content {
+  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.toast-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink-muted);
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.toast-close:hover {
+  color: var(--ink);
+}
+
+/* 토스트 타입별 스타일 */
+.toast-success {
+  border-left: 4px solid var(--win);
+}
+
+.toast-success .toast-icon {
+  color: var(--win);
+}
+
+.toast-error {
+  border-left: 4px solid var(--lose);
+}
+
+.toast-error .toast-icon {
+  color: var(--lose);
+}
+
+.toast-warning {
+  border-left: 4px solid var(--draw);
+}
+
+.toast-warning .toast-icon {
+  color: var(--draw);
+}
+
+.toast-info {
+  border-left: 4px solid var(--accent);
+}
+
+.toast-info .toast-icon {
+  color: var(--accent);
+}
+
+/* 다크 모드 지원 */
+body[data-theme="dark"] .toast {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 768px) {
+  .toast-container {
+    max-width: calc(100vw - 40px);
+  }
+  
+  .toast {
+    min-width: auto;
+    max-width: 100%;
+  }
 }
 

@@ -126,6 +126,7 @@ export interface SaveOptions {
     retryCount?: number;
     timeout?: number;
     enableLocalBackup?: boolean;
+    skipValidation?: boolean;
 }
 /**
  * 데이터 로딩 옵션
@@ -143,6 +144,8 @@ export declare class DataManager {
     private currentUser;
     private dbDebounceTimer;
     private lastSaveErrorTime;
+    private firebaseReadyHandler;
+    private abortController;
     /**
      * DataManager 인스턴스를 생성합니다.
      */
@@ -151,6 +154,15 @@ export declare class DataManager {
      * Firebase 초기화
      */
     private initializeFirebase;
+    /**
+     * 디바운스 타이머 정리
+     */
+    private clearDebounceTimer;
+    /**
+     * 리소스 정리 (메모리 누수 방지)
+     * 타이머와 이벤트 리스너를 정리합니다.
+     */
+    cleanup(): void;
     /**
      * 현재 사용자를 설정합니다.
      * @param user 사용자 정보
@@ -201,8 +213,20 @@ export declare class DataManager {
     /**
      * 데이터 유효성을 검사합니다.
      * @param data 검사할 데이터
+     * @returns 검증 성공 여부
      */
-    validateLoadedData(data: AppData): void;
+    validateLoadedData(data: AppData): boolean;
+    /**
+     * Zod를 사용한 데이터 검증 (비동기)
+     * @param data 검증할 데이터
+     */
+    private validateWithZod;
+    /**
+     * 저장 전 데이터 검증
+     * @param data 검증할 데이터
+     * @returns 검증 결과
+     */
+    private validateDataBeforeSave;
     /**
      * 기본 데이터 구조를 반환합니다.
      * @returns 기본 데이터
@@ -253,6 +277,12 @@ export declare class DataManager {
      * @param args 추가 인수
      */
     private log;
+    /**
+     * 경고 로그를 출력합니다.
+     * @param message 경고 메시지
+     * @param args 추가 인수
+     */
+    private logWarnLocal;
     /**
      * 오류 로그를 출력합니다.
      * @param message 오류 메시지

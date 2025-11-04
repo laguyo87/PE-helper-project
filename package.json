@@ -5,13 +5,21 @@
   "main": "dist/main.js",
   "type": "module",
   "scripts": {
-    "build": "tsc && npm run copy-modules",
+    "build": "tsc && npm run copy-modules && npm run copy-main && npm run fix-main-imports",
+    "build:prod": "NODE_ENV=production npm run build",
+    "build:staging": "NODE_ENV=staging npm run build",
     "copy-modules": "cp dist/modules/*.js js/modules/",
+    "copy-main": "cp dist/main.js main.js",
+    "fix-main-imports": "node scripts/fix-imports.cjs",
     "build:watch": "tsc --watch",
-    "dev": "tsc && npm run copy-modules && node server.js",
+    "dev": "tsc && npm run copy-modules && npm run copy-main && npm run fix-main-imports && node server.js",
     "start": "node server.js",
     "clean": "rimraf dist",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "pe",
@@ -23,11 +31,21 @@
   "author": "김신회 <laguyo87@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@types/node": "^20.19.21",
+    "@vitest/ui": "^4.0.6",
+    "happy-dom": "^20.0.10",
+    "jsdom": "^27.1.0",
     "rimraf": "^5.0.10",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.6"
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "@sentry/browser": "^10.22.0",
+    "dompurify": "^3.3.0",
+    "zod": "^4.1.12"
   }
 }

@@ -8,6 +8,7 @@
  * @version 2.2.1
  * @since 2024-01-01
  */
+import { DataManager } from './dataManager.js';
 /**
  * 리그전 클래스(반/팀) 데이터 구조
  */
@@ -98,7 +99,7 @@ export declare class LeagueManager {
      * DataManager 인스턴스를 설정합니다.
      * @param dataManager DataManager 인스턴스
      */
-    setDataManager(dataManager: any): void;
+    setDataManager(dataManager: DataManager): void;
     /**
      * 저장 콜백을 설정합니다.
      * @param callback 저장 콜백 함수
@@ -137,9 +138,9 @@ export declare class LeagueManager {
     selectClass(id: number | string): void;
     /**
      * 반을 삭제합니다.
-     * @param id 반 ID
+     * @param id 반 ID (숫자 또는 문자열)
      */
-    deleteClass(id: number): void;
+    deleteClass(id: number | string): void;
     /**
      * 학생을 추가합니다.
      */

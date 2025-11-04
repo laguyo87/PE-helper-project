@@ -3,6 +3,10 @@
  * 원본 main.js의 진도표 기능을 모듈화
  */
 
+import { validateData, ProgressClassSchema } from './validators.js';
+import { showError, showSuccess } from './errorHandler.js';
+import { logger, logInfo, logWarn, logError } from './logger.js';
+
 export interface ProgressClass {
   id: string;
   name: string;
@@ -17,7 +21,7 @@ export interface ProgressClass {
 export interface ProgressSession {
   weekNumber: number;
   sessionNumber: number;
-  date: string;
+  date?: string;
   content: string;
   completed: boolean;
   notes: string;
@@ -26,14 +30,15 @@ export interface ProgressSession {
 export class ProgressManager {
   private $: (selector: string) => HTMLElement | null;
   private $$: (selector: string) => NodeListOf<HTMLElement>;
-  private saveCallback: () => void;
+  private saveCallback: () => void | Promise<void>;
   private classes: ProgressClass[] = [];
   private selectedClassId: string | null = null;
+  private saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     $: (selector: string) => HTMLElement | null,
     $$: (selector: string) => NodeListOf<HTMLElement>,
-    saveCallback: () => void
+    saveCallback: () => void | Promise<void>
   ) {
     this.$ = $;
     this.$$ = $$;
@@ -44,9 +49,9 @@ export class ProgressManager {
    * 초기화
    */
   initialize(classes: ProgressClass[], selectedClassId: string | null = null): void {
-    console.log('ProgressManager 초기화 시작');
-    console.log('받은 classes:', classes);
-    console.log('받은 selectedClassId:', selectedClassId);
+    logger.debug('ProgressManager 초기화 시작');
+    logger.debug('받은 classes:', classes);
+    logger.debug('받은 selectedClassId:', selectedClassId);
     
     this.classes = Array.isArray(classes) ? classes : [];
     this.selectedClassId = selectedClassId;
@@ -65,17 +70,53 @@ export class ProgressManager {
       }
     });
     
-    console.log('초기화된 classes:', this.classes);
-    console.log('classes 배열 길이:', this.classes.length);
+    logger.debug('초기화된 classes:', this.classes);
+    logger.debug('classes 배열 길이:', this.classes.length);
+  }
+
+  /**
+   * Progress 데이터를 업데이트합니다 (재초기화 없이)
+   * onChangeCallbacks에서 호출될 때 사용
+   */
+  updateProgressData(classes: ProgressClass[], selectedClassId: string | null = null): void {
+    logger.debug('[ProgressManager] updateProgressData 호출', { 
+      classesCount: classes?.length || 0, 
+      selectedClassId 
+    });
+    
+    // 현재 선택된 반 ID 저장
+    const currentSelectedId = this.selectedClassId;
+    
+    // 데이터 업데이트 (참조 유지)
+    this.classes = classes || [];
+    this.selectedClassId = selectedClassId;
+    
+    // UI 요소가 아직 생성되지 않았으면 UI 업데이트 건너뛰기
+    const progressClassList = this.$('#progressClassList');
+    if (!progressClassList) {
+      logger.debug('[ProgressManager] UI 요소가 아직 생성되지 않음, UI 업데이트 건너뜀');
+      return;
+    }
+    
+    // 현재 선택된 반이 변경되지 않았고, 데이터만 업데이트된 경우
+    // UI를 리렌더링하지 않음 (무한 루프 방지)
+    if (currentSelectedId === selectedClassId && currentSelectedId) {
+      logger.debug('[ProgressManager] 선택된 반이 동일하므로 UI 리렌더링 건너뜀');
+      return;
+    }
+    
+    // 선택된 반이 변경되었거나 없었던 경우에만 UI 업데이트
+    logger.debug('[ProgressManager] 선택된 반 변경 또는 초기 설정, UI 업데이트');
+    this.renderProgressClassList();
   }
 
   /**
    * 진도표 UI 렌더링 (원본 renderProgressUI 함수 기반)
    */
   renderProgressUI(): void {
-    console.log('renderProgressUI 시작');
-    console.log('progressClasses.length:', this.classes.length);
-    console.log('progressClasses:', this.classes);
+    logger.debug('renderProgressUI 시작');
+    logger.debug('progressClasses.length:', this.classes.length);
+    logger.debug('progressClasses:', this.classes);
     
     // 기존 요소들 정리
     this.cleanupSidebar();
@@ -125,11 +166,11 @@ export class ProgressManager {
     }
     
     // 클래스 목록 렌더링
-    console.log('진도표 클래스 목록 렌더링 시작');
+    logger.debug('진도표 클래스 목록 렌더링 시작');
     this.renderProgressClassList();
     
     // 메인 콘텐츠 영역에 진도표만 표시
-    console.log('진도표 메인 콘텐츠 렌더링');
+    logger.debug('진도표 메인 콘텐츠 렌더링');
     const contentWrapper = this.$('#content-wrapper');
     if (contentWrapper) {
       contentWrapper.innerHTML = `
@@ -185,7 +226,7 @@ export class ProgressManager {
       this.updateProgressSheetTitle();
     }
     
-    console.log('진도표 렌더링 완료');
+    logger.debug('진도표 렌더링 완료');
   }
 
   /**
@@ -193,34 +234,31 @@ export class ProgressManager {
    */
   private cleanupSidebar(): void {
     const sidebarFormContainer = this.$('#sidebar-form-container');
-    const sidebarListContainer = this.$('#sidebar-list-container');
     
     if (sidebarFormContainer) {
       sidebarFormContainer.innerHTML = '';
     }
-    if (sidebarListContainer) {
-      sidebarListContainer.innerHTML = '';
-    }
+    // sidebar-list-container는 renderProgressClassList()에서 다시 채우므로 여기서 비우지 않음
   }
 
   /**
    * 클래스 목록 렌더링 (원본 renderProgressClassList 함수 기반)
    */
   private renderProgressClassList(): void {
-    console.log('=== renderProgressClassList 시작 ===');
-    console.log('progressClasses.length:', this.classes.length);
-    console.log('progressClasses:', this.classes);
+    logger.debug('=== renderProgressClassList 시작 ===');
+    logger.debug('progressClasses.length:', this.classes.length);
+    logger.debug('progressClasses:', this.classes);
     
     const progressClassList = this.$('#progressClassList');
     if (!progressClassList) {
-      console.error('progressClassList 요소를 찾을 수 없습니다');
+      logError('progressClassList 요소를 찾을 수 없습니다');
       return;
     }
     
     progressClassList.innerHTML = '';
     
     if (this.classes.length === 0) {
-      console.log('클래스가 없음, 빈 상태 메시지 표시');
+      logger.debug('클래스가 없음, 빈 상태 메시지 표시');
       const empty = document.createElement('div');
       empty.className = 'empty';
       empty.textContent = '아직 생성된 반이 없습니다.';
@@ -228,7 +266,7 @@ export class ProgressManager {
       return;
     }
     
-    console.log('클래스 목록 렌더링 시작, 클래스 수:', this.classes.length);
+    logger.debug('클래스 목록 렌더링 시작, 클래스 수:', this.classes.length);
     this.classes.forEach(c => {
       const card = document.createElement('div');
       card.className = 'btn' + (c.id === this.selectedClassId ? ' active' : '');
@@ -290,8 +328,8 @@ export class ProgressManager {
       progressClassList.appendChild(card);
     });
     
-    console.log('=== renderProgressClassList 완료 ===');
-    console.log('렌더링된 클래스 수:', this.classes.length);
+    logger.debug('=== renderProgressClassList 완료 ===');
+    logger.debug('렌더링된 클래스 수:', this.classes.length);
   }
 
   /**
@@ -329,22 +367,48 @@ export class ProgressManager {
    */
   private addProgressClass(): void {
     const progressClassNameInput = this.$('#progressClassNameInput') as HTMLInputElement;
-    if (!progressClassNameInput || !progressClassNameInput.value.trim()) {
-      alert('반 이름을 입력해주세요');
+    if (!progressClassNameInput) return;
+    
+    const name = progressClassNameInput.value.trim();
+    
+    // 이름 유효성 검사
+    if (!name) {
+      showError(new Error('반 이름을 입력해주세요.'));
+      return;
+    }
+    
+    // 중복 검사
+    if (this.classes.some(c => c.name === name)) {
+      showError(new Error('이미 존재하는 반 이름입니다.'));
       return;
     }
 
-    const newClass: ProgressClass = {
+    // 데이터 생성 및 검증
+    const newClassData = {
       id: this.uuid(),
-      name: progressClassNameInput.value.trim(),
+      name,
       teacherName: '',
       unitContent: '',
       weeklyHours: 2,
-      schedule: [],
+      schedule: [] as ProgressSession[],
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
 
+    const validation = validateData(ProgressClassSchema, newClassData);
+    if (!validation.success) {
+      if (validation.errors) {
+        showError(validation.errors);
+      } else if (validation.formattedErrors) {
+        showError(new Error(validation.formattedErrors.join(', ')));
+      } else {
+        showError(new Error('데이터 검증에 실패했습니다.'));
+      }
+      return;
+    }
+    
+    // 검증 통과 후 추가
+    const newClass: ProgressClass = validation.data!;
     this.classes.push(newClass);
     progressClassNameInput.value = '';
     
@@ -357,6 +421,8 @@ export class ProgressManager {
     if (progressSettingHeader && progressSettingHeader.parentElement) {
       progressSettingHeader.parentElement.style.display = 'block';
     }
+    
+    showSuccess('반이 생성되었습니다.');
   }
 
   /**
@@ -446,7 +512,7 @@ export class ProgressManager {
       progressSettingHeader.parentElement.style.display = 'none';
     }
     
-    console.log('진도표 렌더링 완료');
+    logger.debug('진도표 렌더링 완료');
   }
 
   /**
@@ -498,6 +564,20 @@ export class ProgressManager {
       const sessionNumber = (week - 1) * weeklyHours + session;
       const sessionData = selectedClass.schedule?.find(s => s.weekNumber === week && s.sessionNumber === session);
       
+      // 날짜 값 검증 및 형식 변환 (yyyy-MM-dd 형식이어야 함)
+      let dateValue = '';
+      if (sessionData?.date) {
+        const dateStr = String(sessionData.date);
+        // yyyy-MM-dd 형식인지 확인 (예: 2024-01-01)
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          dateValue = dateStr;
+        } else {
+          // 잘못된 형식인 경우 빈 문자열로 설정
+          logger.warn(`[ProgressManager] 잘못된 날짜 형식 발견: ${dateStr}, 빈 문자열로 설정`);
+          dateValue = '';
+        }
+      }
+      
       sessionColumns += `
         <td>
           <div class="session-content">
@@ -506,7 +586,7 @@ export class ProgressManager {
             </div>
             <div class="date-input-group">
               <input type="date" placeholder="수업 날짜" 
-                     value="${sessionData?.date || ''}"
+                     value="${dateValue}"
                      data-week="${week}" data-session="${session}" class="date-input">
               <span class="day-of-week" data-week="${week}" data-session="${session}"></span>
             </div>
@@ -531,20 +611,47 @@ export class ProgressManager {
    */
   private setupProgressSheetEventListeners(): void {
     const progressSheetArea = this.$('#progressSheetArea');
-    if (!progressSheetArea) return;
+    if (!progressSheetArea) {
+      logger.warn('[ProgressManager] setupProgressSheetEventListeners: progressSheetArea를 찾을 수 없음');
+      return;
+    }
 
-    // 모든 입력 필드에 이벤트 리스너 추가
-    progressSheetArea.addEventListener('input', (e) => {
+    // 기존 리스너 제거 후 새로 추가 (중복 방지)
+    // cloneNode로 리스너 제거
+    const newProgressSheetArea = progressSheetArea.cloneNode(true);
+    progressSheetArea.parentNode?.replaceChild(newProgressSheetArea, progressSheetArea);
+
+    // 모든 입력 필드에 이벤트 리스너 추가 (이벤트 위임 사용)
+    // date 타입은 change 이벤트에서만 처리하므로 제외
+    (newProgressSheetArea as HTMLElement).addEventListener('input', (e) => {
       const target = e.target as HTMLInputElement | HTMLTextAreaElement;
+      // date 타입은 change 이벤트에서만 처리 (클래스명도 체크)
+      if (target.type === 'date' || target.classList.contains('date-input')) {
+        return;
+      }
+      // textarea만 처리 (content 업데이트)
+      if (target.tagName !== 'TEXTAREA') {
+        return;
+      }
       if (target.dataset.week && target.dataset.session) {
+        logger.debug('[ProgressManager] input 이벤트 발생 (textarea)', { 
+          week: target.dataset.week, 
+          session: target.dataset.session,
+          value: target.value,
+          type: target.tagName
+        });
+        // 타겟 요소를 직접 전달하여 정확한 타입 확인
         this.updateProgressSession(
           parseInt(target.dataset.week),
           parseInt(target.dataset.session),
           target.value,
-          undefined
+          undefined,
+          target
         );
       }
     });
+
+    logger.debug('[ProgressManager] 진도표 이벤트 리스너 설정 완료');
   }
 
   /**
@@ -617,21 +724,41 @@ export class ProgressManager {
    */
   private setupDateChangeListeners(): void {
     const progressSheetArea = this.$('#progressSheetArea');
-    if (!progressSheetArea) return;
+    if (!progressSheetArea) {
+      logger.warn('[ProgressManager] setupDateChangeListeners: progressSheetArea를 찾을 수 없음');
+      return;
+    }
 
-    // 날짜 입력 필드에 이벤트 리스너 추가
-    progressSheetArea.addEventListener('change', (e) => {
+    // change 이벤트는 이미 progressSheetArea에 있으므로 중복 방지를 위해 체크
+    // 이벤트 위임으로 처리하므로 중복 등록 방지
+    const handler = (e: Event) => {
       const target = e.target as HTMLInputElement;
       if (target.type === 'date' && target.dataset.week && target.dataset.session) {
+        logger.debug('[ProgressManager] date change 이벤트 발생', { 
+          week: target.dataset.week, 
+          session: target.dataset.session,
+          value: target.value
+        });
         this.updateDayOfWeek(target);
+        // 타겟 요소를 직접 전달
         this.updateProgressSession(
           parseInt(target.dataset.week),
           parseInt(target.dataset.session),
           target.value,
-          undefined
+          undefined,
+          target
         );
       }
-    });
+    };
+
+    // 기존 핸들러가 있으면 제거 (data 속성으로 확인)
+    if ((progressSheetArea as any).__progressDateChangeHandler) {
+      progressSheetArea.removeEventListener('change', (progressSheetArea as any).__progressDateChangeHandler);
+    }
+    (progressSheetArea as any).__progressDateChangeHandler = handler;
+    progressSheetArea.addEventListener('change', handler);
+    
+    logger.debug('[ProgressManager] 날짜 변경 리스너 설정 완료');
   }
 
   /**
@@ -652,9 +779,18 @@ export class ProgressManager {
   /**
    * 진도표 세션 업데이트
    */
-  private updateProgressSession(week: number, session: number, value: string, completed?: boolean): void {
+  private updateProgressSession(
+    week: number, 
+    session: number, 
+    value: string, 
+    completed?: boolean,
+    inputElement?: HTMLInputElement | HTMLTextAreaElement
+  ): void {
     const selectedClass = this.getProgressSelected();
-    if (!selectedClass) return;
+    if (!selectedClass) {
+      logger.warn('[ProgressManager] updateProgressSession: 선택된 반이 없음');
+      return;
+    }
 
     if (!selectedClass.schedule) {
       selectedClass.schedule = [];
@@ -671,15 +807,37 @@ export class ProgressManager {
         notes: ''
       };
       selectedClass.schedule.push(sessionData);
+      logger.debug('[ProgressManager] 새로운 세션 데이터 생성', { week, session });
     }
 
     // 입력 필드 타입에 따라 다른 속성 업데이트
-    const inputElement = this.$(`[data-week="${week}"][data-session="${session}"]`) as HTMLInputElement | HTMLTextAreaElement;
-    if (inputElement) {
-      if (inputElement.type === 'date') {
+    // inputElement가 전달되지 않은 경우에만 DOM에서 찾기
+    const targetElement = inputElement || (this.$(`[data-week="${week}"][data-session="${session}"]`) as HTMLInputElement | HTMLTextAreaElement);
+    
+    if (targetElement) {
+      if (targetElement.type === 'date') {
+        // 날짜 값 검증 (yyyy-MM-dd 형식)
+        const dateStr = String(value);
+        if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+          sessionData.date = dateStr;
+          logger.debug('[ProgressManager] 날짜 업데이트', { week, session, date: dateStr });
+        } else if (dateStr) {
+          logger.warn('[ProgressManager] 잘못된 날짜 형식', { week, session, value });
+        }
+      } else if (targetElement.tagName === 'TEXTAREA') {
+        sessionData.content = value || '';
+        logger.debug('[ProgressManager] 내용 업데이트', { week, session, contentLength: value.length, content: value.substring(0, 50) });
+      }
+    } else {
+      // 요소를 찾지 못한 경우 타입을 추론해서 처리
+      // value가 날짜 형식인지 확인
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
         sessionData.date = value;
-      } else if (inputElement.tagName === 'TEXTAREA') {
-        sessionData.content = value;
+        logger.debug('[ProgressManager] 날짜 업데이트 (타입 추론)', { week, session, date: value });
+      } else {
+        // 날짜 형식이 아니면 내용으로 처리
+        sessionData.content = value || '';
+        logger.debug('[ProgressManager] 내용 업데이트 (타입 추론)', { week, session, contentLength: value.length });
       }
     }
 
@@ -688,6 +846,15 @@ export class ProgressManager {
     }
 
     selectedClass.updatedAt = Date.now();
+    
+    logger.debug('[ProgressManager] 세션 업데이트 완료, 저장 시작', { 
+      className: selectedClass.name, 
+      week, 
+      session,
+      scheduleLength: selectedClass.schedule.length 
+    });
+    
+    // 저장 실행
     this.saveProgressClasses();
   }
 
@@ -729,14 +896,50 @@ export class ProgressManager {
    */
   private saveProgressSelected(id: string | null): void {
     this.selectedClassId = id;
-    this.saveCallback();
+    try {
+      const result = this.saveCallback();
+      // 비동기 콜백인 경우 처리
+      if (result instanceof Promise) {
+        result.catch((error) => {
+          logger.error('[ProgressManager] 선택된 반 저장 중 오류 발생:', error);
+        });
+      }
+    } catch (error) {
+      logger.error('[ProgressManager] 선택된 반 저장 중 오류 발생:', error);
+    }
   }
 
   /**
-   * 클래스 목록 저장
+   * 클래스 목록 저장 (디바운싱 적용)
    */
   private saveProgressClasses(): void {
-    this.saveCallback();
+    logger.debug('[ProgressManager] 저장 시작 (디바운싱 적용)', { 
+      classesCount: this.classes.length,
+      selectedClassId: this.selectedClassId 
+    });
+    
+    // 기존 타이머가 있으면 취소
+    if (this.saveDebounceTimer !== null) {
+      clearTimeout(this.saveDebounceTimer);
+    }
+    
+    // 500ms 후에 저장 실행 (디바운싱)
+    this.saveDebounceTimer = setTimeout(() => {
+      try {
+        const result = this.saveCallback();
+        // 비동기 콜백인 경우 처리
+        if (result instanceof Promise) {
+          result.catch((error) => {
+            logger.error('[ProgressManager] 저장 중 오류 발생:', error);
+          });
+        }
+        logger.debug('[ProgressManager] 저장 콜백 호출 완료');
+      } catch (error) {
+        logger.error('[ProgressManager] 저장 중 오류 발생:', error);
+      } finally {
+        this.saveDebounceTimer = null;
+      }
+    }, 500);
   }
 
   /**
@@ -789,7 +992,7 @@ export class ProgressManager {
 export function initializeProgressManager(
   $: (selector: string) => HTMLElement | null,
   $$: (selector: string) => NodeListOf<HTMLElement>,
-  saveCallback: () => void
+  saveCallback: () => void | Promise<void>
 ): ProgressManager {
   return new ProgressManager($, $$, saveCallback);
 }
