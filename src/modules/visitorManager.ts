@@ -318,9 +318,28 @@ export class VisitorManager {
                 isNewVisitor: true
             };
         } catch (error) {
-            this.logError('방문자 수 업데이트 오류:', error);
-            if (this.options.enableUIUpdate) {
-                this.displayVisitorCountError();
+            // 권한 에러는 부가 기능의 정상적인 경우이므로 조용히 처리
+            const isPermissionError = error && typeof error === 'object' && 'code' in error && error.code === 'permission-denied';
+            if (isPermissionError) {
+                this.log('방문자 통계 권한 없음 (정상, 부가 기능)');
+                // 권한 에러인 경우에도 기본값 표시 (0)
+                if (this.options.enableUIUpdate) {
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', () => {
+                            this.displayVisitorCount(0, null);
+                        });
+                    } else {
+                        this.displayVisitorCount(0, null);
+                        setTimeout(() => {
+                            this.displayVisitorCount(0, null);
+                        }, 1000);
+                    }
+                }
+            } else {
+                this.logError('방문자 수 업데이트 오류:', error);
+                if (this.options.enableUIUpdate) {
+                    this.displayVisitorCountError();
+                }
             }
             return {
                 success: false,
@@ -404,9 +423,28 @@ export class VisitorManager {
                 };
             }
         } catch (error) {
-            this.logError('방문자 수 로드 오류:', error);
-            if (this.options.enableUIUpdate) {
-                this.displayVisitorCountError();
+            // 권한 에러는 부가 기능의 정상적인 경우이므로 조용히 처리
+            const isPermissionError = error && typeof error === 'object' && 'code' in error && error.code === 'permission-denied';
+            if (isPermissionError) {
+                this.log('방문자 통계 권한 없음 (정상, 부가 기능)');
+                // 권한 에러인 경우에도 기본값 표시 (0 또는 "-")
+                if (this.options.enableUIUpdate) {
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', () => {
+                            this.displayVisitorCount(0, null);
+                        });
+                    } else {
+                        this.displayVisitorCount(0, null);
+                        setTimeout(() => {
+                            this.displayVisitorCount(0, null);
+                        }, 1000);
+                    }
+                }
+            } else {
+                this.logError('방문자 수 로드 오류:', error);
+                if (this.options.enableUIUpdate) {
+                    this.displayVisitorCountError();
+                }
             }
             return {
                 success: false,
@@ -581,7 +619,13 @@ export class VisitorManager {
                 };
             }
         } catch (error) {
-            this.logError('진도 관리 모드 방문자 수 로드 오류:', error);
+            // 권한 에러는 부가 기능의 정상적인 경우이므로 조용히 처리
+            const isPermissionError = error && typeof error === 'object' && 'code' in error && error.code === 'permission-denied';
+            if (isPermissionError) {
+                this.log('방문자 통계 권한 없음 (정상, 부가 기능)');
+            } else {
+                this.logError('진도 관리 모드 방문자 수 로드 오류:', error);
+            }
             const progressCountElement = this.getElement('#progress-visitor-count');
             if (progressCountElement) {
                 progressCountElement.textContent = '-';
@@ -670,7 +714,11 @@ export class VisitorManager {
             
             return null;
         } catch (error) {
-            this.logError('방문자 통계 조회 오류:', error);
+            // 권한 에러는 부가 기능의 정상적인 경우이므로 조용히 처리
+            const isPermissionError = error && typeof error === 'object' && 'code' in error && error.code === 'permission-denied';
+            if (!isPermissionError) {
+                this.logError('방문자 통계 조회 오류:', error);
+            }
             return null;
         }
     }

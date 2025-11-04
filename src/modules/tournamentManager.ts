@@ -15,6 +15,7 @@
 import { validateData, TournamentSchema } from './validators.js';
 import { showError, showSuccess } from './errorHandler.js';
 import { logger, logInfo, logWarn, logError } from './logger.js';
+import { setInnerHTMLSafe } from './utils.js';
 
 // 타입 정의
 export interface TournamentMatch {
@@ -223,28 +224,72 @@ export class TournamentManager {
     public renderTournamentList(): void {
         this.log('renderTournamentList 호출됨');
         
-        const list = this.$('#sidebar-list-container');
-        list.html('');
+        const listContainer = this.getElement('#sidebar-list-container');
+        if (!listContainer) {
+            this.logError('sidebar-list-container 요소를 찾을 수 없음');
+            return;
+        }
         
         if (this.tournamentData.tournaments.length === 0) {
-            list.html(`<p style="text-align:center; color: var(--ink-muted);">저장된 토너먼트가 없습니다.</p>`);
+            setInnerHTMLSafe(listContainer, `<p style="text-align:center; color: var(--ink-muted);">저장된 토너먼트가 없습니다.</p>`);
         } else {
-            this.tournamentData.tournaments.forEach(t => {
-                const card = document.createElement('div');
-                card.className = `list-card ${t.id === this.tournamentData.activeTournamentId ? 'active' : ''}`;
-                card.onclick = () => this.selectTournament(t.id);
-                card.innerHTML =`
-                    <div>
+            const html = this.tournamentData.tournaments.map(t => {
+                const isActive = t.id === this.tournamentData.activeTournamentId ? 'active' : '';
+                return `<div class="list-card ${isActive}" data-tournament-id="${t.id}">
+                    <div style="flex-grow: 1;">
                         <div class="name">${t.name}</div>
                         <div class="details">${t.sport || '종목 미지정'} · ${t.teams.length}팀</div>
                     </div>
-                     <div class="action-buttons row">
-                        <button onclick="event.stopPropagation(); showTournamentSettings('${t.id}');" data-tooltip="설정 수정"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-                        <button onclick="event.stopPropagation(); deleteTournament('${t.id}');" data-tooltip="삭제"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+                    <div class="action-buttons row">
+                        <button data-action="edit-settings" data-tournament-id="${t.id}" data-tooltip="설정 수정"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                        <button data-action="delete" data-tournament-id="${t.id}" data-tooltip="삭제"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
                     </div>
-                `;
-                this.getElement('#sidebar-list-container')?.appendChild(card);
-            });
+                </div>`;
+            }).join('');
+            
+            setInnerHTMLSafe(listContainer, html);
+            
+            // 이벤트 리스너 등록
+            setTimeout(() => {
+                const cards = listContainer.querySelectorAll('.list-card');
+                cards.forEach(card => {
+                    const tournamentId = card.getAttribute('data-tournament-id');
+                    if (!tournamentId) return;
+                    
+                    // 카드 클릭 시 토너먼트 선택
+                    card.addEventListener('click', (e) => {
+                        // 버튼 클릭이 아닌 경우에만 토너먼트 선택
+                        if ((e.target as HTMLElement).closest('button')) {
+                            return;
+                        }
+                        this.selectTournament(tournamentId);
+                    });
+                    
+                    // 설정 수정 버튼
+                    const editBtn = card.querySelector('[data-action="edit-settings"]');
+                    if (editBtn) {
+                        editBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (typeof (window as any).showTournamentSettings === 'function') {
+                                (window as any).showTournamentSettings(tournamentId);
+                            }
+                        });
+                    }
+                    
+                    // 삭제 버튼
+                    const deleteBtn = card.querySelector('[data-action="delete"]');
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (typeof (window as any).deleteTournament === 'function') {
+                                (window as any).deleteTournament(tournamentId);
+                            }
+                        });
+                    }
+                });
+                
+                this.log('토너먼트 목록 이벤트 리스너 등록 완료, 카드 수:', cards.length);
+            }, 0);
         }
     }
 

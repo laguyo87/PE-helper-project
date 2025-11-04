@@ -51,9 +51,14 @@ try {
       const testSnap = await getDoc(testDoc);
       console.log('Firebase 연결 테스트 성공:', testSnap.exists() ? '문서 존재' : '문서 없음');
     } catch (error) {
-      console.error('Firebase 연결 테스트 실패:', error);
-      console.error('오류 코드:', error.code);
-      console.error('오류 메시지:', error.message);
+      // 권한 에러는 정상적인 경우이므로 조용히 처리 (디버그 로그만)
+      if (error.code === 'permission-denied') {
+        console.debug('Firebase 연결 테스트: 권한 없음 (정상, 테스트 문서는 접근 불필요)');
+      } else {
+        // 다른 에러는 로그 출력
+        console.warn('Firebase 연결 테스트 실패:', error.message);
+        console.debug('오류 코드:', error.code);
+      }
     }
   })();
 
