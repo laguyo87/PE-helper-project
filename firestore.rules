@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 사용자 데이터 규칙
+    match /users/{userId} {
+      // 인증된 사용자만 자신의 데이터에 접근 가능
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // 공유된 데이터 읽기 (share 컬렉션을 통해서만 접근)
+      allow read: if request.auth == null && resource.data.shareId != null;
+    }
+    
+    // 공유 순위표 데이터 규칙
+    match /sharedRankings/{shareId} {
+      // 인증 없이 읽기 가능 (공유 링크를 통한 접근)
+      allow read: if true;
+      
+      // 인증된 사용자만 작성 가능
+      allow create: if request.auth != null;
+      
+      // 작성자만 수정/삭제 가능
+      allow update, delete: if request.auth != null && 
+                              resource.data.authorId == request.auth.uid;
+    }
+    
+    // 공유 데이터 규칙 (기타)
+    match /shares/{shareId} {
+      // 인증 없이 읽기 가능 (공유 링크를 통한 접근)
+      allow read: if true;
+      
+      // 인증된 사용자만 작성 가능
+      allow create: if request.auth != null;
+      
+      // 작성자만 수정/삭제 가능
+      allow update, delete: if request.auth != null && 
+                              resource.data.authorId == request.auth.uid;
+    }
+    
+    // 방문자 수 데이터 규칙
+    match /visitors/{document=**} {
+      // 모든 사용자가 읽기 가능
+      allow read: if true;
+      
+      // 인증된 사용자만 증가 가능 (중복 방지 로직은 애플리케이션에서 처리)
+      allow create, update: if request.auth != null;
+    }
+    
+    // 방문자 통계 데이터 규칙 (stats/visitors 경로)
+    match /stats/visitors {
+      // 모든 사용자가 읽기 가능
+      allow read: if true;
+      
+      // 모든 사용자가 쓰기 가능 (인증 불필요, 방문자 통계는 공개 기능)
+      allow write: if true;
+    }
+    
+    // 기타 모든 문서는 거부
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

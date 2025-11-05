@@ -62,6 +62,24 @@ export class GlobalBridge {
         // LeagueManager 전역 등록 (리그전 모드에서 window.leagueManager 사용)
         if (this.context.leagueManager) {
             window.leagueManager = this.context.leagueManager;
+            // 학생 관련 전역 함수 등록
+            window.removeStudent = (id) => {
+                this.context.leagueManager?.removeStudent(typeof id === 'string' ? parseFloat(id) : id);
+            };
+            window.editStudentName = (id) => {
+                this.context.leagueManager?.editStudentName(typeof id === 'string' ? parseFloat(id) : id);
+            };
+            window.editStudentNote = (id) => {
+                this.context.leagueManager?.editStudentNote(typeof id === 'string' ? parseFloat(id) : id);
+            };
+            // 경기 강조 표시 함수 등록
+            window.toggleGameHighlight = (gameId) => {
+                this.context.leagueManager?.toggleGameHighlight(typeof gameId === 'string' ? parseFloat(gameId) : gameId);
+            };
+            // 모든 강조 해제 함수 등록
+            window.clearAllHighlights = () => {
+                this.context.leagueManager?.clearAllHighlights();
+            };
         }
         // TournamentManager 전역 함수
         if (this.context.tournamentManager) {
@@ -101,7 +119,192 @@ export class GlobalBridge {
                 await this.context.dataSyncService?.saveToFirestore();
             };
         }
+        // 실행 취소 함수 등록
+        window.handleUndo = () => {
+            const undoBtn = document.getElementById('undo-btn');
+            // AppStateManager가 있는지 확인
+            if (!this.context.appStateManager) {
+                console.warn('실행 취소: AppStateManager가 초기화되지 않았습니다.');
+                if (undoBtn) {
+                    undoBtn.disabled = true;
+                    undoBtn.style.opacity = '0.5';
+                    setTimeout(() => {
+                        undoBtn.disabled = false;
+                        undoBtn.style.opacity = '1';
+                    }, 100);
+                }
+                return;
+            }
+            // 실행 취소 가능 여부 확인
+            if (!this.context.appStateManager.canUndo()) {
+                // 실행 취소 불가능한 경우 시각적 피드백
+                if (undoBtn) {
+                    const originalOpacity = undoBtn.style.opacity;
+                    undoBtn.style.opacity = '0.5';
+                    setTimeout(() => {
+                        undoBtn.style.opacity = originalOpacity || '1';
+                    }, 200);
+                }
+                console.log('실행 취소할 수 있는 이전 상태가 없습니다.');
+                return;
+            }
+            // 실행 취소 수행
+            try {
+                const success = this.context.appStateManager.undo();
+                if (success) {
+                    // 버튼 시각적 피드백
+                    if (undoBtn) {
+                        undoBtn.disabled = true;
+                        undoBtn.style.opacity = '0.5';
+                        setTimeout(() => {
+                            undoBtn.disabled = false;
+                            undoBtn.style.opacity = '1';
+                            // 실행 취소 가능 여부에 따라 버튼 상태 업데이트
+                            this.updateUndoButtonState();
+                        }, 100);
+                    }
+                    console.log('실행 취소 완료');
+                }
+                else {
+                    console.warn('실행 취소 실패');
+                }
+            }
+            catch (error) {
+                console.error('실행 취소 중 오류 발생:', error);
+                if (undoBtn) {
+                    undoBtn.disabled = false;
+                    undoBtn.style.opacity = '1';
+                }
+            }
+        };
+        // 실행 취소 버튼의 tooltip에 플랫폼별 단축키 표시
+        this.updateUndoTooltip();
+        // 실행 취소 버튼 상태 초기화
+        this.updateUndoButtonState();
+        // 사이드바 토글 함수 등록 (HTML에서 이미 정의되어 있을 수 있지만, 확실히 하기 위해 재정의)
+        // HTML에서 이미 정의되어 있으면 그대로 사용
+        if (!window.toggleSidebar || typeof window.toggleSidebar !== 'function') {
+            window.toggleSidebar = () => {
+                const sidebar = document.getElementById('sidebar');
+                const sidebarToggle = document.getElementById('sidebar-toggle');
+                if (!sidebar || !sidebarToggle) {
+                    console.warn('사이드바 또는 사이드바 토글 버튼을 찾을 수 없습니다.');
+                    return;
+                }
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                if (isCollapsed) {
+                    // 사이드바 열기
+                    sidebar.classList.remove('collapsed');
+                    sidebar.style.setProperty('width', '340px', 'important');
+                    sidebar.style.setProperty('min-width', '340px', 'important');
+                    sidebar.style.setProperty('padding', '24px', 'important');
+                    sidebar.style.setProperty('border-right', '1px solid var(--line)', 'important');
+                    sidebar.style.setProperty('overflow', 'visible', 'important');
+                    if (sidebarToggle) {
+                        sidebarToggle.style.setProperty('left', '340px', 'important');
+                    }
+                    sidebarToggle.setAttribute('aria-expanded', 'true');
+                    console.log('사이드바 열기 (GlobalBridge)');
+                }
+                else {
+                    // 사이드바 닫기
+                    sidebar.classList.add('collapsed');
+                    sidebar.style.setProperty('width', '0', 'important');
+                    sidebar.style.setProperty('min-width', '0', 'important');
+                    sidebar.style.setProperty('padding', '0', 'important');
+                    sidebar.style.setProperty('border-right', 'none', 'important');
+                    sidebar.style.setProperty('overflow', 'hidden', 'important');
+                    if (sidebarToggle) {
+                        sidebarToggle.style.setProperty('left', '0', 'important');
+                    }
+                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                    console.log('사이드바 닫기 (GlobalBridge)');
+                }
+            };
+        }
+        // 사이드바 토글 버튼 이벤트 등록 (HTML onclick이 작동하지 않을 경우를 대비)
+        this.initializeSidebarToggle();
         console.log('전역 함수 등록 완료');
+    }
+    /**
+     * 실행 취소 버튼의 tooltip을 플랫폼에 맞게 업데이트합니다.
+     */
+    updateUndoTooltip() {
+        const undoBtn = document.getElementById('undo-btn');
+        if (!undoBtn)
+            return;
+        // Mac/iOS 체크
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0 ||
+            navigator.platform.toUpperCase().indexOf('IPHONE') >= 0 ||
+            navigator.platform.toUpperCase().indexOf('IPAD') >= 0 ||
+            navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+        const shortcut = isMac ? 'Cmd+Z' : 'Ctrl+Z';
+        undoBtn.setAttribute('data-tooltip', `실행 취소 (${shortcut})`);
+        undoBtn.setAttribute('aria-label', `실행 취소 (${shortcut})`);
+    }
+    /**
+     * 실행 취소 버튼의 활성화 상태를 업데이트합니다.
+     */
+    updateUndoButtonState() {
+        const undoBtn = document.getElementById('undo-btn');
+        if (!undoBtn || !this.context.appStateManager)
+            return;
+        const canUndo = this.context.appStateManager.canUndo();
+        undoBtn.disabled = !canUndo;
+        undoBtn.style.opacity = canUndo ? '1' : '0.5';
+    }
+    /**
+     * 사이드바 토글 버튼 이벤트를 초기화합니다.
+     * HTML onclick이 작동하지 않을 경우를 대비한 백업입니다.
+     */
+    initializeSidebarToggle() {
+        // DOM이 완전히 로드될 때까지 대기
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.setupSidebarToggle();
+            });
+        }
+        else {
+            // DOM이 이미 로드된 경우
+            setTimeout(() => {
+                this.setupSidebarToggle();
+            }, 100);
+        }
+    }
+    /**
+     * 사이드바 토글 버튼 이벤트 리스너를 설정합니다.
+     */
+    setupSidebarToggle() {
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebarToggle || !sidebar) {
+            console.warn('사이드바 토글 버튼 또는 사이드바 요소를 찾을 수 없습니다.');
+            return;
+        }
+        // 기존 이벤트 리스너 제거 후 새로 추가 (중복 방지)
+        const newToggle = sidebarToggle.cloneNode(true);
+        sidebarToggle.parentNode?.replaceChild(newToggle, sidebarToggle);
+        newToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const toggleFunction = window.toggleSidebar;
+            if (toggleFunction && typeof toggleFunction === 'function') {
+                toggleFunction();
+            }
+            else {
+                // 전역 함수가 없으면 직접 토글
+                const isCollapsed = sidebar.classList.contains('collapsed');
+                if (isCollapsed) {
+                    sidebar.classList.remove('collapsed');
+                    newToggle.setAttribute('aria-expanded', 'true');
+                }
+                else {
+                    sidebar.classList.add('collapsed');
+                    newToggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+        console.log('사이드바 토글 버튼 이벤트 등록 완료');
     }
     /**
      * 특정 전역 함수를 등록합니다.

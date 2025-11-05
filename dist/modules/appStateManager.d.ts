@@ -60,6 +60,22 @@ export declare class AppStateManager {
     private onChangeCallbacks;
     private saveTimeout;
     private readonly SAVE_DEBOUNCE_MS;
+    private historyStack;
+    private readonly MAX_HISTORY_SIZE;
+    private isUndoing;
+    /**
+     * 현재 상태를 히스토리에 저장
+     */
+    private saveToHistory;
+    /**
+     * 실행 취소 (이전 상태로 복원)
+     * @returns 성공 여부
+     */
+    undo(): boolean;
+    /**
+     * 실행 취소 가능 여부 확인
+     */
+    canUndo(): boolean;
     /**
      * 리소스 정리 (메모리 누수 방지)
      * 타이머를 정리합니다.

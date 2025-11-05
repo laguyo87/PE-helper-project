@@ -243,6 +243,82 @@ export class LeagueManager {
                 logError('❌ sidebar-form-container 요소를 찾을 수 없음');
             }
 
+            
+            // Progress 모드 전용 엑셀 버튼 제거
+            const progressExcelActions = document.querySelector('.progress-excel-actions');
+            if (progressExcelActions) {
+                progressExcelActions.remove();
+            }
+            
+            const papsExcelActions = document.querySelector('.paps-excel-actions');
+            if (papsExcelActions) {
+                papsExcelActions.remove();
+            }
+            
+            // sidebar-list-container가 Progress 모드에서 숨겨졌을 수 있으므로 다시 표시
+            // CSS의 !important를 override하기 위해 setProperty 사용
+            const sidebarListContainer = this.getElement('#sidebar-list-container');
+            if (sidebarListContainer) {
+                // 즉시 표시
+                sidebarListContainer.style.setProperty('display', 'flex', 'important');
+                
+                // 약간의 지연 후에도 다시 확인 (모드 전환 후 CSS가 재적용될 수 있음)
+                setTimeout(() => {
+                    const el = this.getElement('#sidebar-list-container');
+                    if (el && !document.body.classList.contains('progress-mode')) {
+                        el.style.setProperty('display', 'flex', 'important');
+                    }
+                }, 50);
+            }
+            
+            // 사이드바 맨 아래에 엑셀 버튼 추가 (리그전 모드 전용)
+            // 기존 버튼 영역이 있으면 제거
+            const existingActions = document.querySelector('.league-excel-actions');
+            if (existingActions) {
+                existingActions.remove();
+            }
+            
+            // 사이드바 컨테이너 찾기 (aside 요소)
+            const sidebar = this.getElement('aside');
+            if (sidebar) {
+                // 버튼 영역 생성
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'league-excel-actions';
+                actionsDiv.style.cssText = 'border-top: 1px solid var(--line); padding-top: 16px; padding-bottom: 16px; display: flex; flex-direction: column; gap: 8px;';
+                actionsDiv.innerHTML = `
+                    <button id="exportAllLeaguesBtn" class="btn" style="background:var(--win); color:white; width:100%;" aria-label="모든 반의 경기 기록을 엑셀 파일로 내보내기">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m11.5 16.5-3-3 3-3"/><path d="m8.5 13.5 7 .01"/></svg>
+                        모든 반 경기 기록 엑셀로 내보내기
+                    </button>
+                    <label for="importAllLeaguesExcel" class="btn" style="width:100%;" aria-label="엑셀 파일에서 모든 반의 경기 기록을 가져오기">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m11.5 10.5 3 3-3 3"/><path d="m8.5 13.5-7 .01"/></svg>
+                        모든 반 경기 기록 엑셀에서 가져오기
+                    </label>
+                <input type="file" id="importAllLeaguesExcel" accept=".xlsx, .xls" class="hidden" aria-label="엑셀 파일 선택" />
+                  `;
+                
+                // sidebar-footer 바로 앞에 삽입 (사이드바 맨 아래)
+                const sidebarFooter = this.getElement('.sidebar-footer');
+                if (sidebarFooter && sidebarFooter.parentNode) {
+                    sidebarFooter.parentNode.insertBefore(actionsDiv, sidebarFooter);
+                } else {
+                    // sidebar-footer가 없으면 사이드바 맨 끝에 추가
+                    sidebar.appendChild(actionsDiv);
+                }
+                
+                // 버튼 이벤트 리스너 추가
+                const exportBtn = this.getElement('#exportAllLeaguesBtn');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', () => this.exportAllLeaguesToExcel());
+                }
+                
+                // 엑셀 파일 가져오기 이벤트 리스너 추가
+                const importInput = this.getElement('#importAllLeaguesExcel') as HTMLInputElement;
+                if (importInput) {
+                    importInput.addEventListener('change', (e) => this.handleAllLeaguesExcelUpload(e));
+                }
+            }
+            
             this.renderClassList();
             logger.debug('반 목록 렌더링 완료');
             
@@ -419,6 +495,7 @@ export class LeagueManager {
                     </div>
                     <button class="btn primary" onclick="window.leagueManager.addStudent()" data-tooltip="입력한 학생을 목록에 추가합니다."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>추가</button>
                     <button class="btn" onclick="window.leagueManager.bulkAddStudents()" data-tooltip="쉼표로 구분된 여러 학생을 한번에 추가합니다."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>일괄 추가</button>
+                    <button class="btn" onclick="window.leagueManager.sortStudentsByName()" data-tooltip="학생 목록을 가나다 순으로 정렬합니다."><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M7 12h10M11 18h2"/></svg>가나다 순 정렬</button>
                 </div>
                 <div id="studentListGrid" class="student-list-grid" style="margin-top: 1rem;"></div>
             </section>
@@ -482,15 +559,50 @@ export class LeagueManager {
         this.renderStudentList();
         
         // DOM 업데이트가 완료된 후 하위 렌더링 함수들 호출
-        setTimeout(() => {
+        // requestAnimationFrame을 사용하여 브라우저 렌더링 사이클과 동기화
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                // 요소가 존재할 때까지 대기하는 함수
+                const waitForElement = (selector: string, callback: () => void, maxAttempts: number = 20) => {
+                    let attempts = 0;
+                    const checkElement = () => {
+                        const element = this.getElement(selector);
+                        if (element) {
+                            this.log(`요소 발견: ${selector}`);
+                            callback();
+                        } else if (attempts < maxAttempts) {
+                            attempts++;
+                            setTimeout(checkElement, 50);
+                        } else {
+                            this.logError(`요소를 찾을 수 없음: ${selector} (${maxAttempts}회 시도)`);
+                        }
+                    };
+                    checkElement();
+                };
+                
+                this.log('경기 일정 테이블 렌더링 시작...');
+                waitForElement('#gamesTableContent', () => {
+                    this.log('renderGamesTable 호출 시도');
             this.renderGamesTable();
+                });
+                
+                waitForElement('#rankingsTableContainer', () => {
             this.renderRankingsTable();
+                });
+                
+                waitForElement('#gameStatsContainer', () => {
             this.renderGameStats();
+                });
             
             // 일정 생성 버튼 상태 초기화
-            const classGames = this.leagueData.games.filter(g => g.classId === this.leagueData.selectedClassId);
+                const classGames = this.leagueData.games.filter(g => {
+                    const gameClassId = typeof g.classId === 'number' ? g.classId : parseInt(String(g.classId), 10);
+                    const targetClassId = typeof this.leagueData.selectedClassId === 'number' ? this.leagueData.selectedClassId : parseInt(String(this.leagueData.selectedClassId), 10);
+                    return gameClassId === targetClassId;
+                });
             this.updateGenerateGamesButtonState(classGames.length > 0);
-        }, 0);
+            });
+        });
     }
 
     /**
@@ -562,7 +674,7 @@ export class LeagueManager {
         
         // 데이터 생성 및 검증
         const newClassData = { 
-            id: Date.now(), 
+            id: Math.floor(Date.now()), 
             name, 
             note: '' 
         };
@@ -605,10 +717,6 @@ export class LeagueManager {
         const classId = typeof id === 'string' ? parseInt(id) : id;
         this.leagueData.selectedClassId = classId;
         
-        const liveRankingBtn = this.getElement('#liveRankingBtn');
-        if (liveRankingBtn) {
-            liveRankingBtn.classList.remove('hidden');
-        }
         
         this.saveData();
         
@@ -670,10 +778,6 @@ export class LeagueManager {
             // 선택된 반이 삭제된 반이면 선택 해제
             if (this.leagueData.selectedClassId === classId) {
                 this.leagueData.selectedClassId = null;
-                const liveRankingBtn = this.getElement('#liveRankingBtn');
-                if (liveRankingBtn) {
-                    liveRankingBtn.classList.add('hidden');
-                }
             }
             
             this.saveData();
@@ -716,7 +820,7 @@ export class LeagueManager {
         
         // 데이터 생성 및 검증
         const studentData = { 
-            id: Date.now(), 
+            id: Math.floor(Date.now()), 
             name, 
             classId, 
             note: '' 
@@ -757,10 +861,11 @@ export class LeagueManager {
         const nameList = names.split(',').map(name => name.trim()).filter(name => name);
         let addedCount = 0;
         
-        nameList.forEach(name => {
+        nameList.forEach((name, index) => {
             if (!this.leagueData.students.some(s => s.name === name && s.classId === classId)) {
+                // 고유한 정수 ID 생성 (Date.now() + 인덱스로 고유성 보장)
                 this.leagueData.students.push({ 
-                    id: Date.now() + Math.random(), 
+                    id: Math.floor(Date.now()) + index, 
                     name, 
                     classId, 
                     note: '' 
@@ -809,22 +914,51 @@ export class LeagueManager {
      * 학생을 제거합니다.
      * @param id 학생 ID
      */
-    public removeStudent(id: number): void {
-        this.leagueData.students = this.leagueData.students.filter(s => s.id !== id);
-        this.leagueData.games = this.leagueData.games.filter(g => g.player1Id !== id && g.player2Id !== id);
-        this.saveData();
-        this.renderStudentList();
-        this.renderClassList(); // 학생 수 변경을 반영하기 위해 반 목록도 다시 렌더링
-        this.renderGamesTable();
-        this.renderRankingsTable();
+    public removeStudent(id: number | string): void {
+        // ID를 정수로 변환 (float ID도 처리)
+        const studentId = typeof id === 'string' ? parseFloat(id) : id;
+        const studentIdNum = typeof studentId === 'number' ? Math.floor(studentId) : studentId;
+        
+        // 정확한 ID 매칭 시도
+        let removed = false;
+        this.leagueData.students = this.leagueData.students.filter(s => {
+            const sId = typeof s.id === 'number' ? Math.floor(s.id) : s.id;
+            if (sId === studentIdNum) {
+                removed = true;
+                return false;
+            }
+            return true;
+        });
+        
+        // 경기도 제거 (ID 매칭 시 float 처리)
+        this.leagueData.games = this.leagueData.games.filter(g => {
+            const p1Id = typeof g.player1Id === 'number' ? Math.floor(g.player1Id) : g.player1Id;
+            const p2Id = typeof g.player2Id === 'number' ? Math.floor(g.player2Id) : g.player2Id;
+            return p1Id !== studentIdNum && p2Id !== studentIdNum;
+        });
+        
+        if (removed) {
+            this.saveData();
+            this.renderStudentList();
+            this.renderClassList(); // 학생 수 변경을 반영하기 위해 반 목록도 다시 렌더링
+            this.renderGamesTable();
+            this.renderRankingsTable();
+        }
     }
 
     /**
      * 학생 이름을 수정합니다.
      * @param id 학생 ID
      */
-    public editStudentName(id: number): void {
-        const student = this.leagueData.students.find(s => s.id === id);
+    public editStudentName(id: number | string): void {
+        // ID를 정수로 변환 (float ID도 처리)
+        const studentId = typeof id === 'string' ? parseFloat(id) : id;
+        const studentIdNum = typeof studentId === 'number' ? Math.floor(studentId) : studentId;
+        
+        const student = this.leagueData.students.find(s => {
+            const sId = typeof s.id === 'number' ? Math.floor(s.id) : s.id;
+            return sId === studentIdNum;
+        });
         if (!student) return;
         
         const newName = prompt('학생 이름을 수정하세요:', student.name);
@@ -839,8 +973,15 @@ export class LeagueManager {
      * 학생 메모를 수정합니다.
      * @param id 학생 ID
      */
-    public editStudentNote(id: number): void {
-        const student = this.leagueData.students.find(s => s.id === id);
+    public editStudentNote(id: number | string): void {
+        // ID를 정수로 변환 (float ID도 처리)
+        const studentId = typeof id === 'string' ? parseFloat(id) : id;
+        const studentIdNum = typeof studentId === 'number' ? Math.floor(studentId) : studentId;
+        
+        const student = this.leagueData.students.find(s => {
+            const sId = typeof s.id === 'number' ? Math.floor(s.id) : s.id;
+            return sId === studentIdNum;
+        });
         if (!student) return;
         
         const newNote = prompt(`${student.name} - 메모:`, student.note || '');
@@ -849,6 +990,50 @@ export class LeagueManager {
             this.saveData();
             this.renderStudentList();
         }
+    }
+
+    /**
+     * 학생 목록을 가나다 순으로 정렬합니다.
+     */
+    public sortStudentsByName(): void {
+        const classId = this.leagueData.selectedClassId;
+        if (!classId) {
+            showError(new Error('반을 먼저 선택해주세요.'));
+            return;
+        }
+
+        // 현재 반의 학생들만 필터링
+        const classStudents = this.leagueData.students.filter(s => {
+            const studentClassId = typeof s.classId === 'number' ? s.classId : parseFloat(String(s.classId));
+            const targetClassId = typeof classId === 'number' ? classId : parseFloat(String(classId));
+            return Math.abs(studentClassId - targetClassId) < 0.0001;
+        });
+
+        if (classStudents.length === 0) {
+            showError(new Error('정렬할 학생이 없습니다.'));
+            return;
+        }
+
+        // 학생들을 가나다 순으로 정렬
+        const sortedStudents = [...classStudents].sort((a, b) => {
+            return a.name.localeCompare(b.name, 'ko');
+        });
+
+        // 원본 배열에서 해당 학생들의 순서를 변경
+        // 먼저 해당 반의 학생들을 제거
+        this.leagueData.students = this.leagueData.students.filter(s => {
+            const studentClassId = typeof s.classId === 'number' ? s.classId : parseFloat(String(s.classId));
+            const targetClassId = typeof classId === 'number' ? classId : parseFloat(String(classId));
+            return Math.abs(studentClassId - targetClassId) >= 0.0001;
+        });
+
+        // 정렬된 학생들을 다시 추가
+        this.leagueData.students.push(...sortedStudents);
+
+        // 데이터 저장 및 UI 업데이트
+        this.saveData();
+        this.renderStudentList();
+        showSuccess('학생 목록이 가나다 순으로 정렬되었습니다.');
     }
 
     /**
@@ -927,7 +1112,7 @@ export class LeagueManager {
                     const p2_index = players.findIndex(p => p.id === player2.id);
 
                     newGames.push({
-                        id: Date.now() + Math.random(),
+                        id: Math.floor(Date.now()) + newGames.length, // 고유한 정수 ID 생성
                         classId,
                         player1Id: (p1_index < p2_index) ? player1.id : player2.id,
                         player2Id: (p1_index < p2_index) ? player2.id : player1.id,
@@ -1002,9 +1187,16 @@ export class LeagueManager {
      * 게임 강조를 토글합니다.
      * @param gameId 게임 ID
      */
-    public toggleGameHighlight(gameId: number): void {
-        logger.debug('toggleGameHighlight 호출됨, gameId:', gameId, 'type:', typeof gameId);
-        const game = this.leagueData.games.find(g => g.id === gameId);
+    public toggleGameHighlight(gameId: number | string): void {
+        // ID를 정수로 변환 (float ID도 처리)
+        const gameIdNum = typeof gameId === 'string' ? parseFloat(gameId) : gameId;
+        const gameIdInt = typeof gameIdNum === 'number' ? Math.floor(gameIdNum) : gameIdNum;
+        
+        logger.debug('toggleGameHighlight 호출됨, gameId:', gameIdInt, 'type:', typeof gameIdInt);
+        const game = this.leagueData.games.find(g => {
+            const gId = typeof g.id === 'number' ? Math.floor(g.id) : g.id;
+            return gId === gameIdInt;
+        });
         logger.debug('찾은 게임:', game);
         if (game) {
             game.isHighlighted = !game.isHighlighted;
@@ -1012,7 +1204,7 @@ export class LeagueManager {
             this.saveData();
             this.renderGamesTable();
         } else {
-            logError('게임을 찾을 수 없음, gameId:', gameId);
+            logError('게임을 찾을 수 없음, gameId:', gameIdInt);
             logger.debug('사용 가능한 게임 ID들:', this.leagueData.games.map(g => g.id));
         }
     }
@@ -1048,26 +1240,145 @@ export class LeagueManager {
     }
 
     /**
+     * 경기 데이터의 playerId를 복구합니다.
+     * 잘못된 형식의 playerId를 올바른 학생 ID로 매칭합니다.
+     */
+    private repairGamePlayerIds(): void {
+        const classId = this.leagueData.selectedClassId;
+        if (!classId) return;
+        
+        const classGames = this.leagueData.games.filter(g => {
+            const gameClassId = typeof g.classId === 'number' ? g.classId : parseFloat(String(g.classId));
+            const targetClassId = typeof classId === 'number' ? classId : parseFloat(String(classId));
+            return Math.abs(gameClassId - targetClassId) < 0.0001;
+        });
+        
+        const classStudents = this.leagueData.students.filter(s => {
+            const studentClassId = typeof s.classId === 'number' ? s.classId : parseFloat(String(s.classId));
+            const targetClassId = typeof classId === 'number' ? classId : parseFloat(String(classId));
+            return Math.abs(studentClassId - targetClassId) < 0.0001;
+        });
+        
+        if (classGames.length === 0 || classStudents.length === 0) return;
+        
+        let repairedCount = 0;
+        
+        classGames.forEach(game => {
+            let p1Found = false;
+            let p2Found = false;
+            
+            // player1Id 복구
+            let p1 = classStudents.find(s => {
+                const studentId = typeof s.id === 'number' ? s.id : parseFloat(String(s.id));
+                const playerId = typeof game.player1Id === 'number' ? game.player1Id : parseFloat(String(game.player1Id));
+                return Math.abs(studentId - playerId) < 0.0001;
+            });
+            
+            if (!p1) {
+                // 가장 가까운 학생 ID 찾기 (소수점이 있는 경우)
+                const playerIdNum = typeof game.player1Id === 'number' ? game.player1Id : parseFloat(String(game.player1Id));
+                if (!isNaN(playerIdNum)) {
+                    // 정수 부분이 같은 학생 찾기
+                    const playerIdBase = Math.floor(playerIdNum);
+                    p1 = classStudents.find(s => {
+                        const studentId = typeof s.id === 'number' ? s.id : parseFloat(String(s.id));
+                        const studentIdBase = Math.floor(studentId);
+                        return studentIdBase === playerIdBase;
+                    });
+                    
+                    if (p1) {
+                        // 올바른 학생 ID로 복구
+                        const oldId = game.player1Id;
+                        game.player1Id = p1.id as number;
+                        p1Found = true;
+                        this.log(`경기 복구: player1Id ${oldId} -> ${game.player1Id} (학생: ${p1.name})`);
+                    }
+                }
+            } else {
+                p1Found = true;
+            }
+            
+            // player2Id 복구
+            let p2 = classStudents.find(s => {
+                const studentId = typeof s.id === 'number' ? s.id : parseFloat(String(s.id));
+                const playerId = typeof game.player2Id === 'number' ? game.player2Id : parseFloat(String(game.player2Id));
+                return Math.abs(studentId - playerId) < 0.0001;
+            });
+            
+            if (!p2) {
+                // 가장 가까운 학생 ID 찾기 (소수점이 있는 경우)
+                const playerIdNum = typeof game.player2Id === 'number' ? game.player2Id : parseFloat(String(game.player2Id));
+                if (!isNaN(playerIdNum)) {
+                    // 정수 부분이 같은 학생 찾기
+                    const playerIdBase = Math.floor(playerIdNum);
+                    p2 = classStudents.find(s => {
+                        const studentId = typeof s.id === 'number' ? s.id : parseFloat(String(s.id));
+                        const studentIdBase = Math.floor(studentId);
+                        return studentIdBase === playerIdBase;
+                    });
+                    
+                    if (p2) {
+                        // 올바른 학생 ID로 복구
+                        const oldId = game.player2Id;
+                        game.player2Id = p2.id as number;
+                        p2Found = true;
+                        this.log(`경기 복구: player2Id ${oldId} -> ${game.player2Id} (학생: ${p2.name})`);
+                    }
+                }
+            } else {
+                p2Found = true;
+            }
+            
+            if (p1Found || p2Found) {
+                repairedCount++;
+            }
+        });
+        
+        if (repairedCount > 0) {
+            this.log(`경기 데이터 복구 완료: ${repairedCount}개 경기 수정됨`);
+            this.saveData();
+        }
+    }
+
+    /**
      * 경기 테이블을 렌더링합니다.
      * @param isReadOnly 읽기 전용 여부
      */
     public renderGamesTable(isReadOnly: boolean = false): void {
-        this.log('renderGamesTable 호출됨');
+        this.log('=== renderGamesTable 호출됨 ===');
         const container = this.getElement('#gamesTableContent');
         if (!container) {
-            this.logError('gamesTableContent 요소를 찾을 수 없음');
+            this.logError('❌ gamesTableContent 요소를 찾을 수 없음');
+            // 요소를 찾을 수 없으면 재시도
+            setTimeout(() => {
+                this.log('재시도: renderGamesTable');
+                this.renderGamesTable(isReadOnly);
+            }, 100);
             return;
         }
         
         const classId = this.leagueData.selectedClassId;
         this.log('renderGamesTable - classId:', classId);
+        this.log('renderGamesTable - 전체 games 수:', this.leagueData.games.length);
         if (!classId) {
-            this.logError('classId가 없습니다');
+            this.logError('❌ classId가 없습니다');
             return;
         }
         
-        const classGames = this.leagueData.games.filter(g => String(g.classId) === String(classId));
-        this.log('renderGamesTable - classGames.length:', classGames.length);
+        // 경기 데이터 복구 시도
+        this.repairGamePlayerIds();
+        
+        // classId 비교 (숫자와 문자열 모두 처리)
+        const classGames = this.leagueData.games.filter(g => {
+            const gameClassId = typeof g.classId === 'number' ? g.classId : parseFloat(String(g.classId));
+            const targetClassId = typeof classId === 'number' ? classId : parseFloat(String(classId));
+            const matches = Math.abs(gameClassId - targetClassId) < 0.0001;
+            if (matches) {
+                this.log(`경기 발견: id=${g.id}, player1=${g.player1Id}, player2=${g.player2Id}`);
+            }
+            return matches;
+        });
+        this.log(`renderGamesTable - classGames.length: ${classGames.length}, selectedClassId: ${classId}`);
         
         // 일정 생성 버튼 상태 업데이트
         this.updateGenerateGamesButtonState(classGames.length > 0);
@@ -1093,10 +1404,68 @@ export class LeagueManager {
             </thead>
             <tbody>`;
         
+        // 먼저 해당 반의 학생만 필터링 (성능 향상)
+        const classStudents = this.leagueData.students.filter(s => {
+            const studentClassId = typeof s.classId === 'number' ? s.classId : parseFloat(String(s.classId));
+            const targetClassId = typeof classId === 'number' ? classId : parseFloat(String(classId));
+            return Math.abs(studentClassId - targetClassId) < 0.0001;
+        });
+        this.log(`renderGamesTable - classStudents.length: ${classStudents.length}`);
+        
+        // 학생 ID 매핑 생성 (성능 향상 및 디버깅)
+        const studentIdMap = new Map<string | number, typeof classStudents[0]>();
+        classStudents.forEach(s => {
+            studentIdMap.set(s.id, s);
+            // 숫자 ID도 문자열로 변환해서 저장 (양방향 매핑)
+            if (typeof s.id === 'number') {
+                studentIdMap.set(String(s.id), s);
+            }
+        });
+        
         html += classGames.map((game, i) => {
-            const p1 = this.leagueData.students.find(s => s.id === game.player1Id);
-            const p2 = this.leagueData.students.find(s => s.id === game.player2Id);
-            if (!p1 || !p2) return '';
+            // 여러 방법으로 학생 찾기 시도
+            let p1 = studentIdMap.get(game.player1Id);
+            if (!p1) {
+                p1 = studentIdMap.get(String(game.player1Id));
+            }
+            if (!p1) {
+                // 숫자 비교 (소수점 오차 허용)
+                p1 = classStudents.find(s => {
+                    const studentId = typeof s.id === 'number' ? s.id : parseFloat(String(s.id));
+                    const playerId = typeof game.player1Id === 'number' ? game.player1Id : parseFloat(String(game.player1Id));
+                    return !isNaN(studentId) && !isNaN(playerId) && Math.abs(studentId - playerId) < 0.0001;
+                });
+            }
+            
+            let p2 = studentIdMap.get(game.player2Id);
+            if (!p2) {
+                p2 = studentIdMap.get(String(game.player2Id));
+            }
+            if (!p2) {
+                // 숫자 비교 (소수점 오차 허용)
+                p2 = classStudents.find(s => {
+                    const studentId = typeof s.id === 'number' ? s.id : parseFloat(String(s.id));
+                    const playerId = typeof game.player2Id === 'number' ? game.player2Id : parseFloat(String(game.player2Id));
+                    return !isNaN(studentId) && !isNaN(playerId) && Math.abs(studentId - playerId) < 0.0001;
+                });
+            }
+            
+            if (!p1 || !p2) {
+                // 학생을 찾지 못한 경우 로그 출력
+                if (i < 5) { // 처음 5개만 로그 출력
+                    this.log(`⚠️ 경기 ${i+1}: 학생을 찾지 못함 - player1Id: ${game.player1Id} (${p1 ? '찾음' : '없음'}), player2Id: ${game.player2Id} (${p2 ? '찾음' : '없음'})`);
+                    this.log(`   전체 학생 수: ${this.leagueData.students.length}, classId: ${this.leagueData.selectedClassId}`);
+                    if (this.leagueData.students.length > 0) {
+                        const sampleStudents = this.leagueData.students.filter(s => {
+                            const studentClassId = typeof s.classId === 'number' ? s.classId : parseFloat(String(s.classId));
+                            const targetClassId = typeof this.leagueData.selectedClassId === 'number' ? this.leagueData.selectedClassId : parseFloat(String(this.leagueData.selectedClassId));
+                            return Math.abs(studentClassId - targetClassId) < 0.0001;
+                        }).slice(0, 3);
+                        this.log(`   이 반의 학생 샘플:`, sampleStudents.map(s => ({id: s.id, name: s.name, classId: s.classId})));
+                    }
+                }
+                return '';
+            }
             
             const score1 = game.player1Score ?? '';
             const score2 = game.player2Score ?? '';
@@ -1139,7 +1508,41 @@ export class LeagueManager {
         }).join('');
         
         html += '</tbody></table>';
+        this.log('경기 테이블 HTML 생성 완료, 길이:', html.length);
+        
+        // tbody에 실제 행이 있는지 확인
+        const tbodyContent = html.match(/<tbody>([\s\S]*?)<\/tbody>/);
+        const hasRows = tbodyContent && tbodyContent[1].trim().length > 0;
+        
+        if (!hasRows) {
+            this.logError('❌ 경기 테이블에 행이 없습니다. 학생 매칭 실패 가능성.');
+            this.log(`   경기 수: ${classGames.length}, 해당 반 학생 수: ${classStudents.length}`);
+            if (classGames.length > 0 && classStudents.length > 0) {
+                this.log(`   첫 번째 경기: player1Id=${classGames[0].player1Id}, player2Id=${classGames[0].player2Id}`);
+                this.log(`   학생 ID 샘플:`, classStudents.slice(0, 3).map(s => s.id));
+            }
+            // 빈 테이블 대신 메시지 표시
+            setInnerHTMLSafe(container, `<div style="text-align:center; padding: 2rem; color: var(--ink-muted);">
+                <p>경기 데이터는 있지만 학생 정보를 찾을 수 없습니다.</p>
+                <p style="font-size: 0.9em; margin-top: 0.5rem;">경기 수: ${classGames.length}, 학생 수: ${classStudents.length}</p>
+            </div>`);
+            return;
+        }
+        
         setInnerHTMLSafe(container, html);
+        this.log('✅ 경기 테이블 HTML 삽입 완료');
+        
+        // DOM에 삽입된 후 확인
+        setTimeout(() => {
+            const table = container.querySelector('table');
+            const tbody = table?.querySelector('tbody');
+            const rows = tbody?.querySelectorAll('tr');
+            if (table && rows && rows.length > 0) {
+                this.log(`✅ 경기 테이블이 성공적으로 렌더링되었습니다. (${rows.length}개 행)`);
+            } else {
+                this.logError('❌ 경기 테이블이 DOM에 없거나 행이 없습니다.');
+            }
+        }, 50);
     }
 
     /**
@@ -1271,41 +1674,319 @@ export class LeagueManager {
      * 모든 리그전을 엑셀로 내보냅니다.
      */
     public exportAllLeaguesToExcel(): void {
-        if (typeof (window as any).exportToExcel === 'function') {
-            const data = this.leagueData.classes.map(classItem => {
+        if (typeof window === 'undefined' || !(window as any).XLSX) {
+            alert('엑셀 라이브러리가 로드되지 않았습니다.');
+            return;
+        }
+
+        if (this.leagueData.classes.length === 0) {
+            alert('내보낼 반이 없습니다.');
+            return;
+        }
+
+        try {
+            const XLSX = (window as any).XLSX;
+            const wb = XLSX.utils.book_new();
+
+            // 각 반에 대해 시트 생성
+            this.leagueData.classes.forEach((classItem) => {
                 const students = this.leagueData.students.filter(s => s.classId === classItem.id);
                 const games = this.leagueData.games.filter(g => g.classId === classItem.id);
                 const rankings = this.getRankingsData(classItem.id);
                 
-                return {
-                    className: classItem.name,
-                    students: students.map(s => s.name),
-                    games: games.map(g => {
-                        const p1 = students.find(s => s.id === g.player1Id);
-                        const p2 = students.find(s => s.id === g.player2Id);
-                        return {
-                            player1: p1?.name || 'Unknown',
-                            player2: p2?.name || 'Unknown',
-                            player1Score: g.player1Score,
-                            player2Score: g.player2Score,
-                            note: g.note,
-                            isCompleted: g.isCompleted
-                        };
-                    }),
-                    rankings: rankings.map((r, index) => ({
-                        rank: index + 1,
-                        name: r.name,
-                        wins: r.wins,
-                        losses: r.losses,
-                        draws: r.draws,
-                        points: r.points,
-                        gamesPlayed: r.gamesPlayed
-                    }))
-                };
+                // 헤더 행
+                const data: any[][] = [
+                    ['반명', classItem.name],
+                    ['', ''], // 빈 줄
+                    ['순위', '이름', '승', '무', '패', '승점', '경기 수']
+                ];
+
+                // 순위표 데이터
+                if (rankings.length > 0) {
+                    rankings.forEach((r, index) => {
+                        data.push([
+                            index + 1,
+                            r.name,
+                            r.wins,
+                            r.draws,
+                            r.losses,
+                            r.points,
+                            r.gamesPlayed
+                        ]);
+                    });
+                } else {
+                    data.push(['순위 데이터가 없습니다.', '', '', '', '', '', '']);
+                }
+
+                // 빈 줄
+                data.push(['', '']);
+                data.push(['경기 기록', '']);
+                data.push(['#', '선수1', '선수2', '점수1', '점수2', '완료 여부', '비고']);
+
+                // 경기 기록 데이터
+                if (games.length > 0) {
+                    // 경기를 ID 순으로 정렬하여 경기번호 할당
+                    const sortedGames = [...games].sort((a, b) => {
+                        const aId = typeof a.id === 'number' ? a.id : parseFloat(String(a.id));
+                        const bId = typeof b.id === 'number' ? b.id : parseFloat(String(b.id));
+                        return aId - bId;
+                    });
+                    
+                    sortedGames.forEach((game, index) => {
+                        const p1 = students.find(s => s.id === game.player1Id);
+                        const p2 = students.find(s => s.id === game.player2Id);
+                        data.push([
+                            index + 1, // 경기번호
+                            p1?.name || 'Unknown',
+                            p2?.name || 'Unknown',
+                            game.player1Score !== null ? game.player1Score : '',
+                            game.player2Score !== null ? game.player2Score : '',
+                            game.isCompleted ? '완료' : '미완료',
+                            game.note || ''
+                        ]);
+                    });
+                } else {
+                    data.push(['경기 기록이 없습니다.', '', '', '', '', '', '']);
+                }
+
+                // 시트 생성
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                
+                // 컬럼 너비 설정
+                const colWidths = [
+                    { wch: 10 }, // 순위
+                    { wch: 15 }, // 이름
+                    { wch: 8 },  // 승
+                    { wch: 8 },  // 무
+                    { wch: 8 },  // 패
+                    { wch: 10 }, // 승점
+                    { wch: 10 }, // 경기 수
+                    { wch: 8 },  // 경기번호 (#)
+                    { wch: 15 }, // 선수1
+                    { wch: 15 }, // 선수2
+                    { wch: 10 }, // 점수1
+                    { wch: 10 }, // 점수2
+                    { wch: 12 }, // 완료 여부
+                    { wch: 20 }  // 비고
+                ];
+                ws['!cols'] = colWidths;
+
+                // 시트 이름 (반 이름, 최대 31자)
+                const sheetName = classItem.name.length > 31 ? classItem.name.substring(0, 31) : classItem.name;
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
             });
+
+            // 파일 저장
+            const fileName = `리그전_경기기록_전체_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
             
-            (window as any).exportToExcel(data, '리그전_데이터');
+            showSuccess('모든 반의 경기 기록이 엑셀 파일로 내보내졌습니다.');
+        } catch (error) {
+            this.logError('엑셀 내보내기 오류:', error);
+            showError(new Error('엑셀 파일 내보내기 중 오류가 발생했습니다.'));
         }
+    }
+
+    /**
+     * 모든 반의 경기 기록을 엑셀 파일에서 가져옵니다.
+     */
+    public handleAllLeaguesExcelUpload(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) {
+            return;
+        }
+
+        const file = input.files[0];
+        if (typeof window === 'undefined' || !(window as any).XLSX) {
+            alert('엑셀 라이브러리가 로드되지 않았습니다.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const XLSX = (window as any).XLSX;
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const wb = XLSX.read(data, { type: 'array' });
+
+                const importedClasses: LeagueClass[] = [];
+                const importedStudents: LeagueStudent[] = [];
+                const importedGames: LeagueGame[] = [];
+
+                // 각 시트를 순회하면서 데이터 파싱
+                wb.SheetNames.forEach((sheetName: string) => {
+                    const ws = wb.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
+
+                    if (json.length < 3) {
+                        return;
+                    }
+
+                    // 반 정보 파싱 (첫 행: 반명)
+                    let className = '';
+                    if (json[0] && json[0].length >= 2) {
+                        className = String(json[0][1] || sheetName).trim();
+                    } else {
+                        className = sheetName;
+                    }
+
+                    // 반 생성 (정수 ID 사용)
+                    const classId = Math.floor(Date.now() + Math.random() * 1000);
+                    const leagueClass: LeagueClass = {
+                        id: classId,
+                        name: className || sheetName,
+                        note: ''
+                    };
+                    importedClasses.push(leagueClass);
+
+                    // 순위표에서 학생 이름 추출 (3번째 행부터 경기 기록 시작 전까지)
+                    const studentNames = new Set<string>();
+                    let gameStartRow = 0;
+                    for (let i = 2; i < json.length; i++) {
+                        const row = json[i];
+                        if (!row || row.length === 0) continue;
+                        
+                        // "경기 기록" 행을 찾으면 중단
+                        if (row[0] && String(row[0]).includes('경기 기록')) {
+                            gameStartRow = i + 1;
+                            break;
+                        }
+                        
+                        // 순위표 데이터에서 학생 이름 추출 (2번째 열)
+                        if (row[1] && typeof row[1] === 'string' && row[1].trim()) {
+                            studentNames.add(row[1].trim());
+                        }
+                    }
+
+                    // 학생 데이터 생성
+                    let studentIdCounter = 1;
+                    studentNames.forEach((name) => {
+                        const student: LeagueStudent = {
+                            id: classId * 1000 + studentIdCounter++,
+                            name: name,
+                            classId: classId,
+                            note: ''
+                        };
+                        importedStudents.push(student);
+                    });
+
+                    // 경기 기록 파싱 (gameStartRow부터)
+                    if (gameStartRow > 0 && gameStartRow < json.length) {
+                        // 헤더 행 확인하여 컬럼 구조 판단
+                        const headerRow = json[gameStartRow];
+                        let hasGameNumber = false;
+                        if (headerRow && headerRow.length > 0) {
+                            const firstCol = String(headerRow[0] || '').trim();
+                            hasGameNumber = firstCol === '#' || firstCol === '경기번호';
+                        }
+                        
+                        // 헤더 행 다음부터 (gameStartRow + 1)
+                        for (let i = gameStartRow + 1; i < json.length; i++) {
+                            const row = json[i];
+                            if (!row || row.length < 2) continue;
+
+                            // 경기번호 컬럼이 있으면 스킵 (인덱스 0), 없으면 첫 번째 컬럼이 선수1
+                            const player1ColIndex = hasGameNumber ? 1 : 0;
+                            const player2ColIndex = hasGameNumber ? 2 : 1;
+                            const score1ColIndex = hasGameNumber ? 3 : 2;
+                            const score2ColIndex = hasGameNumber ? 4 : 3;
+                            const completedColIndex = hasGameNumber ? 5 : 5; // 완료 여부는 항상 5번째 (또는 경기번호 있으면 6번째)
+                            const noteColIndex = hasGameNumber ? 6 : 4; // 비고는 경기번호 있으면 7번째, 없으면 5번째
+
+                            const player1Name = String(row[player1ColIndex] || '').trim();
+                            const player2Name = String(row[player2ColIndex] || '').trim();
+
+                            // 경기번호만 있고 선수 이름이 없는 경우 스킵
+                            if (hasGameNumber && (row[0] === '' || row[0] === null || !isNaN(parseFloat(String(row[0])))) && !player1Name) {
+                                continue;
+                            }
+
+                            if (!player1Name || !player2Name) continue;
+
+                            const player1 = importedStudents.find(s => s.classId === classId && s.name === player1Name);
+                            const player2 = importedStudents.find(s => s.classId === classId && s.name === player2Name);
+
+                            if (!player1 || !player2) continue;
+
+                            const player1Score = row[score1ColIndex] !== null && row[score1ColIndex] !== '' && row[score1ColIndex] !== undefined ? 
+                                (typeof row[score1ColIndex] === 'number' ? row[score1ColIndex] : parseInt(String(row[score1ColIndex]), 10)) : null;
+                            const player2Score = row[score2ColIndex] !== null && row[score2ColIndex] !== '' && row[score2ColIndex] !== undefined ? 
+                                (typeof row[score2ColIndex] === 'number' ? row[score2ColIndex] : parseInt(String(row[score2ColIndex]), 10)) : null;
+                            const isCompleted = row[completedColIndex] === '완료' || row[completedColIndex] === true || row[completedColIndex] === 'true' || row[completedColIndex] === 1;
+                            const note = row[noteColIndex] ? String(row[noteColIndex]).trim() : '';
+
+                            const game: LeagueGame = {
+                                id: classId * 10000 + importedGames.filter(g => g.classId === classId).length + 1,
+                                classId: classId,
+                                player1Id: player1.id,
+                                player2Id: player2.id,
+                                player1Score: player1Score,
+                                player2Score: player2Score,
+                                isCompleted: isCompleted,
+                                completedAt: isCompleted ? Date.now() : null,
+                                note: note,
+                                isHighlighted: false
+                            };
+                            importedGames.push(game);
+                        }
+                    }
+                });
+
+                if (importedClasses.length === 0) {
+                    alert('엑셀 파일에서 데이터를 읽을 수 없습니다. 파일 형식을 확인해주세요.');
+                    return;
+                }
+
+                // 데이터 확인 메시지
+                const confirmMessage = `엑셀 파일에서 ${importedClasses.length}개의 반 데이터를 찾았습니다.\n\n기존 데이터를 모두 교체하시겠습니까?`;
+                if (!confirm(confirmMessage)) {
+                    input.value = '';
+                    return;
+                }
+
+                // 기존 데이터를 새 데이터로 교체
+                this.leagueData.classes = importedClasses;
+                this.leagueData.students = importedStudents;
+                this.leagueData.games = importedGames;
+                this.leagueData.selectedClassId = null;
+
+                // 데이터 저장
+                this.saveData();
+
+                // UI 업데이트
+                this.renderClassList();
+                
+                // 메인 콘텐츠 영역 초기화
+                const contentWrapper = this.getElement('#content-wrapper');
+                if (contentWrapper) {
+                    contentWrapper.innerHTML = `
+                        <div class="league-main-content">
+                            <div class="league-right">
+                                <div class="league-right-header">
+                                    <h2>리그전 수업 관리</h2>
+                                    <p style="color: var(--ink-muted);">반을 선택하여 경기 기록을 확인하거나 수정하세요.</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                showSuccess(`${importedClasses.length}개의 반 데이터가 성공적으로 불러와졌습니다.`);
+                
+                input.value = '';
+            } catch (error) {
+                this.logError('엑셀 파일 읽기 오류:', error);
+                showError(new Error('엑셀 파일 읽기 중 오류가 발생했습니다. 파일 형식을 확인해주세요.'));
+                input.value = '';
+            }
+        };
+
+        reader.onerror = () => {
+            showError(new Error('파일을 읽는 중 오류가 발생했습니다.'));
+            input.value = '';
+        };
+
+        reader.readAsArrayBuffer(file);
     }
 
     /**
@@ -1366,6 +2047,249 @@ export class LeagueManager {
      */
     public setLeagueData(data: LeagueData): void {
         this.leagueData = data;
+    }
+
+    /**
+     * 엑셀 파일을 이용하여 경기 데이터를 복구합니다.
+     * 엑셀 파일의 경기 기록에서 선수 이름을 추출하여 현재 경기 데이터와 매칭합니다.
+     */
+    public repairGamesFromExcel(file: File): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if (typeof window === 'undefined' || !(window as any).XLSX) {
+                reject(new Error('엑셀 라이브러리가 로드되지 않았습니다.'));
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const XLSX = (window as any).XLSX;
+                    const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                    const wb = XLSX.read(data, { type: 'array' });
+
+                    const classId = this.leagueData.selectedClassId;
+                    if (!classId) {
+                        reject(new Error('반을 먼저 선택해주세요.'));
+                        return;
+                    }
+
+                    const currentClass = this.leagueData.classes.find(c => c.id === classId);
+                    if (!currentClass) {
+                        reject(new Error('선택된 반을 찾을 수 없습니다.'));
+                        return;
+                    }
+
+                    this.log(`현재 선택된 반: ${currentClass.name} (ID: ${classId})`);
+
+                    const classGames = this.leagueData.games.filter(g => {
+                        const gameClassId = typeof g.classId === 'number' ? g.classId : parseFloat(String(g.classId));
+                        const targetClassId = typeof classId === 'number' ? classId : parseFloat(String(classId));
+                        return Math.abs(gameClassId - targetClassId) < 0.0001;
+                    });
+
+                    const classStudents = this.leagueData.students.filter(s => {
+                        const studentClassId = typeof s.classId === 'number' ? s.classId : parseFloat(String(s.classId));
+                        const targetClassId = typeof classId === 'number' ? classId : parseFloat(String(classId));
+                        return Math.abs(studentClassId - targetClassId) < 0.0001;
+                    });
+
+                    if (classGames.length === 0) {
+                        reject(new Error('현재 선택된 반에 경기 데이터가 없습니다. 경기 일정을 먼저 생성해주세요.'));
+                        return;
+                    }
+                    
+                    if (classStudents.length === 0) {
+                        reject(new Error('현재 선택된 반에 학생 데이터가 없습니다. 학생을 먼저 추가해주세요.'));
+                        return;
+                    }
+
+                    // 학생 이름으로 매핑 생성
+                    const studentNameMap = new Map<string, typeof classStudents[0]>();
+                    classStudents.forEach(s => {
+                        studentNameMap.set(s.name.trim(), s);
+                    });
+
+                    // 엑셀 파일에서 경기 기록 추출
+                    const excelGames: Array<{ player1Name: string, player2Name: string, rowIndex: number }> = [];
+                    
+                    // 현재 선택된 반과 일치하는 시트 찾기
+                    wb.SheetNames.forEach((sheetName: string) => {
+                        const ws = wb.Sheets[sheetName];
+                        const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
+
+                        // 반명 확인
+                        let className = '';
+                        if (json[0] && json[0].length >= 2) {
+                            className = String(json[0][1] || sheetName).trim();
+                        } else {
+                            className = sheetName;
+                        }
+
+                        this.log(`엑셀 시트 "${sheetName}"의 반명: "${className}"`);
+
+                        // 현재 선택된 반과 일치하는지 확인 (반 이름 또는 시트 이름으로 비교)
+                        if (currentClass.name !== className && currentClass.name !== sheetName) {
+                            this.log(`시트 "${sheetName}"는 현재 반과 일치하지 않아 스킵합니다.`);
+                            return; // 다른 반이면 스킵
+                        }
+
+                        this.log(`시트 "${sheetName}"에서 경기 기록 찾는 중...`);
+
+                        // 경기 기록 찾기
+                        let gameStartRow = -1;
+                        let headerRow = -1;
+                        for (let i = 0; i < json.length; i++) {
+                            const row = json[i];
+                            if (!row || row.length === 0) continue;
+                            
+                            // "경기 기록" 행 찾기
+                            if (row[0] && String(row[0]).includes('경기 기록')) {
+                                this.log(`"경기 기록" 행을 찾았습니다: 행 ${i}`);
+                                // 다음 행부터 헤더 행 찾기
+                                for (let j = i + 1; j < json.length; j++) {
+                                    const headerRowData = json[j];
+                                    if (headerRowData && headerRowData.length >= 2) {
+                                        const firstCol = String(headerRowData[0] || '').trim();
+                                        const secondCol = String(headerRowData[1] || '').trim();
+                                        // 헤더 행 확인 ('#', '선수1', '선수2' 또는 '선수 1', '선수 2' 등)
+                                        // 첫 번째 컬럼이 '#'이거나 숫자이고, 두 번째 컬럼이 '선수1'인 경우
+                                        const isNumberHeader = firstCol === '#' || firstCol === '경기번호' || !isNaN(parseFloat(firstCol));
+                                        const isPlayer1Header = secondCol.includes('선수') || secondCol === '선수1' || secondCol === '선수 1';
+                                        // 또는 첫 번째 컬럼이 '선수1'인 경우 (기존 형식 호환)
+                                        const isOldFormat = (firstCol.includes('선수') || firstCol === '선수1' || firstCol === '선수 1') && 
+                                                          (secondCol.includes('선수') || secondCol === '선수2' || secondCol === '선수 2');
+                                        
+                                        if ((isNumberHeader && isPlayer1Header) || isOldFormat) {
+                                            headerRow = j;
+                                            gameStartRow = j + 1; // 헤더 다음 행부터 데이터
+                                            this.log(`헤더 행을 찾았습니다: 행 ${headerRow}, 데이터 시작 행: ${gameStartRow}`);
+                                            break;
+                                        }
+                                    }
+                                }
+                                break;
+                            }
+                        }
+
+                        // 경기 기록 파싱
+                        if (gameStartRow > 0) {
+                            this.log(`경기 기록 파싱 시작: 행 ${gameStartRow}부터`);
+                            for (let i = gameStartRow; i < json.length; i++) {
+                                const row = json[i];
+                                if (!row || row.length < 2) continue;
+
+                                // 헤더 행인지 확인 (첫 번째 컬럼이 '#' 또는 숫자, 두 번째가 '선수1' 또는 첫 번째가 '선수1')
+                                const firstCol = String(row[0] || '').trim();
+                                const secondCol = row.length > 1 ? String(row[1] || '').trim() : '';
+                                const isHeaderRow = (firstCol === '#' || firstCol === '경기번호' || (!isNaN(parseFloat(firstCol)) && (secondCol === '선수1' || secondCol.includes('선수1')))) ||
+                                                   (firstCol === '선수1' || firstCol.includes('선수1') || firstCol.includes('경기 기록'));
+                                
+                                if (isHeaderRow) {
+                                    continue;
+                                }
+                                
+                                // 경기번호 컬럼이 있는지 확인
+                                const hasGameNumber = firstCol === '#' || (!isNaN(parseFloat(firstCol)) && secondCol !== '');
+                                const player1ColIndex = hasGameNumber ? 1 : 0;
+                                const player2ColIndex = hasGameNumber ? 2 : 1;
+                                
+                                const player1Name = String(row[player1ColIndex] || '').trim();
+                                const player2Name = String(row[player2ColIndex] || '').trim();
+
+                                // 빈 행 스킵
+                                if (!player1Name || !player2Name) {
+                                    continue;
+                                }
+
+                                excelGames.push({
+                                    player1Name,
+                                    player2Name,
+                                    rowIndex: i
+                                });
+                            }
+                            this.log(`시트 "${sheetName}"에서 ${excelGames.length}개의 경기 기록을 찾았습니다.`);
+                        } else {
+                            this.log(`시트 "${sheetName}"에서 경기 기록을 찾을 수 없습니다.`);
+                        }
+                    });
+
+                    if (excelGames.length === 0) {
+                        this.logError('엑셀 파일에서 경기 기록을 찾을 수 없습니다.');
+                        this.log('엑셀 파일 구조 확인:');
+                        wb.SheetNames.forEach((sheetName: string) => {
+                            const ws = wb.Sheets[sheetName];
+                            const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
+                            this.log(`시트 "${sheetName}": ${json.length}개 행`);
+                            // 처음 15개 행 출력
+                            for (let i = 0; i < Math.min(15, json.length); i++) {
+                                this.log(`  행 ${i}:`, json[i]);
+                            }
+                        });
+                        reject(new Error(`엑셀 파일에서 경기 기록을 찾을 수 없습니다. 현재 선택된 반: "${currentClass.name}". 엑셀 파일의 시트 이름과 반명을 확인해주세요.`));
+                        return;
+                    }
+
+                    this.log(`엑셀에서 ${excelGames.length}개의 경기 기록을 찾았습니다.`);
+                    this.log(`현재 경기 수: ${classGames.length}개`);
+
+                    // 경기를 ID 순으로 정렬
+                    const sortedGames = [...classGames].sort((a, b) => {
+                        const aId = typeof a.id === 'number' ? a.id : parseFloat(String(a.id));
+                        const bId = typeof b.id === 'number' ? b.id : parseFloat(String(b.id));
+                        return aId - bId;
+                    });
+
+                    let repairedCount = 0;
+                    const minLength = Math.min(excelGames.length, sortedGames.length);
+
+                    // 엑셀 경기 기록과 현재 경기 데이터를 순서대로 매칭
+                    for (let i = 0; i < minLength; i++) {
+                        const excelGame = excelGames[i];
+                        const game = sortedGames[i];
+
+                        const p1 = studentNameMap.get(excelGame.player1Name);
+                        const p2 = studentNameMap.get(excelGame.player2Name);
+
+                        if (p1 && p2 && p1.id !== p2.id) {
+                            const oldP1Id = game.player1Id;
+                            const oldP2Id = game.player2Id;
+
+                            if (oldP1Id !== p1.id || oldP2Id !== p2.id) {
+                                game.player1Id = p1.id as number;
+                                game.player2Id = p2.id as number;
+                                repairedCount++;
+                                this.log(`경기 ${i + 1} 복구 (엑셀): player1Id ${oldP1Id} -> ${p1.id} (${p1.name}), player2Id ${oldP2Id} -> ${p2.id} (${p2.name})`);
+                            }
+                        } else {
+                            if (!p1) {
+                                this.log(`⚠️ 경기 ${i + 1}: 선수1 "${excelGame.player1Name}"을(를) 찾을 수 없습니다.`);
+                            }
+                            if (!p2) {
+                                this.log(`⚠️ 경기 ${i + 1}: 선수2 "${excelGame.player2Name}"을(를) 찾을 수 없습니다.`);
+                            }
+                        }
+                    }
+
+                    if (repairedCount > 0) {
+                        this.log(`✅ 엑셀 파일을 이용한 경기 데이터 복구 완료: ${repairedCount}개 경기 수정됨`);
+                        this.saveData();
+                        resolve();
+                    } else {
+                        this.log('엑셀 파일과 현재 경기 데이터가 이미 일치하거나 매칭할 수 없습니다.');
+                        resolve();
+                    }
+                } catch (error) {
+                    this.logError('엑셀 파일 읽기 오류:', error);
+                    reject(error);
+                }
+            };
+
+            reader.onerror = () => {
+                reject(new Error('파일을 읽는 중 오류가 발생했습니다.'));
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
     }
 }
 

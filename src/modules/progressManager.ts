@@ -22,6 +22,7 @@ export interface ProgressSession {
   weekNumber: number;
   sessionNumber: number;
   date?: string;
+  period?: number; // 교시 (1~7)
   content: string;
   completed: boolean;
   notes: string;
@@ -143,8 +144,68 @@ export class ProgressManager {
       sidebarFormContainer.innerHTML = formHtml;
     }
     
-    // 사이드바 푸터에 방문자 수와 저작권 추가
+    // 사이드바 맨 아래에 엑셀 버튼 추가 (Progress 모드 전용)
+    // 기존 버튼 영역이 있으면 제거
+    const existingActions = document.querySelector('.progress-excel-actions');
+    if (existingActions) {
+      existingActions.remove();
+    }
+    
+    // 다른 모드의 Excel 버튼 제거
+    const leagueExcelActions = document.querySelector('.league-excel-actions');
+    if (leagueExcelActions) {
+      leagueExcelActions.remove();
+    }
+    const papsExcelActions = document.querySelector('.paps-excel-actions');
+    if (papsExcelActions) {
+      papsExcelActions.remove();
+    }
+    
+    // 사이드바 컨테이너 찾기 (aside 요소)
+    const sidebar = this.$('aside');
+    if (!sidebar) {
+      logger.warn('[ProgressManager] 사이드바 요소를 찾을 수 없습니다.');
+      return;
+    }
+    
+    // 버튼 영역 생성
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'progress-excel-actions';
+    actionsDiv.style.cssText = 'border-top: 1px solid var(--line); padding-top: 16px; padding-bottom: 16px; display: flex; flex-direction: column; gap: 8px;';
+    actionsDiv.innerHTML = `
+      <button id="exportAllProgressBtn" class="btn" style="background:var(--win); color:white; width:100%;" aria-label="모든 반의 수업 기록을 엑셀 파일로 내보내기">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m11.5 16.5-3-3 3-3"/><path d="m8.5 13.5 7 .01"/></svg>
+        모든 반 수업 기록 엑셀로 내보내기
+      </button>
+      <label for="importAllProgressExcel" class="btn" style="width:100%;" aria-label="엑셀 파일에서 모든 반의 수업 기록을 가져오기">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m11.5 10.5 3 3-3 3"/><path d="m8.5 13.5-7 .01"/></svg>
+        모든 반 수업 기록 엑셀에서 가져오기
+      </label>
+      <input type="file" id="importAllProgressExcel" accept=".xlsx, .xls" class="hidden" aria-label="엑셀 파일 선택" />
+    `;
+    
+    // sidebar-footer 바로 앞에 삽입 (사이드바 맨 아래)
     const sidebarFooter = this.$('.sidebar-footer');
+    if (sidebarFooter && sidebarFooter.parentNode) {
+      sidebarFooter.parentNode.insertBefore(actionsDiv, sidebarFooter);
+    } else {
+      // sidebar-footer가 없으면 사이드바 맨 끝에 추가
+      sidebar.appendChild(actionsDiv);
+    }
+    
+    // 버튼 이벤트 리스너 추가
+    const exportBtn = this.$('#exportAllProgressBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => this.exportAllProgressToExcel());
+    }
+    
+    // 엑셀 파일 가져오기 이벤트 리스너 추가
+    const importInput = this.$('#importAllProgressExcel') as HTMLInputElement;
+    if (importInput) {
+      importInput.addEventListener('change', (e) => this.handleAllProgressExcelUpload(e));
+    }
+    
+    // 사이드바 푸터에 방문자 수와 저작권 추가
     if (sidebarFooter) {
       sidebarFooter.innerHTML = `
         <div style="margin-bottom: 8px;">
@@ -578,17 +639,39 @@ export class ProgressManager {
         }
       }
       
+      // 교시 드롭다운 옵션 생성
+      let periodOptions = '<option value="">교시</option>';
+      for (let p = 1; p <= 7; p++) {
+        const selected = sessionData?.period === p ? 'selected' : '';
+        periodOptions += `<option value="${p}" ${selected}>${p}교시</option>`;
+      }
+      
+      // 날짜에서 요일 계산
+      let dayOfWeekText = '';
+      if (dateValue) {
+        try {
+          const date = new Date(dateValue);
+          const days = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+          dayOfWeekText = `(${days[date.getDay()]})`;
+        } catch (e) {
+          // 날짜 파싱 실패 시 빈 문자열
+        }
+      }
+      
       sessionColumns += `
         <td>
           <div class="session-content">
             <div class="session-header">
               <span class="session-number">${sessionNumber}차시</span>
             </div>
-            <div class="date-input-group">
+            <div class="date-input-group" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
               <input type="date" placeholder="수업 날짜" 
                      value="${dateValue}"
-                     data-week="${week}" data-session="${session}" class="date-input">
-              <span class="day-of-week" data-week="${week}" data-session="${session}"></span>
+                     data-week="${week}" data-session="${session}" class="date-input" style="flex: 1; min-width: 0;">
+              <select data-week="${week}" data-session="${session}" class="period-select" style="flex: 0 0 auto; min-width: 80px;">
+                ${periodOptions}
+              </select>
+              <span class="day-of-week" data-week="${week}" data-session="${session}" style="flex: 0 0 auto; white-space: nowrap; font-size: 0.9em; color: var(--ink-muted);">${dayOfWeekText}</span>
             </div>
             <textarea placeholder="수업 내용" 
                       data-week="${week}" data-session="${session}" 
@@ -732,21 +815,39 @@ export class ProgressManager {
     // change 이벤트는 이미 progressSheetArea에 있으므로 중복 방지를 위해 체크
     // 이벤트 위임으로 처리하므로 중복 등록 방지
     const handler = (e: Event) => {
-      const target = e.target as HTMLInputElement;
+      const target = e.target as HTMLInputElement | HTMLSelectElement;
+      
+      // 날짜 입력 변경 처리
       if (target.type === 'date' && target.dataset.week && target.dataset.session) {
         logger.debug('[ProgressManager] date change 이벤트 발생', { 
           week: target.dataset.week, 
           session: target.dataset.session,
           value: target.value
         });
-        this.updateDayOfWeek(target);
+        this.updateDayOfWeek(target as HTMLInputElement);
         // 타겟 요소를 직접 전달
         this.updateProgressSession(
           parseInt(target.dataset.week),
           parseInt(target.dataset.session),
           target.value,
           undefined,
-          target
+          target as HTMLInputElement
+        );
+      }
+      
+      // 교시 선택 변경 처리
+      if (target.tagName === 'SELECT' && target.classList.contains('period-select') && target.dataset.week && target.dataset.session) {
+        logger.debug('[ProgressManager] period select change 이벤트 발생', { 
+          week: target.dataset.week, 
+          session: target.dataset.session,
+          value: target.value
+        });
+        this.updateProgressSession(
+          parseInt(target.dataset.week),
+          parseInt(target.dataset.session),
+          target.value,
+          undefined,
+          target as HTMLSelectElement
         );
       }
     };
@@ -784,7 +885,7 @@ export class ProgressManager {
     session: number, 
     value: string, 
     completed?: boolean,
-    inputElement?: HTMLInputElement | HTMLTextAreaElement
+    inputElement?: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
   ): void {
     const selectedClass = this.getProgressSelected();
     if (!selectedClass) {
@@ -802,6 +903,7 @@ export class ProgressManager {
         weekNumber: week,
         sessionNumber: session,
         date: '',
+        period: undefined,
         content: '',
         completed: false,
         notes: ''
@@ -823,6 +925,16 @@ export class ProgressManager {
           logger.debug('[ProgressManager] 날짜 업데이트', { week, session, date: dateStr });
         } else if (dateStr) {
           logger.warn('[ProgressManager] 잘못된 날짜 형식', { week, session, value });
+        }
+      } else if (targetElement.tagName === 'SELECT' && targetElement.classList.contains('period-select')) {
+        // 교시 선택
+        const periodValue = value ? parseInt(value, 10) : undefined;
+        if (periodValue && periodValue >= 1 && periodValue <= 7) {
+          sessionData.period = periodValue;
+          logger.debug('[ProgressManager] 교시 업데이트', { week, session, period: periodValue });
+        } else {
+          sessionData.period = undefined;
+          logger.debug('[ProgressManager] 교시 초기화', { week, session });
         }
       } else if (targetElement.tagName === 'TEXTAREA') {
         sessionData.content = value || '';
@@ -962,6 +1074,284 @@ export class ProgressManager {
    */
   private updateProgressVisitorCount(): void {
     // 방문자 수 업데이트 로직 (필요시 구현)
+  }
+
+  /**
+   * 모든 반의 수업 기록을 엑셀로 내보냅니다.
+   */
+  public exportAllProgressToExcel(): void {
+    if (typeof window === 'undefined' || !(window as any).XLSX) {
+      alert('엑셀 라이브러리가 로드되지 않았습니다.');
+      return;
+    }
+
+    if (this.classes.length === 0) {
+      alert('내보낼 반이 없습니다.');
+      return;
+    }
+
+    try {
+      const XLSX = (window as any).XLSX;
+      const wb = XLSX.utils.book_new();
+
+      // 각 반에 대해 시트 생성
+      this.classes.forEach((cls) => {
+        // 헤더 행
+        const data: any[][] = [
+          ['반명', cls.name],
+          ['담당교사', cls.teacherName || ''],
+          ['단원 내용', cls.unitContent || ''],
+          ['주당 시간', cls.weeklyHours ? `${cls.weeklyHours}시간` : ''],
+          ['', ''], // 빈 줄
+          ['주차', '차시', '날짜', '요일', '교시', '수업 내용']
+        ];
+
+        // 수업 기록 데이터
+        if (cls.schedule && cls.schedule.length > 0) {
+          cls.schedule.forEach((session) => {
+            // 날짜에서 요일 추출
+            let dayOfWeek = '';
+            if (session.date) {
+              try {
+                const date = new Date(session.date);
+                const days = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+                dayOfWeek = days[date.getDay()] || '';
+              } catch (e) {
+                // 날짜 파싱 실패 시 빈 문자열
+              }
+            }
+            
+            data.push([
+              session.weekNumber || '',
+              session.sessionNumber || '',
+              session.date || '',
+              dayOfWeek,
+              session.period ? `${session.period}교시` : '',
+              session.content || ''
+            ]);
+          });
+        } else {
+          data.push(['수업 기록이 없습니다.', '', '', '', '', '']);
+        }
+
+        // 시트 생성
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        
+        // 컬럼 너비 설정
+        const colWidths = [
+          { wch: 10 }, // 주차
+          { wch: 10 }, // 차시
+          { wch: 15 }, // 날짜
+          { wch: 10 }, // 요일
+          { wch: 10 }, // 교시
+          { wch: 30 }  // 수업 내용
+        ];
+        ws['!cols'] = colWidths;
+
+        // 헤더 행 스타일 (필요시)
+        // 첫 4개 행은 정보 행
+        // 6번째 행(인덱스 5)이 데이터 헤더
+        // 7번째 행부터 데이터
+
+        // 시트 이름 (반 이름, 최대 31자)
+        const sheetName = cls.name.length > 31 ? cls.name.substring(0, 31) : cls.name;
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      });
+
+      // 파일 저장
+      const fileName = `수업진도_전체_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      showSuccess('모든 반의 수업 기록이 엑셀 파일로 내보내졌습니다.');
+    } catch (error) {
+      logger.error('[ProgressManager] 엑셀 내보내기 오류:', error);
+      showError(new Error('엑셀 파일 내보내기 중 오류가 발생했습니다.'));
+    }
+  }
+
+  /**
+   * 모든 반의 수업 기록을 엑셀 파일에서 가져옵니다.
+   */
+  public handleAllProgressExcelUpload(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
+
+    const file = input.files[0];
+    if (typeof window === 'undefined' || !(window as any).XLSX) {
+      alert('엑셀 라이브러리가 로드되지 않았습니다.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const XLSX = (window as any).XLSX;
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+
+        const importedClasses: ProgressClass[] = [];
+
+        // 각 시트를 순회하면서 데이터 파싱
+        wb.SheetNames.forEach((sheetName: string) => {
+          const ws = wb.Sheets[sheetName];
+          const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
+
+          if (json.length < 6) {
+            // 최소한의 데이터가 없으면 건너뛰기
+            return;
+          }
+
+          // 반 정보 파싱
+          let className = '';
+          let teacherName = '';
+          let unitContent = '';
+          let weeklyHours = 2;
+
+          // 첫 행: 반명
+          if (json[0] && json[0].length >= 2) {
+            className = String(json[0][1] || sheetName).trim();
+          } else {
+            className = sheetName;
+          }
+
+          // 둘째 행: 담당교사
+          if (json[1] && json[1].length >= 2) {
+            teacherName = String(json[1][1] || '').trim();
+          }
+
+          // 셋째 행: 단원 내용
+          if (json[2] && json[2].length >= 2) {
+            unitContent = String(json[2][1] || '').trim();
+          }
+
+          // 넷째 행: 주당 시간
+          if (json[3] && json[3].length >= 2) {
+            const hoursStr = String(json[3][1] || '2').trim();
+            // "2시간" 같은 형식에서 숫자만 추출
+            const hoursMatch = hoursStr.match(/(\d+)/);
+            if (hoursMatch) {
+              weeklyHours = parseInt(hoursMatch[1], 10) || 2;
+            }
+          }
+
+          // 수업 기록 파싱 (6번째 행부터, 헤더는 5번째 행)
+          const schedule: ProgressSession[] = [];
+          for (let i = 6; i < json.length; i++) {
+            const row = json[i];
+            if (!row || row.length < 6) continue;
+
+            const weekNumber = row[0];
+            const sessionNumber = row[1];
+            const date = row[2];
+            const dayOfWeek = row[3]; // 요일 (4번째 열, 읽기만 하고 저장하지 않음)
+            const period = row[4]; // 교시 (5번째 열)
+            const content = row.length > 5 ? row[5] : ''; // 열 개수에 따라 조정
+            // 완료 여부, 비고 컬럼 제거됨 (이전 버전 호환성을 위해 건너뛰기)
+            // 이전 버전 파일에서는 완료 여부, 비고가 있을 수 있음
+
+            // 주차와 차시가 없으면 건너뛰기
+            if (!weekNumber && !sessionNumber && !content) continue;
+
+            // 교시 파싱 (예: "1교시" 또는 "1" 형식)
+            let periodValue: number | undefined = undefined;
+            if (period) {
+              const periodStr = String(period).trim();
+              const periodMatch = periodStr.match(/(\d+)/);
+              if (periodMatch) {
+                const p = parseInt(periodMatch[1], 10);
+                if (p >= 1 && p <= 7) {
+                  periodValue = p;
+                }
+              }
+            }
+
+            schedule.push({
+              weekNumber: weekNumber ? parseInt(String(weekNumber), 10) || 0 : 0,
+              sessionNumber: sessionNumber ? parseInt(String(sessionNumber), 10) || 0 : 0,
+              date: date ? String(date).trim() : undefined,
+              period: periodValue,
+              content: content ? String(content).trim() : '',
+              completed: false, // 기본값으로 설정 (완료 여부 컬럼 제거됨)
+              notes: '' // 기본값으로 설정 (비고 컬럼 제거됨)
+            });
+          }
+
+          // ProgressClass 생성
+          const progressClass: ProgressClass = {
+            id: this.uuid(),
+            name: className || sheetName,
+            teacherName: teacherName || undefined,
+            unitContent: unitContent || undefined,
+            weeklyHours: weeklyHours,
+            schedule: schedule,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          };
+
+          importedClasses.push(progressClass);
+        });
+
+        if (importedClasses.length === 0) {
+          alert('엑셀 파일에서 데이터를 읽을 수 없습니다. 파일 형식을 확인해주세요.');
+          return;
+        }
+
+        // 데이터 확인 메시지
+        const confirmMessage = `엑셀 파일에서 ${importedClasses.length}개의 반 데이터를 찾았습니다.\n\n기존 데이터를 모두 교체하시겠습니까?`;
+        if (!confirm(confirmMessage)) {
+          // 파일 input 초기화
+          input.value = '';
+          return;
+        }
+
+        // 기존 데이터를 새 데이터로 교체
+        this.classes = importedClasses;
+        this.selectedClassId = null;
+
+        // 데이터 저장
+        this.saveProgressClasses();
+
+        // UI 업데이트
+        this.renderProgressClassList();
+        
+        // 메인 콘텐츠 영역 초기화
+        const contentWrapper = this.$('#content-wrapper');
+        if (contentWrapper) {
+          contentWrapper.innerHTML = `
+            <div class="progress-main-content">
+              <div class="progress-right">
+                <div class="progress-right-header">
+                  <h2 class="progress-sheet-header">
+                    <h2>수업 기록 관리</h2>
+                  </h2>
+                  <p style="color: var(--ink-muted);">반을 선택하여 수업 기록을 확인하거나 수정하세요.</p>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        showSuccess(`${importedClasses.length}개의 반 데이터가 성공적으로 불러와졌습니다.`);
+        
+        // 파일 input 초기화
+        input.value = '';
+      } catch (error) {
+        logger.error('[ProgressManager] 엑셀 파일 읽기 오류:', error);
+        showError(new Error('엑셀 파일 읽기 중 오류가 발생했습니다. 파일 형식을 확인해주세요.'));
+        
+        // 파일 input 초기화
+        input.value = '';
+      }
+    };
+
+    reader.onerror = () => {
+      showError(new Error('파일을 읽는 중 오류가 발생했습니다.'));
+      input.value = '';
+    };
+
+    reader.readAsArrayBuffer(file);
   }
 
   /**

@@ -157,17 +157,21 @@ export declare class LeagueManager {
      * 학생을 제거합니다.
      * @param id 학생 ID
      */
-    removeStudent(id: number): void;
+    removeStudent(id: number | string): void;
     /**
      * 학생 이름을 수정합니다.
      * @param id 학생 ID
      */
-    editStudentName(id: number): void;
+    editStudentName(id: number | string): void;
     /**
      * 학생 메모를 수정합니다.
      * @param id 학생 ID
      */
-    editStudentNote(id: number): void;
+    editStudentNote(id: number | string): void;
+    /**
+     * 학생 목록을 가나다 순으로 정렬합니다.
+     */
+    sortStudentsByName(): void;
     /**
      * 반 메모를 수정합니다.
      * @param id 반 ID
@@ -199,7 +203,7 @@ export declare class LeagueManager {
      * 게임 강조를 토글합니다.
      * @param gameId 게임 ID
      */
-    toggleGameHighlight(gameId: number): void;
+    toggleGameHighlight(gameId: number | string): void;
     /**
      * 모든 강조를 해제합니다.
      */
@@ -209,6 +213,11 @@ export declare class LeagueManager {
      * @param hasGames 경기가 있는지 여부
      */
     updateGenerateGamesButtonState(hasGames: boolean): void;
+    /**
+     * 경기 데이터의 playerId를 복구합니다.
+     * 잘못된 형식의 playerId를 올바른 학생 ID로 매칭합니다.
+     */
+    private repairGamePlayerIds;
     /**
      * 경기 테이블을 렌더링합니다.
      * @param isReadOnly 읽기 전용 여부
@@ -233,6 +242,10 @@ export declare class LeagueManager {
      * 모든 리그전을 엑셀로 내보냅니다.
      */
     exportAllLeaguesToExcel(): void;
+    /**
+     * 모든 반의 경기 기록을 엑셀 파일에서 가져옵니다.
+     */
+    handleAllLeaguesExcelUpload(event: Event): void;
     /**
      * 사이드바를 정리합니다.
      */
@@ -265,6 +278,11 @@ export declare class LeagueManager {
      * @param data 리그전 데이터
      */
     setLeagueData(data: LeagueData): void;
+    /**
+     * 엑셀 파일을 이용하여 경기 데이터를 복구합니다.
+     * 엑셀 파일의 경기 기록에서 선수 이름을 추출하여 현재 경기 데이터와 매칭합니다.
+     */
+    repairGamesFromExcel(file: File): Promise<void>;
 }
 /**
  * LeagueManager 인스턴스를 생성합니다.

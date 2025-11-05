@@ -101,7 +101,11 @@
         'err_connection_refused',
         'failed to load resource',
         'net::err_',
-        'webchannel_connection.ts'
+        'webchannel_connection.ts',
+        'bad request',
+        'write/channel',
+        'gsessionid',
+        '400'
       ];
       
       // 에러가 필터링해야 할 에러인지 확인
@@ -118,7 +122,13 @@
         
         // 네트워크 에러 패턴 확인
         if (str.includes('firestore.googleapis.com') && 
-            (str.includes('net::') || str.includes('err_') || str.includes('failed to load'))) {
+            (str.includes('net::') || str.includes('err_') || str.includes('failed to load') || 
+             str.includes('400') || str.includes('bad request') || str.includes('write/channel') || str.includes('gsessionid'))) {
+          return true;
+        }
+        
+        // Firestore Write channel 에러 (더 구체적으로)
+        if ((str.includes('write/channel') || str.includes('gsessionid')) && str.includes('400')) {
           return true;
         }
         
@@ -255,6 +265,10 @@
           </form>
           <form id="signup-form" class="auth-form hidden" role="tabpanel" aria-labelledby="signup-tab-btn">
               <div class="field">
+                  <label for="signup-name" class="sr-only">사용자 성명</label>
+                  <input type="text" id="signup-name" placeholder="사용자 성명" autocomplete="name" required aria-required="true" aria-describedby="signup-error">
+              </div>
+              <div class="field">
                   <label for="signup-email" class="sr-only">이메일</label>
                   <input type="email" id="signup-email" placeholder="이메일" autocomplete="email" required aria-required="true" aria-describedby="signup-error">
               </div>
@@ -324,9 +338,12 @@
                     <button id="login-btn" class="btn primary" onclick="showLoginModal()" aria-label="로그인">로그인</button>
                 </div>
             </div>
-            <button class="theme-toggle" id="theme-toggle-btn" aria-label="다크/라이트 모드 전환" aria-pressed="false">
+            <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" aria-label="다크/라이트 모드 전환" aria-pressed="false" data-tooltip="다크/라이트 모드 전환">
               <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
               <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            </button>
+            <button id="undo-btn" class="btn" onclick="handleUndo()" aria-label="실행 취소" data-tooltip="실행 취소 (Ctrl+Z 또는 Cmd+Z)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
             </button>
             <button class="btn" onclick="openHelpPopup()" aria-label="사용설명서 열기">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
@@ -336,42 +353,13 @@
       </header>
       <div class="app-container">
         <aside class="sidebar" id="sidebar" role="complementary" aria-label="사이드바">
-            <button id="sidebar-toggle" class="sidebar-toggle" aria-label="사이드바 열기/닫기" aria-expanded="true" aria-controls="sidebar">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                    <polygon points="6,4 18,12 6,20"/>
-                </svg>
-            </button>
+            <!-- 사이드바 토글 버튼은 JavaScript로 동적 생성됩니다 -->
             <h2 class="sidebar-header">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
                 <span id="sidebarTitle"></span>
             </h2>
             <div id="sidebar-form-container"></div>
             <div id="sidebar-list-container"></div>
-            <div class="sidebar-actions" style="border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 8px;">
-                
-                <div id="league-excel-actions" class="row" style="justify-content: space-between;">
-                    <button id="exportAllLeaguesBtn" class="btn" style="background:var(--win); color:white; flex:1;" aria-label="모든 반의 리그전 결과를 엑셀 파일 하나로 내보내기">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m11.5 16.5-3-3 3-3"/><path d="m8.5 13.5 7 .01"/></svg>
-                        전체 반 엑셀로 내보내기
-                    </button>
-                    <label for="importAllLeaguesExcel" class="btn" style="flex:1;" aria-label="엑셀 파일에서 여러 반의 리그전 데이터를 가져오기">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m11.5 10.5 3 3-3 3"/><path d="m8.5 13.5-7 .01"/></svg>
-                        전체 반 엑셀에서 가져오기
-                    </label>
-                    <input type="file" id="importAllLeaguesExcel" accept=".xlsx, .xls" class="hidden" aria-label="엑셀 파일 선택" />
-                </div>
-                <div id="paps-excel-actions" class="row" style="justify-content: space-between; display:none;">
-                    <button id="exportAllPapsBtn" class="btn" style="background:var(--win); color:white; flex:1;" aria-label="모든 반의 PAPS 기록을 엑셀 파일 하나로 내보내기">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m11.5 16.5-3-3 3-3"/><path d="m8.5 13.5 7 .01"/></svg>
-                        전체 반 엑셀로 내보내기
-                    </button>
-                    <label for="importAllPapsExcel" class="btn" style="flex:1;" aria-label="엑셀 파일에서 여러 반의 PAPS 데이터를 가져오기">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m11.5 10.5 3 3-3 3"/><path d="m8.5 13.5-7 .01"/></svg>
-                        전체 반 엑셀에서 가져오기
-                    </label>
-                    <input type="file" id="importAllPapsExcel" accept=".xlsx, .xls" class="hidden" aria-label="엑셀 파일 선택" />
-                </div>
-            </div>
             <footer class="sidebar-footer" role="contentinfo">
                 <div style="margin-bottom: 8px;">
                     <div class="visitor-info" style="justify-content: center; font-size: 0.8rem;">
@@ -394,29 +382,6 @@
         </main>
       </div>
       
-      <button id="liveRankingBtn" class="btn primary floating-btn" onclick="openRankingPopup()" aria-label="실시간 순위표 열기">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10v9"/><path d="M12 4v15"/><path d="M18 7v12"/></svg>
-      </button>
-
-      <div id="rankingPopup" class="hidden" role="dialog" aria-labelledby="popupTitle" aria-modal="true" style="position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.5);">
-        <div class="modal-box" style="background:var(--card-bg); padding: 24px; border-radius: 8px; width: 100%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
-            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3 id="popupTitle" style="font-size: 1.25rem; font-weight: 700; margin:0;"></h3>
-                <div class="row">
-                    <button class="btn" onclick="printLiveRankings()" aria-label="순위표 인쇄">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                    </button>
-                    <button class="btn" onclick="closeRankingPopup()" aria-label="순위표 닫기">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </button>
-                </div>
-            </div>
-            <div style="overflow-y: auto;">
-               <table id="popupRankingsTable" class="styled-table" role="table" aria-label="순위표"></table>
-            </div>
-        </div>
-      </div>
-      
       <div id="modal-container" class="hidden" role="dialog" aria-labelledby="modal-title" aria-modal="true" style="position: fixed; inset: 0; z-index: 101; display: flex; align-items: center; justify-content: center; background-color: rgba(0,0,0,0.5);">
         <div class="modal-box" style="background:var(--card-bg); padding: 24px; border-radius: 8px; width: 100%; max-width: 450px;">
             <h3 id="modal-title" style="font-size: 1.25rem; font-weight: 700; margin-top:0; margin-bottom: 1rem;"></h3>
@@ -435,74 +400,155 @@
             </button>
         </div>
         <div class="help-popup-content" style="overflow-y: auto;">
-            <h3>1. 핵심 기능: 4가지 수업 모드</h3>
-            <p>화면 상단의 <code>수업 진도 관리</code> / <code>리그전 수업</code> / <code>토너먼트 수업</code> / <code>PAPS 수업</code> 버튼으로 네 가지 모드를 전환할 수 있습니다. 데이터는 각 모드별로 따로 저장됩니다.</p>
+            <h2 style="margin-top: 0;">프로그램 사용 설명서</h2>
+            
+            <h3>📌 기본 사용법</h3>
+            <p>화면 상단의 <code>수업 진도 관리</code> / <code>리그전 수업</code> / <code>토너먼트 수업</code> / <code>PAPS 수업</code> 버튼으로 네 가지 수업 모드를 전환할 수 있습니다. 각 모드의 데이터는 독립적으로 저장됩니다.</p>
 
-            <h3>2. 수업 진도 관리 방법</h3>
-            <p><strong>① 반 생성:</strong> 왼쪽 사이드바에서 '새로운 반 이름'을 입력하고 <code>+</code> 버튼을 눌러 반을 생성합니다.</p>
-            <p><strong>② 수업 설정:</strong> 생성된 반을 선택한 후, 담당교사, 단원 내용, 주당 시간을 입력하고 <code>설정 저장</code>을 누릅니다.</p>
-            <p><strong>③ 진도표 생성:</strong> 설정 저장 후 수업 기록 테이블이 자동으로 생성됩니다. 각 주차별로 수업 날짜와 내용을 기록할 수 있습니다.</p>
-            <p><strong>④ 수정하기:</strong> 왼쪽 반 카드의 연필 아이콘을 클릭하면 수업 설정을 다시 수정할 수 있습니다.</p>
-
-            <h3>3. 리그전 수업 방법</h3>
-            <p><strong>① 반 생성:</strong> 왼쪽 사이드바에서 '새로운 반(팀) 이름'을 입력하고 <code>+</code> 버튼을 눌러 리그를 생성합니다.</p>
-            <p><strong>② 학생 추가:</strong></p>
+            <h3>1️⃣ 수업 진도 관리</h3>
+            <p><strong>반 생성 및 관리</strong></p>
             <ul>
-                <li>생성된 반을 선택한 후, '신규 선수 추가'에 학생 이름을 입력하고 '추가'합니다.</li>
-                <li>'일괄 추가' 버튼으로 여러 명의 이름을 쉼표(,)로 구분해 한 번에 등록할 수 있습니다.</li>
+                <li>왼쪽 사이드바에서 '새로운 반 이름'을 입력하고 <code>+</code> 버튼을 눌러 반을 생성합니다.</li>
+                <li>반 카드의 연필 아이콘을 클릭하면 반 이름을 수정할 수 있습니다.</li>
+                <li>휴지통 아이콘을 클릭하면 반과 관련된 모든 데이터가 삭제됩니다.</li>
             </ul>
-            <p><strong>③ 경기 일정 생성:</strong> 학생 추가가 완료되면, <code>일정 생성</code> 버튼을 누르세요. 모든 학생이 한 번씩 맞붙는 리그전 대진표(라운드 로빈)가 자동으로 만들어집니다.</p>
-            <p><strong>④ 점수 입력:</strong> 경기 일정 표에서 각 경기의 점수를 입력하면 자동으로 승점이 계산되고 '완료' 상태로 변경됩니다.</p>
-            <p><strong>⑤ 순위 확인:</strong> 점수를 입력하면 순위표가 실시간으로 업데이트됩니다. 우측의 <code>실시간 순위표</code> 버튼으로 큰 팝업창에서 순위를 보거나 <code>순위표 인쇄</code> 버튼으로 인쇄할 수 있습니다.</p>
-
-            <h3>4. 토너먼트 관리 방법</h3>
-            <p><strong>① 토너먼트 생성:</strong> 왼쪽 사이드바에서 '새로운 토너먼트 이름'을 입력하고 <code>+</code> 버튼을 눌러 토너먼트를 생성합니다.</p>
-            <p><strong>② 팀 추가 및 설정:</strong></p>
+            <p><strong>수업 설정</strong></p>
             <ul>
-                <li>생성된 토너먼트를 선택 후, '참가 팀 관리'에서 팀 이름을 추가합니다.</li>
-                <li>'토너먼트 설정'에서 경기 종목, 시드 배정 방식(입력 순 또는 무작위) 등을 설정하고 <code>설정 저장</code>을 누릅니다.</li>
+                <li>반을 선택한 후, 담당교사, 단원 내용, 주당 시간을 입력하고 <code>설정 저장</code>을 누릅니다.</li>
+                <li>설정 저장 후 수업 기록 테이블이 자동으로 생성됩니다.</li>
             </ul>
-            <p><strong>③ 대진표 관리:</strong> 팀을 추가/삭제하면 대진표가 자동으로 생성 및 업데이트됩니다. 경기 후 대진표의 점수 칸에 결과를 입력하면 승자가 자동으로 다음 라운드로 진출합니다. 최종 순위는 대진표에 메달 아이콘으로 표시됩니다.</p>
+            <p><strong>수업 기록 입력</strong></p>
+            <ul>
+                <li>각 주차별로 수업 날짜, 교시(1~7교시), 수업 내용을 입력할 수 있습니다.</li>
+                <li>날짜를 입력하면 요일이 자동으로 표시됩니다.</li>
+                <li>수업 내용은 실시간으로 저장됩니다.</li>
+            </ul>
+            <p><strong>엑셀 내보내기/가져오기</strong></p>
+            <ul>
+                <li>왼쪽 사이드바 하단의 <code>모든 반 수업 기록 엑셀로 내보내기</code> 버튼으로 모든 반의 수업 기록을 엑셀 파일로 저장할 수 있습니다.</li>
+                <li>엑셀 파일은 반별로 시트가 구분되어 저장됩니다.</li>
+                <li><code>모든 반 수업 기록 엑셀에서 가져오기</code> 버튼으로 엑셀 파일의 데이터를 불러올 수 있습니다.</li>
+            </ul>
 
-            <h3>5. PAPS 수업 관리 방법</h3>
-            <p><strong>① PAPS 반 생성:</strong> 왼쪽 사이드바에서 '새로운 PAPS 반 이름'을 입력하고 <code>+</code> 버튼을 눌러 PAPS 반을 생성합니다.</p>
-            <p><strong>② 학년 설정:</strong> 생성된 반을 선택한 후, 학년을 설정합니다. (초등학교 4-6학년, 중학교 1-3학년, 고등학교 1-3학년)</p>
-            <p><strong>③ 종목 설정:</strong> 각 카테고리별로 측정 종목을 선택합니다:</p>
+            <h3>2️⃣ 리그전 수업</h3>
+            <p><strong>반 생성 및 학생 관리</strong></p>
+            <ul>
+                <li>왼쪽 사이드바에서 '새로운 반(팀) 이름'을 입력하고 <code>+</code> 버튼을 눌러 리그를 생성합니다.</li>
+                <li>반을 선택한 후, '신규 선수 추가'에 학생 이름을 입력하고 <code>추가</code> 버튼을 누릅니다.</li>
+                <li><code>일괄 추가</code> 버튼으로 여러 명의 이름을 쉼표(,)로 구분해 한 번에 등록할 수 있습니다.</li>
+                <li><code>가나다 순 정렬</code> 버튼으로 학생 목록을 이름 순으로 정렬할 수 있습니다.</li>
+            </ul>
+            <p><strong>경기 일정 생성</strong></p>
+            <ul>
+                <li>학생 추가가 완료되면 <code>일정 생성</code> 버튼을 누르세요.</li>
+                <li>모든 학생이 한 번씩 맞붙는 리그전 대진표(라운드 로빈)가 자동으로 생성됩니다.</li>
+            </ul>
+            <p><strong>경기 결과 입력</strong></p>
+            <ul>
+                <li>경기 일정 표에서 각 경기의 점수를 입력하면 자동으로 승점이 계산되고 '완료' 상태로 변경됩니다.</li>
+                <li>경기 강조 표시 기능으로 특정 경기를 하이라이트할 수 있습니다.</li>
+                <li>점수를 입력하면 순위표가 실시간으로 업데이트됩니다.</li>
+            </ul>
+            <p><strong>엑셀 내보내기/가져오기</strong></p>
+            <ul>
+                <li>왼쪽 사이드바 하단의 <code>모든 반 경기 기록 엑셀로 내보내기</code> 버튼으로 모든 반의 경기 기록을 엑셀 파일로 저장할 수 있습니다.</li>
+                <li>엑셀 파일에는 순위표와 경기 일정이 포함되며, 반별로 시트가 구분됩니다.</li>
+                <li><code>모든 반 경기 기록 엑셀에서 가져오기</code> 버튼으로 엑셀 파일의 데이터를 불러올 수 있습니다.</li>
+            </ul>
+
+            <h3>3️⃣ 토너먼트 수업</h3>
+            <p><strong>토너먼트 생성</strong></p>
+            <ul>
+                <li>왼쪽 사이드바에서 '새로운 토너먼트 이름'을 입력하고 <code>+</code> 버튼을 눌러 토너먼트를 생성합니다.</li>
+            </ul>
+            <p><strong>팀 추가 및 설정</strong></p>
+            <ul>
+                <li>토너먼트를 선택한 후, '참가 팀 관리'에서 팀 이름을 추가합니다.</li>
+                <li><code>토너먼트 설정</code> 버튼을 클릭하여 경기 종목, 시드 배정 방식(입력 순 또는 무작위) 등을 설정하고 <code>설정 저장</code>을 누릅니다.</li>
+            </ul>
+            <p><strong>대진표 관리</strong></p>
+            <ul>
+                <li>팀을 추가/삭제하면 대진표가 자동으로 생성 및 업데이트됩니다.</li>
+                <li>경기 후 대진표의 점수 칸에 결과를 입력하면 승자가 자동으로 다음 라운드로 진출합니다.</li>
+                <li>최종 순위는 대진표에 메달 아이콘으로 표시됩니다.</li>
+            </ul>
+
+            <h3>4️⃣ PAPS 수업</h3>
+            <p><strong>반 생성 및 설정</strong></p>
+            <ul>
+                <li>왼쪽 사이드바에서 '새로운 PAPS 반 이름'을 입력하고 <code>+</code> 버튼을 눌러 PAPS 반을 생성합니다.</li>
+                <li>반을 선택한 후, 학년을 설정합니다. (초등학교 4-6학년, 중학교 1-3학년, 고등학교 1-3학년)</li>
+            </ul>
+            <p><strong>종목 설정</strong></p>
             <ul>
                 <li><strong>심폐지구력:</strong> 왕복오래달리기, 오래달리기, 스텝검사</li>
                 <li><strong>유연성:</strong> 앉아윗몸앞으로굽히기, 종합유연성검사</li>
-                <li><strong>근력/근지구력:</strong> 악력, 팔굽혀펴기, 윗몸말아올리기</li>
+                <li><strong>근력/근지구력:</strong> 악력(왼손/오른손), 팔굽혀펴기, 윗몸말아올리기</li>
                 <li><strong>순발력:</strong> 제자리멀리뛰기, 50m 달리기</li>
-                <li><strong>체지방:</strong> BMI (신장, 체중 입력)</li>
+                <li><strong>체지방:</strong> BMI (신장, 체중 입력 후 자동 계산)</li>
             </ul>
-            <p><strong>④ 학생 추가:</strong></p>
+            <p><strong>학생 추가 및 기록 입력</strong></p>
             <ul>
-                <li>'학생 추가' 버튼으로 개별 추가하거나, 엑셀 파일로 일괄 업로드할 수 있습니다.</li>
+                <li><code>학생 추가</code> 버튼으로 개별 추가하거나, 엑셀 파일로 일괄 업로드할 수 있습니다.</li>
                 <li>학생의 번호, 이름, 성별을 입력합니다.</li>
+                <li>기록입력 테이블에서 각 학생의 측정 기록을 입력합니다.</li>
+                <li>악력은 왼손과 오른손 각각의 기록을 입력할 수 있습니다.</li>
+                <li>신장(cm)과 체중(kg)을 입력하면 BMI가 자동 계산됩니다.</li>
+                <li>기록을 입력하면 성별과 학년에 따른 PAPS 등급이 자동으로 계산되어 표시됩니다.</li>
             </ul>
-            <p><strong>⑤ 기록 입력:</strong> 기록입력 테이블에서 각 학생의 측정 기록을 입력합니다:</p>
+            <p><strong>엑셀 내보내기/가져오기</strong></p>
             <ul>
-                <li><strong>악력:</strong> 왼손과 오른손 각각의 기록을 입력할 수 있습니다.</li>
-                <li><strong>팔굽혀펴기:</strong> 남학생은 팔굽혀펴기, 여학생은 무릎대고 팔굽혀펴기로 자동 표시됩니다.</li>
-                <li><strong>체지방:</strong> 신장(cm)과 체중(kg)을 입력하면 BMI가 자동 계산됩니다.</li>
-            </ul>
-            <p><strong>⑥ 등급 확인:</strong> 기록을 입력하면 성별과 학년에 따른 PAPS 등급이 자동으로 계산되어 표시됩니다.</p>
-            <p><strong>⑦ 데이터 내보내기:</strong> 엑셀 파일로 전체 데이터를 내보내거나, 그래프로 등급 분포를 확인할 수 있습니다.</p>
-
-            <h3>6. 데이터 관리 및 기타 기능</h3>
-            <ul>
-                <li><strong>자동 저장:</strong> 모든 데이터는 로그인된 계정에 연결되어 클라우드에 실시간으로 자동 저장됩니다. 다른 기기에서 로그인해도 데이터를 그대로 사용할 수 있습니다.</li>
-                <li><strong>테마 변경:</strong> 우측 상단의 해/달 아이콘으로 라이트/다크 모드를 전환할 수 있습니다.</li>
-                <li><strong>엑셀 호환성:</strong> PAPS 데이터는 엑셀 파일로 내보내기/가져오기가 가능하여 기존 스프레드시트와 연동할 수 있습니다.</li>
+                <li>왼쪽 사이드바 하단의 <code>모든 반 PAPS 기록 엑셀로 내보내기</code> 버튼으로 모든 반의 PAPS 기록을 엑셀 파일로 저장할 수 있습니다.</li>
+                <li>엑셀 파일은 반별로 시트가 구분되어 저장됩니다.</li>
+                <li><code>모든 반 PAPS 기록 엑셀에서 가져오기</code> 버튼으로 엑셀 파일의 데이터를 불러올 수 있습니다.</li>
             </ul>
 
-            <h3>7. 주요 특징</h3>
+            <h3>🛠️ 공통 기능</h3>
+            <p><strong>데이터 저장</strong></p>
             <ul>
-                <li><strong>실시간 계산:</strong> 모든 점수와 등급이 실시간으로 자동 계산됩니다.</li>
-                <li><strong>반응형 디자인:</strong> PC, 태블릿, 스마트폰 등 모든 기기에서 사용 가능합니다.</li>
-                <li><strong>직관적 UI:</strong> 체육 교사가 쉽게 사용할 수 있도록 설계되었습니다.</li>
+                <li>모든 데이터는 로그인된 계정에 연결되어 클라우드에 실시간으로 자동 저장됩니다.</li>
+                <li>다른 기기에서 로그인해도 동일한 데이터를 사용할 수 있습니다.</li>
+                <li>인터넷 연결이 없어도 로컬 스토리지에 임시 저장되며, 연결 시 자동으로 동기화됩니다.</li>
+            </ul>
+            <p><strong>실행 취소 (Undo)</strong></p>
+            <ul>
+                <li>상단 바의 실행 취소 아이콘을 클릭하거나 <code>Ctrl+Z</code> (Windows/Linux) / <code>Cmd+Z</code> (Mac)를 누르면 마지막 작업을 취소할 수 있습니다.</li>
+                <li>최대 50개의 이전 상태까지 되돌릴 수 있습니다.</li>
+            </ul>
+            <p><strong>사이드바 토글</strong></p>
+            <ul>
+                <li>왼쪽 사이드바의 화살표 버튼을 클릭하면 사이드바를 열고 닫을 수 있습니다.</li>
+                <li>화면 공간을 효율적으로 사용하기 위해 필요시 사이드바를 숨길 수 있습니다.</li>
+            </ul>
+            <p><strong>야간 모드 (다크 모드)</strong></p>
+            <ul>
+                <li>상단 바의 해/달 아이콘을 클릭하면 라이트 모드와 다크 모드를 전환할 수 있습니다.</li>
+                <li>선택한 테마는 자동으로 저장되어 다음 방문 시에도 유지됩니다.</li>
+            </ul>
+            <p><strong>엑셀 호환성</strong></p>
+            <ul>
+                <li>모든 수업 모드에서 엑셀 파일로 데이터를 내보내고 가져올 수 있습니다.</li>
+                <li>엑셀 파일은 반별로 시트가 구분되어 있어 관리가 용이합니다.</li>
+                <li>기존 스프레드시트와 연동하여 데이터를 공유할 수 있습니다.</li>
+            </ul>
+
+            <h3>⌨️ 키보드 단축키</h3>
+            <ul>
+                <li><code>Ctrl+Z</code> 또는 <code>Cmd+Z</code> (Mac): 실행 취소</li>
+                <li><code>Escape</code>: 열려있는 모달 창 닫기</li>
+            </ul>
+
+            <h3>💡 주요 특징</h3>
+            <ul>
+                <li><strong>실시간 계산:</strong> 모든 점수, 순위, 등급이 실시간으로 자동 계산됩니다.</li>
+                <li><strong>반응형 디자인:</strong> PC, 태블릿, 스마트폰 등 모든 기기에서 최적화된 화면으로 사용할 수 있습니다.</li>
+                <li><strong>직관적 UI:</strong> 체육 교사가 쉽게 사용할 수 있도록 직관적인 인터페이스를 제공합니다.</li>
                 <li><strong>PAPS 2024 기준:</strong> 최신 PAPS 평가 기준을 반영하여 정확한 등급을 제공합니다.</li>
+                <li><strong>데이터 안전성:</strong> 클라우드 자동 저장 및 로컬 백업으로 데이터 손실을 방지합니다.</li>
             </ul>
+
+            <h3>📞 문의</h3>
+            <p>프로그램 사용 중 문제가 발생하거나 개선 사항이 있으면 개발자에게 문의해주세요.</p>
         </div>
     </div>
   </div>
@@ -514,6 +560,202 @@
   <script>
     console.log('HTML에서 직접 JavaScript 실행 테스트');
     console.log('DOM 로드 상태:', document.readyState);
+    
+    // 사용 설명서 팝업 열기
+    window.openHelpPopup = function() {
+      const helpPopup = document.getElementById('helpPopup');
+      if (helpPopup) {
+        helpPopup.classList.remove('hidden');
+        helpPopup.style.setProperty('display', 'flex', 'important');
+        // 첫 번째 포커스 가능한 요소에 포커스
+        const firstFocusable = helpPopup.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (firstFocusable) {
+          setTimeout(() => firstFocusable.focus(), 100);
+        }
+        console.log('사용 설명서 팝업 열기');
+      } else {
+        console.warn('사용 설명서 팝업 요소를 찾을 수 없습니다.');
+      }
+    };
+    
+    // 사용 설명서 팝업 닫기
+    window.closeHelpPopup = function() {
+      const helpPopup = document.getElementById('helpPopup');
+      if (helpPopup) {
+        helpPopup.classList.add('hidden');
+        helpPopup.style.setProperty('display', 'none', 'important');
+        console.log('사용 설명서 팝업 닫기');
+      }
+    };
+    
+    // 테마 토글 함수 (야간 모드 전환)
+    window.toggleTheme = function() {
+      const body = document.body;
+      const themeToggle = document.getElementById('theme-toggle-btn');
+      const currentTheme = body.getAttribute('data-theme');
+      
+      if (currentTheme === 'dark') {
+        // 라이트 모드로 전환
+        body.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'light');
+        if (themeToggle) {
+          themeToggle.setAttribute('aria-pressed', 'false');
+        }
+        console.log('라이트 모드로 전환');
+      } else {
+        // 다크 모드로 전환
+        body.setAttribute('data-theme', 'dark');
+        localStorage.setItem('theme', 'dark');
+        if (themeToggle) {
+          themeToggle.setAttribute('aria-pressed', 'true');
+        }
+        console.log('다크 모드로 전환');
+      }
+    };
+    
+    // 저장된 테마 설정 불러오기
+    function initializeTheme() {
+      const savedTheme = localStorage.getItem('theme');
+      const body = document.body;
+      const themeToggle = document.getElementById('theme-toggle-btn');
+      
+      if (savedTheme === 'dark') {
+        body.setAttribute('data-theme', 'dark');
+        if (themeToggle) {
+          themeToggle.setAttribute('aria-pressed', 'true');
+        }
+      } else {
+        body.removeAttribute('data-theme');
+        if (themeToggle) {
+          themeToggle.setAttribute('aria-pressed', 'false');
+        }
+      }
+    }
+    
+    // DOMContentLoaded에서 테마 초기화
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeTheme);
+    } else {
+      initializeTheme();
+    }
+    
+    // 사이드바 토글 함수 (즉시 사용 가능하도록 전역으로 정의)
+    window.toggleSidebar = function() {
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebar-toggle');
+      
+      if (!sidebar) {
+        console.warn('사이드바를 찾을 수 없습니다.');
+        return;
+      }
+
+      const isCollapsed = sidebar.classList.contains('collapsed');
+      
+      if (isCollapsed) {
+        // 사이드바 열기
+        sidebar.classList.remove('collapsed');
+        sidebar.style.setProperty('width', '340px', 'important');
+        sidebar.style.setProperty('min-width', '340px', 'important');
+        sidebar.style.setProperty('max-width', '340px', 'important');
+        sidebar.style.setProperty('padding', '24px', 'important');
+        sidebar.style.setProperty('border-right', '1px solid var(--line)', 'important');
+        sidebar.style.setProperty('overflow', 'visible', 'important');
+        sidebar.style.setProperty('display', 'flex', 'important');
+        sidebar.style.setProperty('visibility', 'visible', 'important');
+        sidebar.style.setProperty('opacity', '1', 'important');
+        if (sidebarToggle) {
+          sidebarToggle.style.setProperty('left', '340px', 'important');
+          sidebarToggle.setAttribute('aria-expanded', 'true');
+        }
+        console.log('사이드바 열기');
+      } else {
+        // 사이드바 닫기
+        sidebar.classList.add('collapsed');
+        sidebar.style.setProperty('width', '0', 'important');
+        sidebar.style.setProperty('min-width', '0', 'important');
+        sidebar.style.setProperty('max-width', '0', 'important');
+        sidebar.style.setProperty('padding', '0', 'important');
+        sidebar.style.setProperty('border-right', 'none', 'important');
+        sidebar.style.setProperty('overflow', 'hidden', 'important');
+        if (sidebarToggle) {
+          sidebarToggle.style.setProperty('left', '0', 'important');
+          sidebarToggle.setAttribute('aria-expanded', 'false');
+        }
+        console.log('사이드바 닫기');
+      }
+    };
+    
+    // 사이드바 토글 버튼 동적 생성
+    function createSidebarToggleButton() {
+      const sidebar = document.getElementById('sidebar');
+      if (!sidebar) {
+        console.warn('사이드바를 찾을 수 없어 토글 버튼을 생성할 수 없습니다.');
+        return;
+      }
+
+      // 기존 버튼 제거 (있다면)
+      const existingToggle = document.getElementById('sidebar-toggle');
+      if (existingToggle) {
+        existingToggle.remove();
+      }
+
+      // 새 버튼 생성
+      const sidebarToggle = document.createElement('button');
+      sidebarToggle.id = 'sidebar-toggle';
+      sidebarToggle.className = 'sidebar-toggle';
+      sidebarToggle.setAttribute('aria-label', '사이드바 열기/닫기');
+      sidebarToggle.setAttribute('aria-expanded', 'true');
+      sidebarToggle.setAttribute('aria-controls', 'sidebar');
+      sidebarToggle.setAttribute('data-tooltip', '사이드바 열기/닫기');
+      
+      // SVG 아이콘 추가
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'currentColor');
+      svg.setAttribute('stroke', 'none');
+      svg.setAttribute('aria-hidden', 'true');
+      
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '6,4 18,12 6,20');
+      svg.appendChild(polygon);
+      
+      sidebarToggle.appendChild(svg);
+      
+      // 클릭 이벤트 리스너 직접 연결
+      sidebarToggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('사이드바 토글 버튼 클릭됨');
+        if (window.toggleSidebar && typeof window.toggleSidebar === 'function') {
+          window.toggleSidebar();
+        } else {
+          console.error('toggleSidebar 함수를 찾을 수 없습니다.');
+        }
+      });
+
+      // 사이드바에 추가 (body에 추가하는 것이 더 나을 수 있음)
+      document.body.appendChild(sidebarToggle);
+      
+      console.log('사이드바 토글 버튼 생성 완료');
+    }
+    
+    // DOMContentLoaded에서 사이드바 토글 버튼 생성
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        createSidebarToggleButton();
+      });
+    } else {
+      // DOM이 이미 로드된 경우
+      createSidebarToggleButton();
+    }
+    
+    // 약간의 지연 후에도 시도 (동적 로딩 대응)
+    setTimeout(function() {
+      if (!document.getElementById('sidebar-toggle')) {
+        createSidebarToggleButton();
+      }
+    }, 500);
   </script>
   
   <script type="module" src="main.js"></script>

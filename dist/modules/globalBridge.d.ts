@@ -44,6 +44,23 @@ export declare class GlobalBridge {
      */
     registerAll(): void;
     /**
+     * 실행 취소 버튼의 tooltip을 플랫폼에 맞게 업데이트합니다.
+     */
+    private updateUndoTooltip;
+    /**
+     * 실행 취소 버튼의 활성화 상태를 업데이트합니다.
+     */
+    private updateUndoButtonState;
+    /**
+     * 사이드바 토글 버튼 이벤트를 초기화합니다.
+     * HTML onclick이 작동하지 않을 경우를 대비한 백업입니다.
+     */
+    private initializeSidebarToggle;
+    /**
+     * 사이드바 토글 버튼 이벤트 리스너를 설정합니다.
+     */
+    private setupSidebarToggle;
+    /**
      * 특정 전역 함수를 등록합니다.
      * @param name 함수 이름
      * @param func 함수

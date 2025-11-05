@@ -44,6 +44,9 @@ export class ErrorFilter {
             'err_connection_refused',
             'net::err_',
             'webchannel_connection.ts',
+            'Bad Request',
+            'Write/channel',
+            'gsessionid',
         ];
         this.useMutationObserver = options.useMutationObserver !== false;
         this.filterConsole = options.filterConsole !== false;
@@ -99,10 +102,16 @@ export class ErrorFilter {
             (str.includes('port closed') && str.includes('response')) ||
             // Firestore API 에러 (네트워크 오류)
             (str.includes('firestore.googleapis.com') && (str.includes('400') ||
+                str.includes('bad request') ||
                 str.includes('failed to load') ||
                 str.includes('net::') ||
                 str.includes('err_') ||
-                str.includes('webchannel_connection.ts'))) ||
+                str.includes('webchannel_connection.ts') ||
+                str.includes('write/channel') ||
+                str.includes('gsessionid'))) ||
+            // Firestore Write channel 에러 (더 구체적으로)
+            (str.includes('write/channel') && str.includes('400')) ||
+            (str.includes('gsessionid') && str.includes('400')) ||
             // 네트워크 에러 패턴
             (str.includes('net::') && (str.includes('err_quic') || str.includes('err_name') || str.includes('err_internet') || str.includes('err_network') || str.includes('err_connection'))) ||
             (str.includes('err_quic_protocol_error') || str.includes('err_name_not_resolved') || str.includes('err_internet_disconnected')) ||

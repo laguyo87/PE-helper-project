@@ -16,6 +16,7 @@ export interface ProgressSession {
     weekNumber: number;
     sessionNumber: number;
     date?: string;
+    period?: number;
     content: string;
     completed: boolean;
     notes: string;
@@ -129,6 +130,14 @@ export declare class ProgressManager {
      * 방문자 수 업데이트
      */
     private updateProgressVisitorCount;
+    /**
+     * 모든 반의 수업 기록을 엑셀로 내보냅니다.
+     */
+    exportAllProgressToExcel(): void;
+    /**
+     * 모든 반의 수업 기록을 엑셀 파일에서 가져옵니다.
+     */
+    handleAllProgressExcelUpload(event: Event): void;
     /**
      * UUID 생성
      */

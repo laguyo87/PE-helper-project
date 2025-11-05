@@ -318,26 +318,37 @@ export class AuthManager {
       return;
     }
 
+    const nameInput = $('#signup-name') as HTMLInputElement;
     const emailInput = $('#signup-email') as HTMLInputElement;
     const passwordInput = $('#signup-password') as HTMLInputElement;
 
-    if (!emailInput || !passwordInput) {
+    if (!nameInput || !emailInput || !passwordInput) {
       logErrorLocal('회원가입 폼 요소를 찾을 수 없음');
       return;
     }
 
+    const name = nameInput.value.trim();
     const email = emailInput.value.trim();
     const password = passwordInput.value;
 
-    if (!email || !password) {
-      this.showAuthError('이메일과 비밀번호를 입력해주세요.', 'signup');
+    if (!name || !email || !password) {
+      this.showAuthError('사용자 성명, 이메일, 비밀번호를 모두 입력해주세요.', 'signup');
       return;
     }
 
     try {
-      const { auth, createUserWithEmailAndPassword } = this.firebase;
-      await createUserWithEmailAndPassword(auth, email, password);
+      const { auth, createUserWithEmailAndPassword, updateProfile } = this.firebase;
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // 사용자 프로필에 이름 설정
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, {
+          displayName: name
+        });
+      }
+      
       log('회원가입 성공:', email);
+      log('사용자 이름:', name);
     } catch (error: any) {
       logErrorLocal('회원가입 실패:', error);
       this.handleAuthError(error, 'signup');

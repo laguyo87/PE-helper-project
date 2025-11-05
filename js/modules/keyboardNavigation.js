@@ -34,6 +34,12 @@ function handleKeyDown(event) {
         handleEscapeKey();
         return;
     }
+    // Ctrl+Z 또는 Cmd+Z: 실행 취소
+    if ((event.ctrlKey || event.metaKey) && event.key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        handleUndoKey();
+        return;
+    }
     // Tab 키: 모달 내부에서만 포커스 유지 (필요시)
     if (event.key === 'Tab') {
         handleTabKey(event);
@@ -50,6 +56,19 @@ function handleEscapeKey() {
     if (openModals.length > 0) {
         const lastModal = openModals[openModals.length - 1];
         closeModal(lastModal);
+    }
+}
+/**
+ * 실행 취소 키 처리 (Ctrl+Z 또는 Cmd+Z)
+ */
+function handleUndoKey() {
+    // 전역 undo 함수 호출
+    const undoFunction = window.handleUndo;
+    if (undoFunction && typeof undoFunction === 'function') {
+        undoFunction();
+    }
+    else {
+        logger.debug('실행 취소 함수를 찾을 수 없습니다.');
     }
 }
 /**
@@ -159,8 +178,7 @@ export function closeModal(modalElement) {
             aside.removeAttribute('aria-hidden');
     }
     // 모달을 닫는 함수 호출 (글로벌 함수 확인)
-    const closeFunction = window.closeRankingPopup ||
-        window.closeHelpPopup ||
+    const closeFunction = window.closeHelpPopup ||
         window.closeModal;
     if (closeFunction && typeof closeFunction === 'function') {
         closeFunction();

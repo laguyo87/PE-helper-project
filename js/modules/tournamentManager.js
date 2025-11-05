@@ -160,6 +160,33 @@ export class TournamentManager {
             </div>
         `;
         this.$('#sidebar-form-container').html(formHtml);
+        // Progress, League 모드 전용 엑셀 버튼 제거
+        const progressExcelActions = document.querySelector('.progress-excel-actions');
+        if (progressExcelActions) {
+            progressExcelActions.remove();
+        }
+        const leagueExcelActions = document.querySelector('.league-excel-actions');
+        if (leagueExcelActions) {
+            leagueExcelActions.remove();
+        }
+        const papsExcelActions = document.querySelector('.paps-excel-actions');
+        if (papsExcelActions) {
+            papsExcelActions.remove();
+        }
+        // sidebar-list-container가 Progress 모드에서 숨겨졌을 수 있으므로 다시 표시
+        // CSS의 !important를 override하기 위해 setProperty 사용
+        const sidebarListContainer = this.getElement('#sidebar-list-container');
+        if (sidebarListContainer) {
+            // 즉시 표시
+            sidebarListContainer.style.setProperty('display', 'flex', 'important');
+            // 약간의 지연 후에도 다시 확인 (모드 전환 후 CSS가 재적용될 수 있음)
+            setTimeout(() => {
+                const el = this.getElement('#sidebar-list-container');
+                if (el && !document.body.classList.contains('progress-mode')) {
+                    el.style.setProperty('display', 'flex', 'important');
+                }
+            }, 50);
+        }
         this.renderTournamentList();
         const activeTournament = this.tournamentData.tournaments.find(t => t.id === this.tournamentData.activeTournamentId);
         if (activeTournament) {

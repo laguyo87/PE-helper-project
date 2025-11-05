@@ -278,10 +278,46 @@ export class UIRenderer {
                 btn.classList.add('active');
             }
         });
-        // 실시간 순위표 버튼 표시/숨김 (리그전 모드에서만 표시)
-        const liveRankingBtn = this.$('#liveRankingBtn');
-        if (liveRankingBtn) {
-            liveRankingBtn.classList.toggle('hidden', mode !== 'league');
+        // Progress 모드에서 다른 모드로 전환 시 sidebar-list-container 다시 표시
+        // CSS의 !important 규칙을 override하기 위해 inline style 사용
+        // 즉시 처리하고, 약간의 지연 후에도 다시 확인 (타이밍 이슈 방지)
+        const sidebarListContainer = document.querySelector('#sidebar-list-container');
+        if (sidebarListContainer) {
+            if (mode === 'progress') {
+                // Progress 모드에서는 숨김 (CSS로 처리되지만 확실히 하기 위해)
+                sidebarListContainer.style.display = 'none';
+            }
+            else {
+                // 다른 모드에서는 표시 (CSS의 !important를 override)
+                sidebarListContainer.style.setProperty('display', 'flex', 'important');
+                // 약간의 지연 후에도 다시 확인 (모드 전환 후 CSS가 재적용될 수 있음)
+                setTimeout(() => {
+                    if (sidebarListContainer && !document.body.classList.contains('progress-mode')) {
+                        sidebarListContainer.style.setProperty('display', 'flex', 'important');
+                    }
+                }, 10);
+            }
+        }
+        // Progress 모드가 아닐 때 엑셀 버튼 제거
+        if (mode !== 'progress') {
+            const progressExcelActions = document.querySelector('.progress-excel-actions');
+            if (progressExcelActions) {
+                progressExcelActions.remove();
+            }
+        }
+        // League 모드가 아닐 때 엑셀 버튼 제거
+        if (mode !== 'league') {
+            const leagueExcelActions = document.querySelector('.league-excel-actions');
+            if (leagueExcelActions) {
+                leagueExcelActions.remove();
+            }
+        }
+        // PAPS 모드가 아닐 때 엑셀 버튼 제거
+        if (mode !== 'paps') {
+            const papsExcelActions = document.querySelector('.paps-excel-actions');
+            if (papsExcelActions) {
+                papsExcelActions.remove();
+            }
         }
         // 앱 렌더링
         logger.debug('switchMode에서 renderApp 호출 직전');

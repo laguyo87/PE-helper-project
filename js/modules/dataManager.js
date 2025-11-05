@@ -439,6 +439,47 @@ export class DataManager {
                 }
             });
         }
+        // League 학생 이름 길이 검증 및 자동 수정 (50자 초과 시 자동 잘라내기)
+        if (dataToSave.leagues && dataToSave.leagues.students) {
+            dataToSave.leagues.students.forEach((student) => {
+                if (student.name && typeof student.name === 'string' && student.name.length > 50) {
+                    this.logWarnLocal(`학생 이름이 50자를 초과하여 자동으로 잘라냄: "${student.name}" -> "${student.name.substring(0, 50)}"`);
+                    student.name = student.name.substring(0, 50);
+                }
+                // ID를 정수로 변환
+                if (typeof student.id === 'number' && !Number.isInteger(student.id)) {
+                    student.id = Math.floor(student.id);
+                }
+                if (typeof student.classId === 'number' && !Number.isInteger(student.classId)) {
+                    student.classId = Math.floor(student.classId);
+                }
+            });
+        }
+        // League 경기 ID 정수 변환
+        if (dataToSave.leagues && dataToSave.leagues.games) {
+            dataToSave.leagues.games.forEach((game) => {
+                if (typeof game.id === 'number' && !Number.isInteger(game.id)) {
+                    game.id = Math.floor(game.id);
+                }
+                if (typeof game.classId === 'number' && !Number.isInteger(game.classId)) {
+                    game.classId = Math.floor(game.classId);
+                }
+                if (typeof game.player1Id === 'number' && !Number.isInteger(game.player1Id)) {
+                    game.player1Id = Math.floor(game.player1Id);
+                }
+                if (typeof game.player2Id === 'number' && !Number.isInteger(game.player2Id)) {
+                    game.player2Id = Math.floor(game.player2Id);
+                }
+            });
+        }
+        // League 클래스 ID 정수 변환
+        if (dataToSave.leagues && dataToSave.leagues.classes) {
+            dataToSave.leagues.classes.forEach((cls) => {
+                if (typeof cls.id === 'number' && !Number.isInteger(cls.id)) {
+                    cls.id = Math.floor(cls.id);
+                }
+            });
+        }
         return dataToSave;
     }
     /**
@@ -478,6 +519,15 @@ export class DataManager {
                 if (typeof game.id === 'number' && !Number.isInteger(game.id)) {
                     game.id = Math.floor(game.id);
                 }
+                if (typeof game.classId === 'number' && !Number.isInteger(game.classId)) {
+                    game.classId = Math.floor(game.classId);
+                }
+                if (typeof game.player1Id === 'number' && !Number.isInteger(game.player1Id)) {
+                    game.player1Id = Math.floor(game.player1Id);
+                }
+                if (typeof game.player2Id === 'number' && !Number.isInteger(game.player2Id)) {
+                    game.player2Id = Math.floor(game.player2Id);
+                }
                 // completedAt이 없으면 null로 설정 (필수 필드이지만 nullable)
                 if (game.completedAt === undefined) {
                     game.completedAt = null;
@@ -500,6 +550,11 @@ export class DataManager {
                     }
                     if (typeof student.classId === 'number' && !Number.isInteger(student.classId)) {
                         student.classId = Math.floor(student.classId);
+                    }
+                    // 학생 이름 길이 검증 및 자동 수정 (50자 초과 시 자동 잘라내기)
+                    if (student.name && typeof student.name === 'string' && student.name.length > 50) {
+                        this.logWarnLocal(`학생 이름이 50자를 초과하여 자동으로 잘라냄: "${student.name}" -> "${student.name.substring(0, 50)}"`);
+                        student.name = student.name.substring(0, 50);
                     }
                 });
             }

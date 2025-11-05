@@ -17,6 +17,54 @@
  */
 export class AppStateManager {
     /**
+     * 현재 상태를 히스토리에 저장
+     */
+    saveToHistory() {
+        // 현재 상태를 깊은 복사하여 히스토리에 저장
+        const stateCopy = JSON.parse(JSON.stringify(this.state));
+        this.historyStack.push(stateCopy);
+        // 히스토리 크기 제한
+        if (this.historyStack.length > this.MAX_HISTORY_SIZE) {
+            this.historyStack.shift(); // 가장 오래된 항목 제거
+        }
+    }
+    /**
+     * 실행 취소 (이전 상태로 복원)
+     * @returns 성공 여부
+     */
+    undo() {
+        if (this.historyStack.length === 0) {
+            return false; // 히스토리가 없음
+        }
+        // 실행 취소 플래그 설정 (무한 루프 방지)
+        this.isUndoing = true;
+        try {
+            // 히스토리에서 이전 상태 가져오기
+            const previousState = this.historyStack.pop();
+            // 현재 상태를 이전 상태로 복원
+            const oldState = { ...this.state };
+            this.state = previousState;
+            // 모든 변경사항 notify
+            this.notify('leagues', this.state.leagues, oldState.leagues);
+            this.notify('tournaments', this.state.tournaments, oldState.tournaments);
+            this.notify('paps', this.state.paps, oldState.paps);
+            this.notify('progress', this.state.progress, oldState.progress);
+            // 저장
+            this.scheduleSave();
+            return true;
+        }
+        finally {
+            // 실행 취소 플래그 해제
+            this.isUndoing = false;
+        }
+    }
+    /**
+     * 실행 취소 가능 여부 확인
+     */
+    canUndo() {
+        return this.historyStack.length > 0;
+    }
+    /**
      * 리소스 정리 (메모리 누수 방지)
      * 타이머를 정리합니다.
      */
@@ -28,12 +76,17 @@ export class AppStateManager {
         }
         // 콜백 목록 정리
         this.onChangeCallbacks.clear();
+        // 히스토리 정리
+        this.historyStack = [];
         console.log('AppStateManager 리소스 정리 완료');
     }
     constructor(initialState, options = {}) {
         this.onChangeCallbacks = new Map();
         this.saveTimeout = null;
         this.SAVE_DEBOUNCE_MS = 500; // 500ms 디바운스
+        this.historyStack = []; // 실행 취소를 위한 히스토리 스택
+        this.MAX_HISTORY_SIZE = 50; // 최대 히스토리 크기
+        this.isUndoing = false; // 실행 취소 중인지 여부 (무한 루프 방지)
         // 기본 상태 초기화
         this.state = {
             leagues: initialState?.leagues || {
@@ -110,6 +163,10 @@ export class AppStateManager {
      */
     setLeagues(leagues) {
         const oldState = { ...this.state.leagues };
+        // 실행 취소 중이 아니면 히스토리에 저장
+        if (!this.isUndoing) {
+            this.saveToHistory();
+        }
         this.state.leagues = { ...leagues };
         this.notify('leagues', this.state.leagues, oldState);
         this.scheduleSave();
@@ -119,6 +176,10 @@ export class AppStateManager {
      */
     setTournaments(tournaments) {
         const oldState = { ...this.state.tournaments };
+        // 실행 취소 중이 아니면 히스토리에 저장
+        if (!this.isUndoing) {
+            this.saveToHistory();
+        }
         this.state.tournaments = { ...tournaments };
         this.notify('tournaments', this.state.tournaments, oldState);
         this.scheduleSave();
@@ -128,6 +189,10 @@ export class AppStateManager {
      */
     setPaps(paps) {
         const oldState = { ...this.state.paps };
+        // 실행 취소 중이 아니면 히스토리에 저장
+        if (!this.isUndoing) {
+            this.saveToHistory();
+        }
         this.state.paps = { ...paps };
         this.notify('paps', this.state.paps, oldState);
         this.scheduleSave();
@@ -137,6 +202,10 @@ export class AppStateManager {
      */
     setProgress(progress) {
         const oldState = { ...this.state.progress };
+        // 실행 취소 중이 아니면 히스토리에 저장
+        if (!this.isUndoing) {
+            this.saveToHistory();
+        }
         this.state.progress = { ...progress };
         this.notify('progress', this.state.progress, oldState);
         this.scheduleSave();
@@ -149,6 +218,10 @@ export class AppStateManager {
         const oldTournaments = { ...this.state.tournaments };
         const oldPaps = { ...this.state.paps };
         const oldProgress = { ...this.state.progress };
+        // 실행 취소 중이 아니면 히스토리에 저장
+        if (!this.isUndoing) {
+            this.saveToHistory();
+        }
         if (newState.leagues !== undefined) {
             this.state.leagues = { ...newState.leagues };
         }

@@ -178,7 +178,70 @@ export class PapsManager {
                 </button>
             </div>`;
         this.$('#sidebar-form-container').innerHTML = formHtml;
+        
+        
+        // Progress, League 모드 전용 엑셀 버튼 제거
+        const progressExcelActions = document.querySelector('.progress-excel-actions');
+        if (progressExcelActions) {
+            progressExcelActions.remove();
+        }
+        const leagueExcelActions = document.querySelector('.league-excel-actions');
+        if (leagueExcelActions) {
+            leagueExcelActions.remove();
+        }
+        
+        // sidebar-list-container가 Progress 모드에서 숨겨졌을 수 있으므로 다시 표시
+        // CSS의 !important를 override하기 위해 setProperty 사용
+        const sidebarListContainer = document.querySelector('#sidebar-list-container') as HTMLElement | null;
+        if (sidebarListContainer) {
+            // 즉시 표시
+            sidebarListContainer.style.setProperty('display', 'flex', 'important');
+            
+            // 약간의 지연 후에도 다시 확인 (모드 전환 후 CSS가 재적용될 수 있음)
+            setTimeout(() => {
+                const el = document.querySelector('#sidebar-list-container') as HTMLElement | null;
+                if (el && !document.body.classList.contains('progress-mode')) {
+                    el.style.setProperty('display', 'flex', 'important');
+                }
+            }, 50);
+        }
+        
         this.renderPapsClassList();
+
+        // PAPS Excel 버튼 추가 (sidebar-footer 앞)
+        const sidebarFooter = document.querySelector('.sidebar-footer');
+        if (sidebarFooter) {
+            // 기존 PAPS Excel 버튼이 있으면 제거
+            const existingActions = document.querySelector('.paps-excel-actions');
+            if (existingActions) {
+                existingActions.remove();
+            }
+            
+            // PAPS Excel 버튼 추가
+            const papsExcelActions = document.createElement('div');
+            papsExcelActions.className = 'paps-excel-actions';
+            papsExcelActions.style.cssText = 'padding: 16px; border-top: 1px solid var(--line); margin-top: auto;';
+            papsExcelActions.innerHTML = `
+                <button class="btn" onclick="papsManager.exportAllPapsToExcel()" style="width: 100%; margin-bottom: 8px; justify-content: center; background:var(--win); color:white;" data-tooltip="모든 반의 PAPS 기록을 엑셀 파일로 내보냅니다.">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; margin-right: 8px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    모든 반 PAPS 기록 엑셀로 내보내기
+                </button>
+                <input type="file" id="paps-all-excel-upload" accept=".xlsx,.xls" style="display: none;" onchange="papsManager.handleAllPapsExcelUpload(event)">
+                <button class="btn" onclick="document.getElementById('paps-all-excel-upload').click()" style="width: 100%; justify-content: center;" data-tooltip="엑셀 파일에서 모든 반의 PAPS 기록을 가져옵니다.">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; margin-right: 8px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    모든 반 PAPS 기록 엑셀에서 가져오기
+                </button>
+            `;
+            sidebarFooter.parentNode?.insertBefore(papsExcelActions, sidebarFooter);
+        }
 
         const selected = this.papsData.classes.find(c => c.id === this.papsData.activeClassId);
         if (!selected) {
@@ -192,18 +255,6 @@ export class PapsManager {
             this.renderPapsDashboard(selected);
         }
         
-        // PAPS 엑셀 버튼 이벤트 리스너 (중복 방지)
-        const exportBtn = this.$('#exportAllPapsBtn');
-        if (exportBtn && !exportBtn.dataset.listenerAdded) {
-            exportBtn.addEventListener('click', () => this.exportAllPapsToExcel());
-            exportBtn.dataset.listenerAdded = 'true';
-        }
-        
-        const importInput = this.$('#importAllPapsExcel');
-        if (importInput && !importInput.dataset.listenerAdded) {
-            importInput.addEventListener('change', (e) => this.handleAllPapsExcelUpload(e));
-            importInput.dataset.listenerAdded = 'true';
-        }
     }
 
     /**
@@ -1723,11 +1774,138 @@ export class PapsManager {
      * 모든 PAPS를 엑셀로 내보냅니다.
      */
     public exportAllPapsToExcel(): void {
-        if (typeof window !== 'undefined' && (window as any).XLSX) {
-            // 모든 PAPS 엑셀 내보내기 로직 구현
-            alert('전체 엑셀 내보내기 기능은 개발 중입니다.');
-        } else {
+        if (typeof window === 'undefined' || !(window as any).XLSX) {
             alert('엑셀 라이브러리가 로드되지 않았습니다.');
+            return;
+        }
+
+        try {
+            const XLSX = (window as any).XLSX;
+            const wb = XLSX.utils.book_new();
+
+            if (this.papsData.classes.length === 0) {
+                alert('내보낼 반이 없습니다.');
+                return;
+            }
+
+            // 각 반별로 시트 생성
+            this.papsData.classes.forEach((cls) => {
+                const data: any[][] = [
+                    ['반명', cls.name],
+                    ['학년', cls.gradeLevel || '미설정'],
+                    ['', ''], // 빈 줄
+                ];
+
+                // 이벤트 설정 정보
+                if (cls.eventSettings && Object.keys(cls.eventSettings).length > 0) {
+                    data.push(['항목 설정', '']);
+                    Object.keys(PAPS_ITEMS).filter(k => k !== '체지방').forEach(category => {
+                        const item = PAPS_ITEMS[category];
+                        const eventName = cls.eventSettings?.[item.id] || item.options[0];
+                        data.push([category, eventName]);
+                    });
+                    data.push(['', '']); // 빈 줄
+                }
+
+                // 헤더 생성
+                const headers = ['번호', '이름', '성별', '키', '몸무게', 'BMI'];
+                
+                // PAPS 항목 헤더 추가
+                Object.keys(PAPS_ITEMS).forEach(category => {
+                    const item = PAPS_ITEMS[category];
+                    const eventName = cls.eventSettings?.[item.id] || item.options[0];
+                    
+                    if (item.id === 'bodyfat') {
+                        headers.push('BMI');
+                    } else if (eventName === '악력') {
+                        headers.push('악력(왼)', '악력(오)');
+                    } else {
+                        headers.push(eventName);
+                    }
+                });
+
+                // 등급 헤더 추가
+                Object.keys(PAPS_ITEMS).forEach(category => {
+                    const item = PAPS_ITEMS[category];
+                    const eventName = cls.eventSettings?.[item.id] || item.options[0];
+                    
+                    if (item.id === 'bodyfat') {
+                        headers.push('BMI 등급');
+                    } else if (eventName === '악력') {
+                        headers.push('악력(왼) 등급', '악력(오) 등급');
+                    } else {
+                        headers.push(`${eventName} 등급`);
+                    }
+                });
+
+                data.push(headers);
+
+                // 학생 데이터
+                if (cls.students && cls.students.length > 0) {
+                    cls.students.forEach((student) => {
+                        const row: any[] = [
+                            student.number || '',
+                            student.name || '',
+                            student.gender || '',
+                            student.records.height || '',
+                            student.records.weight || '',
+                            student.records.bmi || ''
+                        ];
+
+                        // PAPS 항목 데이터 추가
+                        Object.keys(PAPS_ITEMS).forEach(category => {
+                            const item = PAPS_ITEMS[category];
+                            const eventName = cls.eventSettings?.[item.id] || item.options[0];
+                            
+                            if (item.id === 'bodyfat') {
+                                row.push(student.records.bmi || '');
+                            } else if (eventName === '악력') {
+                                row.push(student.records[`${item.id}_left`] || '', student.records[`${item.id}_right`] || '');
+                            } else {
+                                row.push(student.records[item.id] || '');
+                            }
+                        });
+
+                        // 등급 데이터 추가
+                        Object.keys(PAPS_ITEMS).forEach(category => {
+                            const item = PAPS_ITEMS[category];
+                            const eventName = cls.eventSettings?.[item.id] || item.options[0];
+                            
+                            if (item.id === 'bodyfat') {
+                                row.push(student.records[`${item.id}_grade`] || '');
+                            } else if (eventName === '악력') {
+                                row.push(student.records[`${item.id}_left_grade`] || '', student.records[`${item.id}_right_grade`] || '');
+                            } else {
+                                row.push(student.records[`${item.id}_grade`] || '');
+                            }
+                        });
+
+                        data.push(row);
+                    });
+                } else {
+                    data.push(['학생 데이터가 없습니다.', '', '', '', '', '']);
+                }
+
+                // 시트 생성
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                
+                // 컬럼 너비 설정
+                const colWidths = headers.map(() => ({ wch: 15 }));
+                ws['!cols'] = colWidths;
+
+                // 시트 이름 (반 이름, 최대 31자)
+                const sheetName = cls.name.length > 31 ? cls.name.substring(0, 31) : cls.name;
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            });
+
+            // 파일 저장
+            const fileName = `PAPS_기록_전체_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            showSuccess('모든 반의 PAPS 기록이 엑셀 파일로 내보내졌습니다.');
+        } catch (error) {
+            logError('엑셀 내보내기 오류:', error);
+            showError(new Error('엑셀 파일 내보내기 중 오류가 발생했습니다.'));
         }
     }
 
@@ -1743,8 +1921,206 @@ export class PapsManager {
      * 모든 PAPS 엑셀 업로드를 처리합니다.
      */
     public handleAllPapsExcelUpload(event: Event): void {
-        // 모든 PAPS 엑셀 업로드 로직 구현
-        alert('전체 PAPS 엑셀 업로드 기능은 개발 중입니다.');
+        const input = event.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) {
+            return;
+        }
+
+        const file = input.files[0];
+        if (typeof window === 'undefined' || !(window as any).XLSX) {
+            alert('엑셀 라이브러리가 로드되지 않았습니다.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const XLSX = (window as any).XLSX;
+                const data = new Uint8Array(e.target?.result as ArrayBuffer);
+                const wb = XLSX.read(data, { type: 'array' });
+
+                const importedClasses: PapsClass[] = [];
+
+                // 각 시트를 순회하면서 데이터 파싱
+                wb.SheetNames.forEach((sheetName: string) => {
+                    const ws = wb.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }) as any[][];
+
+                    if (json.length < 5) {
+                        return;
+                    }
+
+                    // 반 정보 파싱
+                    let className = '';
+                    let gradeLevel = '';
+                    
+                    // 첫 번째 행: 반명
+                    if (json[0] && json[0].length >= 2) {
+                        className = String(json[0][1] || sheetName).trim();
+                    } else {
+                        className = sheetName;
+                    }
+                    
+                    // 두 번째 행: 학년
+                    if (json[1] && json[1].length >= 2) {
+                        gradeLevel = String(json[1][1] || '').trim();
+                    }
+
+                    // 이벤트 설정 파싱 (항목 설정 섹션 찾기)
+                    const eventSettings: Record<string, string> = {};
+                    let headerRowIndex = -1;
+                    
+                    // 항목 설정 섹션 찾기
+                    for (let i = 0; i < json.length; i++) {
+                        if (json[i] && json[i][0] === '항목 설정') {
+                            // 항목 설정 섹션에서 이벤트 설정 추출
+                            let j = i + 1;
+                            while (j < json.length && json[j] && json[j][0] && json[j][0] !== '') {
+                                const category = String(json[j][0] || '').trim();
+                                const eventName = String(json[j][1] || '').trim();
+                                
+                                if (category && eventName) {
+                                    // 카테고리 이름으로 ID 찾기
+                                    const categoryKey = Object.keys(PAPS_ITEMS).find(k => k === category);
+                                    if (categoryKey) {
+                                        eventSettings[PAPS_ITEMS[categoryKey].id] = eventName;
+                                    }
+                                }
+                                j++;
+                            }
+                        }
+                        // 헤더 행 찾기 (번호로 시작)
+                        if (json[i] && json[i][0] === '번호') {
+                            headerRowIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (headerRowIndex === -1) {
+                        return;
+                    }
+
+                    // 헤더 행에서 항목 정보 추출
+                    const headers = json[headerRowIndex];
+                    if (!headers || headers.length < 6) {
+                        return;
+                    }
+
+                    // 학생 데이터 파싱
+                    const students: PapsStudent[] = [];
+                    let studentIdCounter = 1;
+
+                    for (let i = headerRowIndex + 1; i < json.length; i++) {
+                        const row = json[i];
+                        if (!row || row.length < 3) continue;
+                        
+                        const number = row[0] ? parseInt(String(row[0]), 10) : studentIdCounter++;
+                        const name = String(row[1] || '').trim();
+                        const gender = (String(row[2] || '').trim() === '여자' || String(row[2] || '').trim() === '여') ? '여자' : '남자';
+                        
+                        if (!name) continue;
+
+                        const records: Record<string, number> = {};
+                        
+                        // 키, 몸무게, BMI
+                        records.height = row[3] ? parseFloat(String(row[3])) : 0;
+                        records.weight = row[4] ? parseFloat(String(row[4])) : 0;
+                        records.bmi = row[5] ? parseFloat(String(row[5])) : 0;
+
+                        // PAPS 항목 데이터 파싱 (헤더를 기반으로)
+                        let colIndex = 6;
+                        Object.keys(PAPS_ITEMS).forEach(category => {
+                            const item = PAPS_ITEMS[category];
+                            const eventName = eventSettings[item.id] || item.options[0];
+                            
+                            if (item.id === 'bodyfat') {
+                                if (colIndex < headers.length) {
+                                    records[item.id] = row[colIndex] ? parseFloat(String(row[colIndex])) : 0;
+                                    colIndex++;
+                                }
+                                // 등급
+                                if (colIndex < headers.length && headers[colIndex] && String(headers[colIndex]).includes('등급')) {
+                                    records[`${item.id}_grade`] = row[colIndex] ? parseFloat(String(row[colIndex])) : 0;
+                                    colIndex++;
+                                }
+                            } else if (eventName === '악력') {
+                                // 왼손
+                                if (colIndex < headers.length) {
+                                    records[`${item.id}_left`] = row[colIndex] ? parseFloat(String(row[colIndex])) : 0;
+                                    colIndex++;
+                                }
+                                // 오른손
+                                if (colIndex < headers.length) {
+                                    records[`${item.id}_right`] = row[colIndex] ? parseFloat(String(row[colIndex])) : 0;
+                                    colIndex++;
+                                }
+                                // 왼손 등급
+                                if (colIndex < headers.length && headers[colIndex] && String(headers[colIndex]).includes('등급')) {
+                                    records[`${item.id}_left_grade`] = row[colIndex] ? parseFloat(String(row[colIndex])) : 0;
+                                    colIndex++;
+                                }
+                                // 오른손 등급
+                                if (colIndex < headers.length && headers[colIndex] && String(headers[colIndex]).includes('등급')) {
+                                    records[`${item.id}_right_grade`] = row[colIndex] ? parseFloat(String(row[colIndex])) : 0;
+                                    colIndex++;
+                                }
+                            } else {
+                                // 일반 항목
+                                if (colIndex < headers.length) {
+                                    records[item.id] = row[colIndex] ? parseFloat(String(row[colIndex])) : 0;
+                                    colIndex++;
+                                }
+                                // 등급
+                                if (colIndex < headers.length && headers[colIndex] && String(headers[colIndex]).includes('등급')) {
+                                    records[`${item.id}_grade`] = row[colIndex] ? parseFloat(String(row[colIndex])) : 0;
+                                    colIndex++;
+                                }
+                            }
+                        });
+
+                        students.push({
+                            id: Date.now() + Math.random() * 1000,
+                            number: number,
+                            name: name,
+                            gender: gender,
+                            records: records
+                        });
+                    }
+
+                    // 반 생성
+                    const classId = Date.now() + Math.random() * 1000;
+                    const papsClass: PapsClass = {
+                        id: classId,
+                        name: className || sheetName,
+                        gradeLevel: gradeLevel || '1학년',
+                        students: students,
+                        eventSettings: Object.keys(eventSettings).length > 0 ? eventSettings : undefined
+                    };
+                    importedClasses.push(papsClass);
+                });
+
+                if (importedClasses.length === 0) {
+                    alert('엑셀 파일에서 데이터를 읽을 수 없습니다.');
+                    return;
+                }
+
+                // 기존 데이터를 가져온 데이터로 교체
+                this.papsData.classes = importedClasses;
+                if (importedClasses.length > 0) {
+                    this.papsData.activeClassId = importedClasses[0].id;
+                }
+
+                this.saveDataToFirestore();
+                this.renderPapsUI();
+                
+                showSuccess(`${importedClasses.length}개 반의 PAPS 기록이 가져와졌습니다.`);
+            } catch (error) {
+                logError('엑셀 가져오기 오류:', error);
+                showError(new Error('엑셀 파일을 읽는 중 오류가 발생했습니다.'));
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
     }
 
     /**
