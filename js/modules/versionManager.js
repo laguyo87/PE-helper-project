@@ -64,7 +64,8 @@ const getLocalStorage = (key) => {
  * 버전 체크 및 캐시 무효화를 수행합니다.
  *
  * 이 함수는 현재 앱 버전과 저장된 버전을 비교하여
- * 새 버전이 감지되면 캐시를 무효화하고 사용자에게 알림을 표시합니다.
+ * 새 버전이 감지되면 캐시를 무효화하고 자동으로 새로고침합니다.
+ * 알림 없이 항상 최신 버전이 로드되도록 보장합니다.
  *
  * @example
  * ```typescript
@@ -73,20 +74,23 @@ const getLocalStorage = (key) => {
  */
 export const checkVersion = () => {
     const storedVersion = getLocalStorage(VERSION_KEY);
+    // 항상 캐시 무효화를 위한 타임스탬프 업데이트 (최신 버전 보장)
+    const timestamp = Date.now().toString();
+    setLocalStorage(CACHE_BUSTER_KEY, timestamp);
     if (storedVersion !== APP_VERSION) {
         console.log(`새 버전 감지: ${APP_VERSION} (이전: ${storedVersion})`);
         // 새 버전 저장
         setLocalStorage(VERSION_KEY, APP_VERSION);
-        // 캐시 무효화를 위한 타임스탬프 추가
-        const timestamp = Date.now().toString();
-        setLocalStorage(CACHE_BUSTER_KEY, timestamp);
         // 버전이 변경되었으면 자동으로 새로고침하여 최신 버전 사용
         // 알림 없이 바로 새로고침하여 항상 최신 버전을 사용하도록 함
         if (storedVersion) {
             console.log('버전이 변경되었습니다. 최신 버전으로 자동 새로고침합니다.');
             // 약간의 지연 후 새로고침 (데이터 저장 완료 대기)
             setTimeout(() => {
-                window.location.reload();
+                // 캐시를 완전히 무시하고 새로고침 (쿼리 파라미터 추가)
+                const url = new URL(window.location.href);
+                url.searchParams.set('_t', timestamp);
+                window.location.href = url.toString();
             }, 100);
         }
     }
@@ -94,98 +98,13 @@ export const checkVersion = () => {
 /**
  * 새 버전 알림을 표시합니다.
  *
- * 사용자에게 새 버전이 출시되었음을 알리고,
- * 새로고침을 유도하는 알림창을 표시합니다.
- *
- * @param options 알림 옵션
- * @example
- * ```typescript
- * showVersionNotification({
- *   newVersion: '2.2.1',
- *   oldVersion: '2.2.0',
- *   autoHideDelay: 15000
- * });
- * ```
+ * @deprecated 이 함수는 더 이상 사용되지 않습니다.
+ * 버전이 변경되면 자동으로 새로고침되므로 알림이 필요 없습니다.
  */
 export const showVersionNotification = (options) => {
-    const { newVersion, autoHideDelay = DEFAULT_AUTO_HIDE_DELAY, position = 'top-right' } = options;
-    // 기존 알림이 있다면 제거
-    const existingNotification = document.querySelector('.version-notification');
-    if (existingNotification) {
-        existingNotification.remove();
-    }
-    // 알림 요소 생성
-    const notification = document.createElement('div');
-    notification.className = 'version-notification';
-    // 위치별 스타일 설정
-    const positionStyles = {
-        'top-right': 'top: 20px; right: 20px;',
-        'top-left': 'top: 20px; left: 20px;',
-        'bottom-right': 'bottom: 20px; right: 20px;',
-        'bottom-left': 'bottom: 20px; left: 20px;'
-    };
-    notification.style.cssText = `
-    position: fixed;
-    ${positionStyles[position]}
-    background: #1565c0;
-    color: white;
-    padding: 16px 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    z-index: 10000;
-    font-family: 'Noto Sans KR', sans-serif;
-    max-width: 300px;
-    animation: slideIn 0.3s ease-out;
-  `;
-    // 알림 내용 HTML 생성
-    notification.innerHTML = `
-    <div style="font-weight: 700; margin-bottom: 8px;">🔄 새 버전 사용 가능</div>
-    <div style="font-size: 14px; margin-bottom: 12px;">
-      v${newVersion}이 출시되었습니다.<br>
-      최신 기능을 사용하려면 새로고침해주세요.
-    </div>
-    <div style="display: flex; gap: 8px;">
-      <button class="notification-btn-later" 
-              style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-        나중에
-      </button>
-      <button class="notification-btn-refresh" 
-              style="background: white; border: none; color: #1565c0; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600;">
-        새로고침
-      </button>
-    </div>
-  `;
-    // CSS 애니메이션 추가 (한 번만)
-    if (!document.querySelector('#version-notification-styles')) {
-        const style = document.createElement('style');
-        style.id = 'version-notification-styles';
-        style.textContent = `
-      @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-    `;
-        document.head.appendChild(style);
-    }
-    // 이벤트 리스너 추가
-    const laterBtn = notification.querySelector('.notification-btn-later');
-    const refreshBtn = notification.querySelector('.notification-btn-refresh');
-    laterBtn?.addEventListener('click', () => {
-        notification.remove();
-    });
-    refreshBtn?.addEventListener('click', () => {
-        window.location.reload();
-    });
-    // DOM에 추가
-    document.body.appendChild(notification);
-    // 자동 사라짐 설정
-    if (autoHideDelay > 0) {
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, autoHideDelay);
-    }
+    // 알림 기능 제거됨 - 버전이 변경되면 자동으로 새로고침됨
+    // 이 함수는 호환성을 위해 남겨두지만 실제로는 아무 작업도 하지 않습니다.
+    console.debug('showVersionNotification 호출됨 (비활성화됨)', options);
 };
 /**
  * 상단바의 버전 표시를 업데이트합니다.

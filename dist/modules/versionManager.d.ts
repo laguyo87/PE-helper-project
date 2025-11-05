@@ -44,7 +44,8 @@ export declare const APP_VERSION: "2.2.1";
  * 버전 체크 및 캐시 무효화를 수행합니다.
  *
  * 이 함수는 현재 앱 버전과 저장된 버전을 비교하여
- * 새 버전이 감지되면 캐시를 무효화하고 사용자에게 알림을 표시합니다.
+ * 새 버전이 감지되면 캐시를 무효화하고 자동으로 새로고침합니다.
+ * 알림 없이 항상 최신 버전이 로드되도록 보장합니다.
  *
  * @example
  * ```typescript
@@ -55,18 +56,8 @@ export declare const checkVersion: () => void;
 /**
  * 새 버전 알림을 표시합니다.
  *
- * 사용자에게 새 버전이 출시되었음을 알리고,
- * 새로고침을 유도하는 알림창을 표시합니다.
- *
- * @param options 알림 옵션
- * @example
- * ```typescript
- * showVersionNotification({
- *   newVersion: '2.2.1',
- *   oldVersion: '2.2.0',
- *   autoHideDelay: 15000
- * });
- * ```
+ * @deprecated 이 함수는 더 이상 사용되지 않습니다.
+ * 버전이 변경되면 자동으로 새로고침되므로 알림이 필요 없습니다.
  */
 export declare const showVersionNotification: (options: VersionNotificationOptions) => void;
 /**

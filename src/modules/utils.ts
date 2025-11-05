@@ -160,11 +160,23 @@ export function cleanupSidebar(selectorFn?: DOMSelector): void {
  */
 export function checkVersion(): void {
   const stored = localStorage.getItem('pe_helper_version');
+  
+  // 항상 캐시 무효화를 위한 타임스탬프 업데이트 (최신 버전 보장)
+  localStorage.setItem('cache_buster', Date.now().toString());
+  
   if (stored !== APP_VERSION) {
     localStorage.setItem('pe_helper_version', APP_VERSION);
-    localStorage.setItem('cache_buster', Date.now().toString());
+    
+    // 버전이 변경되었으면 자동으로 새로고침하여 최신 버전 사용
+    // 알림 없이 바로 새로고침하여 항상 최신 버전을 사용하도록 함
     if (stored) {
-      setTimeout(() => window.location.reload(), 100);
+      setTimeout(() => {
+        // 캐시를 완전히 무시하고 새로고침 (쿼리 파라미터 추가)
+        const timestamp = Date.now().toString();
+        const url = new URL(window.location.href);
+        url.searchParams.set('_t', timestamp);
+        window.location.href = url.toString();
+      }, 100);
     }
   }
 }
