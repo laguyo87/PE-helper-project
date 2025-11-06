@@ -20,6 +20,7 @@ export interface ProgressSession {
     content: string;
     completed: boolean;
     notes: string;
+    marked?: boolean;
 }
 export declare class ProgressManager {
     private $;
@@ -106,6 +107,10 @@ export declare class ProgressManager {
      * 진도표 세션 업데이트
      */
     private updateProgressSession;
+    /**
+     * 차시 강조 표시 토글
+     */
+    private toggleSessionMarked;
     /**
      * 설정 저장 (원본 saveProgressSettings 함수 기반)
      */

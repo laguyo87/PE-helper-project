@@ -557,11 +557,19 @@ export class ProgressManager {
                     // 날짜 파싱 실패 시 빈 문자열
                 }
             }
+            // 강조 표시 여부 확인
+            const isMarked = sessionData?.marked || false;
+            const markedClass = isMarked ? 'marked' : '';
+            const starIcon = isMarked ? '★' : '☆';
             sessionColumns += `
-        <td>
+        <td class="session-cell ${markedClass}">
           <div class="session-content">
             <div class="session-header">
               <span class="session-number">${sessionNumber}차시</span>
+              <button type="button" class="star-button ${markedClass}" 
+                      data-week="${week}" data-session="${session}" 
+                      aria-label="${isMarked ? '강조 표시 해제' : '강조 표시'}"
+                      title="${isMarked ? '강조 표시 해제' : '강조 표시'}">${starIcon}</button>
             </div>
             <div class="date-input-group" style="display: flex; gap: 8px; align-items: center; flex-wrap: nowrap;">
               <input type="date" placeholder="수업 날짜" 
@@ -620,6 +628,15 @@ export class ProgressManager {
                 });
                 // 타겟 요소를 직접 전달하여 정확한 타입 확인
                 this.updateProgressSession(parseInt(target.dataset.week), parseInt(target.dataset.session), target.value, undefined, target);
+            }
+        });
+        // 별표 버튼 클릭 이벤트 (강조 표시 토글)
+        newProgressSheetArea.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target.classList.contains('star-button') && target.dataset.week && target.dataset.session) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.toggleSessionMarked(parseInt(target.dataset.week), parseInt(target.dataset.session));
             }
         });
         logger.debug('[ProgressManager] 진도표 이벤트 리스너 설정 완료');
@@ -756,7 +773,8 @@ export class ProgressManager {
                 period: undefined,
                 content: '',
                 completed: false,
-                notes: ''
+                notes: '',
+                marked: false
             };
             selectedClass.schedule.push(sessionData);
             logger.debug('[ProgressManager] 새로운 세션 데이터 생성', { week, session });
@@ -818,6 +836,48 @@ export class ProgressManager {
         });
         // 저장 실행
         this.saveProgressClasses();
+    }
+    /**
+     * 차시 강조 표시 토글
+     */
+    toggleSessionMarked(week, session) {
+        const selectedClass = this.getProgressSelected();
+        if (!selectedClass) {
+            logger.warn('[ProgressManager] toggleSessionMarked: 선택된 반이 없음');
+            return;
+        }
+        if (!selectedClass.schedule) {
+            selectedClass.schedule = [];
+        }
+        let sessionData = selectedClass.schedule.find(s => s.weekNumber === week && s.sessionNumber === session);
+        if (!sessionData) {
+            sessionData = {
+                weekNumber: week,
+                sessionNumber: session,
+                date: '',
+                period: undefined,
+                content: '',
+                completed: false,
+                notes: '',
+                marked: true
+            };
+            selectedClass.schedule.push(sessionData);
+        }
+        else {
+            // marked 상태 토글
+            sessionData.marked = !sessionData.marked;
+        }
+        selectedClass.updatedAt = Date.now();
+        logger.debug('[ProgressManager] 강조 표시 토글', {
+            className: selectedClass.name,
+            week,
+            session,
+            marked: sessionData.marked
+        });
+        // 저장 실행
+        this.saveProgressClasses();
+        // 화면 다시 렌더링
+        this.renderProgressSheet(selectedClass);
     }
     /**
      * 설정 저장 (원본 saveProgressSettings 함수 기반)

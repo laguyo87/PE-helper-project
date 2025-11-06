@@ -2950,6 +2950,10 @@ div[style*="position: absolute"][style*="z-index"] {
 /* 차시 번호 표시 스타일 */
 .session-header {
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .session-number {
@@ -2960,6 +2964,40 @@ div[style*="position: absolute"][style*="z-index"] {
   padding: 4px 8px;
   border-radius: 4px;
   display: inline-block;
+}
+
+.star-button {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--ink-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: color 0.2s, transform 0.1s;
+  flex-shrink: 0;
+}
+
+.star-button:hover {
+  color: var(--accent);
+  transform: scale(1.1);
+}
+
+.star-button.marked {
+  color: #ffc107;
+}
+
+.star-button.marked:hover {
+  color: #ffb300;
+}
+
+.session-cell.marked {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-left: 3px solid #ffc107;
+}
+
+.session-cell.marked .session-content {
+  position: relative;
 }
 
 /* PAPS 빈 상태 스타일 */
