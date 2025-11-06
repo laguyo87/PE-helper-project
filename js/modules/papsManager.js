@@ -458,7 +458,7 @@ export class PapsManager {
                         </div>
                     </div>
                     <div class="ranking-chart-container">
-                        <canvas id="ranking-distribution-chart" width="500" height="500"></canvas>
+                        <canvas id="ranking-distribution-chart" width="800" height="600"></canvas>
                     </div>
                 </div>
             </div>
@@ -2141,8 +2141,8 @@ export class PapsManager {
         if (!ctx)
             return;
         // 캔버스 크기 설정
-        canvas.width = 500;
-        canvas.height = 500;
+        canvas.width = 800;
+        canvas.height = 600;
         // 배경 그리기
         ctx.fillStyle = '#f8f9fa';
         ctx.fillRect(0, 0, canvas.width, canvas.height);

@@ -2882,6 +2882,7 @@ div[style*="position: absolute"][style*="z-index"] {
   border-radius: 8px;
   padding: 16px;
   margin-top: 20px;
+  overflow: auto;
 }
 
 #ranking-distribution-chart {
