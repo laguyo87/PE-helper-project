@@ -116,6 +116,9 @@ export class PapsManager {
     // 실시간 업데이트 관련 속성
     private currentRankingData: { event: string; grade: string; gender: string; studentName: string } | null;
     private updateInterval: NodeJS.Timeout | null;
+    private currentRankingPage: number;
+    private selectedStudentForChart: string | null = null; // 그래프에서 선택된 학생
+    private currentRankingRecords: {record: number, name: string}[] | null = null; // 현재 랭킹 데이터 저장
 
     constructor(
         papsData: PapsData,
@@ -131,6 +134,7 @@ export class PapsManager {
         // 실시간 업데이트 관련 속성
         this.currentRankingData = null;
         this.updateInterval = null;
+        this.currentRankingPage = 1;
     }
 
     /**
@@ -492,6 +496,9 @@ export class PapsManager {
                                 <button id="prev-page" class="btn btn-sm" style="display: none;">이전</button>
                                 <span id="page-info" style="font-size: 14px; color: #666;"></span>
                                 <button id="next-page" class="btn btn-sm" style="display: none;">다음</button>
+                                <button id="print-ranking-btn" class="btn btn-sm" style="background-color: #007bff; color: white;">
+                                    🖨️ 인쇄
+                                </button>
                                 <div class="dropdown" style="margin-left: 8px;">
                                     <button id="share-btn" class="btn btn-sm" style="background-color: #28a745; color: white;">
                                         📤 공유
@@ -1280,7 +1287,9 @@ export class PapsManager {
         
         // 개인 기록이 있는 경우 순위와 상위% 계산
         if (personalRecord !== null) {
-            const rank = records.findIndex(record => record === personalRecord) + 1;
+            // 순위 계산을 위해 정렬된 배열 생성
+            const sortedRecords = recordsWithNames.sort((a, b) => b.record - a.record);
+            const rank = this.findRankForRecord(sortedRecords, personalRecord);
             // 상위% 계산: 작은 숫자가 좋은 경우 (낮은 순위가 좋음)
             const percentile = ((records.length - rank + 1) / records.length * 100).toFixed(1);
             
@@ -1290,6 +1299,10 @@ export class PapsManager {
         } else {
             (this.$('#personal-rank-card') as HTMLElement).style.display = 'none';
         }
+        
+        // 현재 랭킹 데이터 저장
+        this.currentRankingRecords = recordsWithNames;
+        this.selectedStudentForChart = null; // 초기화
         
         // 순위 테이블 생성
         this.renderRankingTable(recordsWithNames, studentName);
@@ -1302,18 +1315,64 @@ export class PapsManager {
     }
     
     /**
-     * 순위 테이블을 렌더링합니다.
+     * 같은 기록을 가진 경우 동일한 순위를 부여합니다.
+     * @param sortedRecords 정렬된 기록 배열 (내림차순)
+     * @returns 각 항목의 순위를 포함한 배열
      */
-    private renderRankingTable(recordsWithNames: {record: number, name: string}[], studentName: string): void {
+    private calculateRanks(sortedRecords: {record: number, name: string}[]): number[] {
+        const ranks: number[] = [];
+        
+        for (let i = 0; i < sortedRecords.length; i++) {
+            // 첫 번째 항목이거나 이전 기록과 다른 경우 새로운 순위 시작
+            if (i === 0 || sortedRecords[i].record !== sortedRecords[i - 1].record) {
+                // 현재 위치가 순위 (1부터 시작)
+                ranks.push(i + 1);
+            } else {
+                // 이전 기록과 같은 경우 이전 순위와 동일
+                ranks.push(ranks[i - 1]);
+            }
+        }
+        
+        return ranks;
+    }
+
+    /**
+     * 특정 기록의 순위를 찾습니다.
+     * @param sortedRecords 정렬된 기록 배열 (내림차순)
+     * @param targetRecord 찾을 기록
+     * @returns 순위 (1부터 시작)
+     */
+    private findRankForRecord(sortedRecords: {record: number, name: string}[], targetRecord: number): number {
+        const ranks = this.calculateRanks(sortedRecords);
+        const index = sortedRecords.findIndex(item => item.record === targetRecord);
+        return index >= 0 ? ranks[index] : 0;
+    }
+
+    /**
+     * 순위 테이블을 렌더링합니다.
+     * @param recordsWithNames 기록과 이름 배열
+     * @param studentName 학생 이름 (선택사항)
+     * @param resetPage 페이지를 1로 초기화할지 여부 (기본값: true)
+     */
+    private renderRankingTable(recordsWithNames: {record: number, name: string}[], studentName: string, resetPage: boolean = true): void {
         // 기록을 내림차순으로 정렬
         const sortedRecords = recordsWithNames.sort((a, b) => b.record - a.record);
+        // 순위 계산
+        const ranks = this.calculateRanks(sortedRecords);
         
         // 페이지네이션 설정
         const itemsPerPage = 10;
         const totalPages = Math.ceil(sortedRecords.length / itemsPerPage);
         
-        // 현재 페이지를 1로 초기화
-        let currentPage = 1;
+        // 현재 페이지 초기화 (새로운 랭킹 조회 시만)
+        if (resetPage) {
+            this.currentRankingPage = 1;
+        }
+        
+        // 현재 페이지가 총 페이지 수를 초과하는 경우 조정
+        if (this.currentRankingPage > totalPages && totalPages > 0) {
+            this.currentRankingPage = totalPages;
+        }
         
         // 테이블 렌더링 함수
         const renderTable = (page: number) => {
@@ -1329,7 +1388,8 @@ export class PapsManager {
             
             // DOM API를 사용하여 직접 행 생성
             pageRecords.forEach((item, index) => {
-                const rank = startIndex + index + 1;
+                const globalIndex = startIndex + index;
+                const rank = ranks[globalIndex];
                 const isPersonalRecord = studentName && item.name === studentName;
                 
                 const tr = document.createElement('tr');
@@ -1346,11 +1406,24 @@ export class PapsManager {
                 tdRank.textContent = String(rank);
                 tr.appendChild(tdRank);
                 
-                // 이름 셀
+                // 이름 셀 (클릭 가능)
                 const tdName = document.createElement('td');
                 tdName.style.textAlign = 'center';
                 tdName.style.fontWeight = '500';
+                tdName.style.cursor = 'pointer';
+                tdName.style.color = this.selectedStudentForChart === item.name ? '#dc3545' : 'inherit';
+                tdName.style.textDecoration = 'underline';
                 tdName.textContent = item.name || '';
+                tdName.addEventListener('click', () => {
+                    // 선택된 학생 변경
+                    this.selectedStudentForChart = this.selectedStudentForChart === item.name ? null : item.name;
+                    // 그래프 다시 그리기
+                    if (this.currentRankingRecords) {
+                        this.drawStandardDeviationChart(this.currentRankingRecords, studentName);
+                    }
+                    // 테이블 다시 렌더링 (색상 업데이트)
+                    renderTable(page);
+                });
                 tr.appendChild(tdName);
                 
                 // 기록 셀
@@ -1399,19 +1472,27 @@ export class PapsManager {
         
         if (prevBtn) {
             prevBtn.onclick = () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    renderTable(currentPage);
+                if (this.currentRankingPage > 1) {
+                    this.currentRankingPage--;
+                    renderTable(this.currentRankingPage);
                 }
             };
         }
         
         if (nextBtn) {
             nextBtn.onclick = () => {
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    renderTable(currentPage);
+                if (this.currentRankingPage < totalPages) {
+                    this.currentRankingPage++;
+                    renderTable(this.currentRankingPage);
                 }
+            };
+        }
+        
+        // 인쇄 버튼 이벤트 리스너 설정
+        const printBtn = this.$('#print-ranking-btn') as HTMLButtonElement;
+        if (printBtn) {
+            printBtn.onclick = () => {
+                this.printRankingTable(sortedRecords, studentName);
             };
         }
         
@@ -1423,7 +1504,7 @@ export class PapsManager {
         
         
         // 초기 테이블 렌더링
-        renderTable(currentPage);
+        renderTable(this.currentRankingPage);
     }
 
 
@@ -1582,11 +1663,153 @@ export class PapsManager {
     }
 
     /**
+     * 순위표를 인쇄합니다.
+     */
+    private printRankingTable(sortedRecords: {record: number, name: string}[], studentName: string): void {
+        // 순위 계산
+        const ranks = this.calculateRanks(sortedRecords);
+        
+        // 인쇄용 임시 컨테이너 생성
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('팝업이 차단되어 인쇄할 수 없습니다. 브라우저 설정에서 팝업을 허용해주세요.');
+            return;
+        }
+        
+        const avgRecordDisplay = this.$('#avg-record-display') as HTMLElement;
+        const avgText = avgRecordDisplay ? avgRecordDisplay.textContent : '평균 기록: -';
+        
+        // 인쇄용 HTML 생성
+        let html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>PAPS 순위표</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        .avg-record {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+        th {
+            background-color: #f8f9fa;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+            font-weight: bold;
+        }
+        td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .personal-record {
+            background-color: #fff3cd !important;
+            font-weight: bold;
+        }
+        .rank {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .record {
+            font-weight: bold;
+            color: #28a745;
+        }
+        .percent {
+            font-weight: bold;
+            color: #6f42c1;
+        }
+        @media print {
+            body {
+                margin: 0;
+            }
+            @page {
+                margin: 1cm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🏆 PAPS 순위표</h1>
+    <div class="avg-record">${avgText}</div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 80px;">순위</th>
+                <th style="width: 200px;">이름</th>
+                <th style="width: 120px;">기록</th>
+                <th style="width: 100px;">상위%</th>
+            </tr>
+        </thead>
+        <tbody>
+`;
+        
+        sortedRecords.forEach((item, index) => {
+            const rank = ranks[index];
+            const percentile = ((rank - 1) / sortedRecords.length * 100).toFixed(1);
+            const isPersonalRecord = studentName && item.name === studentName;
+            const rowClass = isPersonalRecord ? 'personal-record' : '';
+            
+            html += `
+            <tr class="${rowClass}">
+                <td class="rank">${rank}위</td>
+                <td>${item.name || ''}</td>
+                <td class="record">${item.record}</td>
+                <td class="percent">${percentile}%</td>
+            </tr>
+`;
+        });
+        
+        html += `
+        </tbody>
+    </table>
+    <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #666;">
+        인쇄일시: ${new Date().toLocaleString('ko-KR')}
+    </div>
+</body>
+</html>
+`;
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+        
+        // 인쇄 대화상자 표시
+        setTimeout(() => {
+            printWindow.print();
+            // 인쇄 후 창 닫기 (선택사항)
+            // printWindow.close();
+        }, 250);
+    }
+
+    /**
      * 순위표를 텍스트로 복사합니다.
      */
     private copyRankingAsText(sortedRecords: {record: number, name: string}[], studentName: string): void {
         const avgRecordDisplay = this.$('#avg-record-display') as HTMLElement;
         const avgText = avgRecordDisplay ? avgRecordDisplay.textContent : '평균 기록: -';
+        
+        // 순위 계산
+        const ranks = this.calculateRanks(sortedRecords);
         
         let text = `🏆 PAPS 순위표\n`;
         text += `${avgText}\n\n`;
@@ -1594,7 +1817,7 @@ export class PapsManager {
         text += `-----|------|------|------\n`;
         
         sortedRecords.forEach((item, index) => {
-            const rank = index + 1;
+            const rank = ranks[index];
             const percentile = ((rank - 1) / sortedRecords.length * 100).toFixed(1);
             const highlight = studentName && item.name === studentName ? '⭐ ' : '';
             text += `${highlight}${rank}위 | ${item.name} | ${item.record} | ${percentile}%\n`;
@@ -2132,7 +2355,7 @@ export class PapsManager {
         chartsContainer.innerHTML = '<p>차트 기능은 개발 중입니다.</p>';
     }
     /**
-     * 이해하기 쉬운 기록 분포 그래프를 그립니다.
+     * 정규 분포 곡선과 표준편차를 표시하는 그래프를 그립니다.
      */
     private drawStandardDeviationChart(sortedRecords: {record: number, name: string}[], studentName: string): void {
         const canvas = this.$('#ranking-distribution-chart') as HTMLCanvasElement;
@@ -2165,32 +2388,26 @@ export class PapsManager {
 
         // 통계 계산
         const mean = records.reduce((sum, record) => sum + record, 0) / records.length;
+        const variance = records.reduce((sum, record) => sum + Math.pow(record - mean, 2), 0) / records.length;
+        const stdDev = Math.sqrt(variance);
         const minRecord = Math.min(...records);
         const maxRecord = Math.max(...records);
         const recordRange = maxRecord - minRecord;
         
-        // 기록 구간 설정 (실제 기록 값으로)
-        const numBins = Math.min(10, Math.max(5, Math.ceil(recordRange / 5))); // 5-10개 구간
-        const binSize = recordRange / numBins;
+        // 정규 분포 함수 (확률 밀도 함수)
+        const normalPDF = (x: number, mu: number, sigma: number): number => {
+            const coefficient = 1 / (sigma * Math.sqrt(2 * Math.PI));
+            const exponent = -0.5 * Math.pow((x - mu) / sigma, 2);
+            return coefficient * Math.exp(exponent);
+        };
         
-        // 각 구간별 빈도 계산
-        const bins = new Array(numBins).fill(0);
-        const binLabels = [];
+        // 그래프 범위 설정 (평균 ± 4σ 또는 min/max 중 더 넓은 범위)
+        const graphMin = Math.min(minRecord, mean - 4 * stdDev);
+        const graphMax = Math.max(maxRecord, mean + 4 * stdDev);
+        const graphRange = graphMax - graphMin;
         
-        for (let i = 0; i < numBins; i++) {
-            const binStart = minRecord + (i * binSize);
-            const binEnd = minRecord + ((i + 1) * binSize);
-            binLabels.push(`${binStart.toFixed(0)}-${binEnd.toFixed(0)}`);
-        }
-        
-        records.forEach(record => {
-            const binIndex = Math.min(Math.floor((record - minRecord) / binSize), numBins - 1);
-            if (binIndex >= 0 && binIndex < numBins) {
-                bins[binIndex]++;
-            }
-        });
-        
-        const maxFrequency = Math.max(...bins);
+        // 정규 분포 곡선의 최대값 계산 (평균에서의 PDF 값)
+        const maxPDF = normalPDF(mean, mean, stdDev);
         
         // 그리드 라인 그리기
         ctx.strokeStyle = '#e9ecef';
@@ -2205,155 +2422,153 @@ export class PapsManager {
             ctx.stroke();
         }
         
-        // 수직 그리드 라인
-        for (let i = 0; i <= numBins; i++) {
-            const x = margin.left + (chartWidth / numBins) * i;
+        // 표준편차 구간 표시 (배경색)
+        const sigmaColors = [
+            { range: 1, color: 'rgba(255, 235, 59, 0.2)' },   // ±1σ
+            { range: 2, color: 'rgba(255, 152, 0, 0.15)' },   // ±2σ
+            { range: 3, color: 'rgba(255, 87, 34, 0.1)' }     // ±3σ
+        ];
+        
+        for (const { range, color } of sigmaColors) {
+            const leftX = margin.left + ((mean - range * stdDev - graphMin) / graphRange) * chartWidth;
+            const rightX = margin.left + ((mean + range * stdDev - graphMin) / graphRange) * chartWidth;
+            const width = rightX - leftX;
+            
+            ctx.fillStyle = color;
+            ctx.fillRect(leftX, margin.top, width, chartHeight);
+        }
+        
+        // 표준편차 구간 수직선 표시
+        ctx.strokeStyle = '#dee2e6';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        for (let sigma = -3; sigma <= 3; sigma++) {
+            if (sigma === 0) continue; // 평균선은 나중에 따로 그리기
+            const x = margin.left + ((mean + sigma * stdDev - graphMin) / graphRange) * chartWidth;
             ctx.beginPath();
             ctx.moveTo(x, margin.top);
             ctx.lineTo(x, margin.top + chartHeight);
             ctx.stroke();
         }
+        ctx.setLineDash([]);
         
-        // 버블 그래프 그리기
-        const baseBubbleRadius = 8;
-        const maxBubbleRadius = 20;
-        const bubbleSpacing = 25;
-        const barWidth = chartWidth / numBins;
+        // 정규 분포 곡선 그리기
+        const numPoints = 200;
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
         
-        bins.forEach((frequency, index) => {
-            if (frequency > 0) {
-                const binCenterX = margin.left + index * barWidth + barWidth / 2;
-                
-                // 빈도에 따른 버블 크기 계산 (최소 1명, 최대 빈도에 따라)
-                const bubbleSize = Math.min(maxBubbleRadius, baseBubbleRadius + (frequency - 1) * 3);
-                
-                // 각 빈도만큼 버블을 세로로 배치
-                for (let i = 0; i < frequency; i++) {
-                    const bubbleY = margin.top + chartHeight - (i * bubbleSpacing) - bubbleSize;
-                    
-                    // 버블 그리기 (그라데이션 효과)
-                    const gradient = ctx.createRadialGradient(
-                        binCenterX, bubbleY, 0, 
-                        binCenterX, bubbleY, bubbleSize
-                    );
-                    gradient.addColorStop(0, '#007bff');
-                    gradient.addColorStop(0.7, '#0056b3');
-                    gradient.addColorStop(1, '#003d82');
-                    
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(binCenterX, bubbleY, bubbleSize, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // 버블 테두리 (그림자 효과)
-                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    
-                    // 버블 하이라이트 (상단에 밝은 부분)
-                    const highlightGradient = ctx.createRadialGradient(
-                        binCenterX - bubbleSize/3, bubbleY - bubbleSize/3, 0,
-                        binCenterX - bubbleSize/3, bubbleY - bubbleSize/3, bubbleSize/2
-                    );
-                    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
-                    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                    
-                    ctx.fillStyle = highlightGradient;
-                    ctx.beginPath();
-                    ctx.arc(binCenterX - bubbleSize/3, bubbleY - bubbleSize/3, bubbleSize/2, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // 빈도가 적을 때만 텍스트 표시
-                    if (frequency <= 2 && bubbleSize >= 12) {
-                        ctx.fillStyle = '#ffffff';
-                        ctx.font = 'bold 10px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.fillText(frequency.toString(), binCenterX, bubbleY + 3);
-                    }
-                }
+        for (let i = 0; i <= numPoints; i++) {
+            const x = graphMin + (graphRange * i) / numPoints;
+            const pdfValue = normalPDF(x, mean, stdDev);
+            const normalizedValue = pdfValue / maxPDF; // 0~1로 정규화
+            
+            const chartX = margin.left + ((x - graphMin) / graphRange) * chartWidth;
+            const chartY = margin.top + chartHeight - (normalizedValue * chartHeight);
+            
+            if (i === 0) {
+                ctx.moveTo(chartX, chartY);
+            } else {
+                ctx.lineTo(chartX, chartY);
             }
-        });
+        }
+        ctx.stroke();
         
-        // 평균선 그리기 (수평선)
-        const avgY = margin.top + chartHeight - ((mean - minRecord) / recordRange) * chartHeight;
+        // 정규 분포 곡선 아래 영역 채우기
+        ctx.fillStyle = 'rgba(0, 123, 255, 0.1)';
+        ctx.lineTo(margin.left + chartWidth, margin.top + chartHeight);
+        ctx.lineTo(margin.left, margin.top + chartHeight);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 평균선 그리기 (수직선)
+        const meanX = margin.left + ((mean - graphMin) / graphRange) * chartWidth;
         ctx.strokeStyle = '#ff6b6b';
         ctx.lineWidth = 3;
         ctx.setLineDash([8, 4]);
         ctx.beginPath();
-        ctx.moveTo(margin.left, avgY);
-        ctx.lineTo(margin.left + chartWidth, avgY);
+        ctx.moveTo(meanX, margin.top);
+        ctx.lineTo(meanX, margin.top + chartHeight);
         ctx.stroke();
         ctx.setLineDash([]);
         
-        // 개인 기록 표시 (버블 그래프에 맞게)
-        if (studentName) {
+        // 선택된 학생 기록 표시 (빨간색 점)
+        if (this.selectedStudentForChart) {
+            const selectedRecord = sortedRecords.find(item => item.name === this.selectedStudentForChart)?.record;
+            if (selectedRecord !== undefined && selectedRecord >= graphMin && selectedRecord <= graphMax) {
+                const selectedX = margin.left + ((selectedRecord - graphMin) / graphRange) * chartWidth;
+                const selectedPDF = normalPDF(selectedRecord, mean, stdDev);
+                const selectedNormalized = selectedPDF / maxPDF;
+                const selectedY = margin.top + chartHeight - (selectedNormalized * chartHeight);
+                
+                // 수직 점선 (위에서 아래로)
+                ctx.strokeStyle = '#dc3545';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(selectedX, margin.top);
+                ctx.lineTo(selectedX, selectedY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // 빨간색 점
+                ctx.fillStyle = '#dc3545';
+                ctx.beginPath();
+                ctx.arc(selectedX, selectedY, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 점 테두리
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // 기록 값 표시
+                ctx.fillStyle = '#dc3545';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${selectedRecord}`, selectedX, selectedY - 15);
+                
+                // 학생 이름 표시
+                ctx.font = 'bold 12px Arial';
+                ctx.fillText(this.selectedStudentForChart, selectedX, selectedY - 35);
+            }
+        }
+        
+        // 개인 기록 표시 (검색한 학생이 있는 경우)
+        if (studentName && !this.selectedStudentForChart) {
             const personalRecord = sortedRecords.find(item => item.name === studentName)?.record;
-            if (personalRecord !== undefined) {
-                // 개인 기록이 속한 구간 찾기
-                const binIndex = Math.floor((personalRecord - minRecord) / binSize);
-                if (binIndex >= 0 && binIndex < numBins) {
-                    const binCenterX = margin.left + binIndex * barWidth + barWidth / 2;
-                    
-                    // 해당 구간의 버블들 중에서 개인 기록 위치 찾기
-                    const binRecords = sortedRecords.filter(item => {
-                        const itemBinIndex = Math.floor((item.record - minRecord) / binSize);
-                        return itemBinIndex === binIndex;
-                    }).sort((a, b) => b.record - a.record);
-                    
-                    const personalIndex = binRecords.findIndex(item => item.name === studentName);
-                    if (personalIndex >= 0) {
-                        const personalBubbleSize = Math.min(maxBubbleRadius, baseBubbleRadius + (binRecords.length - 1) * 3);
-                        const bubbleY = margin.top + chartHeight - (personalIndex * bubbleSpacing) - personalBubbleSize;
-                        
-                        // 개인 기록 점선 (수직)
-                        ctx.strokeStyle = '#dc3545';
-                        ctx.lineWidth = 3;
-                        ctx.setLineDash([5, 5]);
-                        ctx.beginPath();
-                        ctx.moveTo(binCenterX, margin.top);
-                        ctx.lineTo(binCenterX, margin.top + chartHeight);
-                        ctx.stroke();
-                        ctx.setLineDash([]);
-                        
-                        // 개인 기록 버블 (더 크고 빨간색으로 강조)
-                        const personalGradient = ctx.createRadialGradient(
-                            binCenterX, bubbleY, 0, 
-                            binCenterX, bubbleY, personalBubbleSize + 5
-                        );
-                        personalGradient.addColorStop(0, '#dc3545');
-                        personalGradient.addColorStop(0.7, '#c82333');
-                        personalGradient.addColorStop(1, '#a71e2a');
-                        
-                        ctx.fillStyle = personalGradient;
-                        ctx.beginPath();
-                        ctx.arc(binCenterX, bubbleY, personalBubbleSize + 5, 0, Math.PI * 2);
-                        ctx.fill();
-                        
-                        // 개인 기록 버블 테두리 (더 두껍게)
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 4;
-                        ctx.stroke();
-                        
-                        // 개인 기록 버블 하이라이트
-                        const personalHighlight = ctx.createRadialGradient(
-                            binCenterX - personalBubbleSize/3, bubbleY - personalBubbleSize/3, 0,
-                            binCenterX - personalBubbleSize/3, bubbleY - personalBubbleSize/3, personalBubbleSize/2
-                        );
-                        personalHighlight.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-                        personalHighlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                        
-                        ctx.fillStyle = personalHighlight;
-                        ctx.beginPath();
-                        ctx.arc(binCenterX - personalBubbleSize/3, bubbleY - personalBubbleSize/3, personalBubbleSize/2, 0, Math.PI * 2);
-                        ctx.fill();
-                        
-                        // 개인 기록 값 표시 (버블 위쪽에)
-                        ctx.fillStyle = '#dc3545';
-                        ctx.font = 'bold 14px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.fillText(`${personalRecord}`, binCenterX, bubbleY - personalBubbleSize - 20);
-                    }
-                }
+            if (personalRecord !== undefined && personalRecord >= graphMin && personalRecord <= graphMax) {
+                const personalX = margin.left + ((personalRecord - graphMin) / graphRange) * chartWidth;
+                const personalPDF = normalPDF(personalRecord, mean, stdDev);
+                const personalNormalized = personalPDF / maxPDF;
+                const personalY = margin.top + chartHeight - (personalNormalized * chartHeight);
+                
+                // 수직 점선
+                ctx.strokeStyle = '#dc3545';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(personalX, margin.top);
+                ctx.lineTo(personalX, personalY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // 빨간색 점
+                ctx.fillStyle = '#dc3545';
+                ctx.beginPath();
+                ctx.arc(personalX, personalY, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 점 테두리
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // 기록 값 표시
+                ctx.fillStyle = '#dc3545';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${personalRecord}`, personalX, personalY - 15);
             }
         }
         
@@ -2366,115 +2581,141 @@ export class PapsManager {
         ctx.lineTo(margin.left + chartWidth, margin.top + chartHeight);
         ctx.stroke();
         
-        // Y축 레이블 (빈도)
+        // Y축 레이블 (확률 밀도 - 정규화된 값)
         ctx.fillStyle = '#495057';
-        ctx.font = 'bold 13px Arial';
+        ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'right';
         for (let i = 0; i <= 5; i++) {
-            const value = Math.round((maxFrequency * i) / 5);
-            const y = margin.top + chartHeight - (chartHeight * i / 5);
-            ctx.fillText(value.toString(), margin.left - 20, y + 5);
+            const normalizedValue = i / 5; // 0~1
+            const pdfValue = normalizedValue * maxPDF;
+            const y = margin.top + chartHeight - (normalizedValue * chartHeight);
+            ctx.fillText(pdfValue.toFixed(3), margin.left - 20, y + 5);
         }
         
-        // X축 레이블 (기록 구간)
+        // X축 레이블 (기록 값)
         ctx.textAlign = 'center';
         ctx.font = '11px Arial';
-        for (let i = 0; i < numBins; i++) {
-            const x = margin.left + (i + 0.5) * barWidth;
-            ctx.fillText(binLabels[i], x, margin.top + chartHeight + 20);
+        const numXTicks = 8;
+        for (let i = 0; i <= numXTicks; i++) {
+            const value = graphMin + (graphRange * i) / numXTicks;
+            const x = margin.left + ((value - graphMin) / graphRange) * chartWidth;
+            
+            // 표준편차 구간 표시
+            const sigmaValue = (value - mean) / stdDev;
+            let label = value.toFixed(1);
+            if (Math.abs(sigmaValue) < 0.1) {
+                label = `μ (${value.toFixed(1)})`;
+            } else if (Math.abs(Math.abs(sigmaValue) - 1) < 0.1) {
+                label = `μ${sigmaValue > 0 ? '+' : ''}σ (${value.toFixed(1)})`;
+            } else if (Math.abs(Math.abs(sigmaValue) - 2) < 0.1) {
+                label = `μ${sigmaValue > 0 ? '+' : ''}2σ (${value.toFixed(1)})`;
+            } else if (Math.abs(Math.abs(sigmaValue) - 3) < 0.1) {
+                label = `μ${sigmaValue > 0 ? '+' : ''}3σ (${value.toFixed(1)})`;
+            }
+            
+            ctx.fillText(label, x, margin.top + chartHeight + 20);
         }
         
         // 제목
         ctx.fillStyle = '#212529';
         ctx.font = 'bold 18px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('기록 분포 그래프', canvas.width / 2, 30);
+        ctx.fillText('정규 분포 그래프 (표준편차)', canvas.width / 2, 30);
         
         // 축 제목
         ctx.font = 'bold 14px Arial';
         ctx.save();
         ctx.translate(25, canvas.height / 2);
         ctx.rotate(-Math.PI / 2);
-        ctx.fillText('학생 수', 0, 0);
+        ctx.fillText('확률 밀도', 0, 0);
         ctx.restore();
         
         ctx.textAlign = 'center';
-        ctx.fillText('기록 범위', canvas.width / 2, canvas.height - 20);
+        ctx.fillText('기록 값', canvas.width / 2, canvas.height - 20);
         
-        // 통계 정보 표시 (오른쪽 상단으로 이동)
+        // 통계 정보 표시 (오른쪽 상단)
         ctx.fillStyle = '#495057';
         ctx.font = 'bold 13px Arial';
         ctx.textAlign = 'right';
-        ctx.fillText(`평균 기록: ${mean.toFixed(1)}`, margin.left + chartWidth - 10, margin.top - 25);
-        ctx.fillText(`최고 기록: ${maxRecord}`, margin.left + chartWidth - 10, margin.top - 10);
-        ctx.fillText(`최저 기록: ${minRecord}`, margin.left + chartWidth - 10, margin.top + 5);
+        ctx.fillText(`평균(μ): ${mean.toFixed(1)}`, margin.left + chartWidth - 10, margin.top - 25);
+        ctx.fillText(`표준편차(σ): ${stdDev.toFixed(2)}`, margin.left + chartWidth - 10, margin.top - 10);
+        ctx.fillText(`최고: ${maxRecord}`, margin.left + chartWidth - 10, margin.top + 5);
+        ctx.fillText(`최저: ${minRecord}`, margin.left + chartWidth - 10, margin.top + 20);
         
-        // 범례 (왼쪽 상단으로 이동)
+        // 범례 (왼쪽 상단)
         const legendY = margin.top + 20;
         const legendX = margin.left + 10;
+        const legendHeight = this.selectedStudentForChart ? 100 : 85;
         
         // 범례 배경
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        ctx.fillRect(legendX, legendY, 130, 70);
+        ctx.fillRect(legendX, legendY, 150, legendHeight);
         ctx.strokeStyle = '#dee2e6';
         ctx.lineWidth = 1;
-        ctx.strokeRect(legendX, legendY, 130, 70);
+        ctx.strokeRect(legendX, legendY, 150, legendHeight);
         
         // 범례 항목들
         ctx.font = '11px Arial';
         ctx.textAlign = 'left';
+        let legendItemY = legendY + 15;
+        
+        // 정규 분포 곡선 범례
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(legendX + 10, legendItemY);
+        ctx.lineTo(legendX + 25, legendItemY);
+        ctx.stroke();
+        ctx.fillStyle = '#495057';
+        ctx.fillText('정규 분포 곡선', legendX + 30, legendItemY + 4);
+        
+        legendItemY += 20;
         
         // 평균선 범례
         ctx.strokeStyle = '#ff6b6b';
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 2]);
         ctx.beginPath();
-        ctx.moveTo(legendX + 10, legendY + 15);
-        ctx.lineTo(legendX + 25, legendY + 15);
+        ctx.moveTo(legendX + 10, legendItemY);
+        ctx.lineTo(legendX + 25, legendItemY);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = '#495057';
-        ctx.fillText('평균 기록', legendX + 30, legendY + 20);
+        ctx.fillText('평균(μ)', legendX + 30, legendItemY + 4);
         
-        // 개인 기록 범례
-        if (studentName) {
+        legendItemY += 20;
+        
+        // 표준편차 구간 범례
+        ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
+        ctx.fillRect(legendX + 10, legendItemY - 5, 15, 10);
+        ctx.fillStyle = '#495057';
+        ctx.fillText('±1σ, ±2σ, ±3σ 구간', legendX + 30, legendItemY + 4);
+        
+        legendItemY += 20;
+        
+        // 선택된 학생 범례
+        if (this.selectedStudentForChart) {
             ctx.fillStyle = '#dc3545';
             ctx.beginPath();
-            ctx.arc(legendX + 17, legendY + 35, 4, 0, Math.PI * 2);
+            ctx.arc(legendX + 17, legendItemY, 4, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 2;
             ctx.stroke();
             ctx.fillStyle = '#495057';
-            ctx.fillText('나의 기록', legendX + 30, legendY + 40);
+            ctx.fillText(`선택: ${this.selectedStudentForChart}`, legendX + 30, legendItemY + 4);
+        } else if (studentName) {
+            // 개인 기록 범례
+            ctx.fillStyle = '#dc3545';
+            ctx.beginPath();
+            ctx.arc(legendX + 17, legendItemY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#495057';
+            ctx.fillText('나의 기록', legendX + 30, legendItemY + 4);
         }
-        
-        // 전체 분포 범례 (버블로 표시)
-        const legendBubbleGradient = ctx.createRadialGradient(legendX + 17, legendY + 55, 0, legendX + 17, legendY + 55, 6);
-        legendBubbleGradient.addColorStop(0, '#007bff');
-        legendBubbleGradient.addColorStop(0.7, '#0056b3');
-        legendBubbleGradient.addColorStop(1, '#003d82');
-        
-        ctx.fillStyle = legendBubbleGradient;
-        ctx.beginPath();
-        ctx.arc(legendX + 17, legendY + 55, 6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // 범례 버블 하이라이트
-        const legendHighlight = ctx.createRadialGradient(legendX + 15, legendY + 53, 0, legendX + 15, legendY + 53, 3);
-        legendHighlight.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
-        legendHighlight.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        
-        ctx.fillStyle = legendHighlight;
-        ctx.beginPath();
-        ctx.arc(legendX + 15, legendY + 53, 3, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = '#495057';
-        ctx.fillText('전체 분포', legendX + 30, legendY + 60);
     }
     
     /**
@@ -2556,7 +2797,8 @@ export class PapsManager {
         }
         
         // 기록 정렬 (내림차순)
-        const records = recordsWithNames.map(item => item.record).sort((a, b) => b - a);
+        const sortedRecords = recordsWithNames.sort((a, b) => b.record - a.record);
+        const records = sortedRecords.map(item => item.record);
         
         // 평균 기록 계산
         const avgRecord = records.reduce((sum, record) => sum + record, 0) / records.length;
@@ -2569,20 +2811,25 @@ export class PapsManager {
         
         // 개인 기록이 있는 경우 순위와 상위% 계산
         if (personalRecord !== null) {
-            const rank = records.findIndex(record => record === personalRecord) + 1;
+            const rank = this.findRankForRecord(sortedRecords, personalRecord);
             this.$('#personal-rank').textContent = `${rank}위`;
             (this.$('#personal-rank-card') as HTMLElement).style.display = 'block';
         } else {
             (this.$('#personal-rank-card') as HTMLElement).style.display = 'none';
         }
         
-        // 순위 테이블 업데이트
-        this.renderRankingTable(recordsWithNames, studentName);
+        // 현재 랭킹 데이터 업데이트
+        this.currentRankingRecords = recordsWithNames;
+        
+        // 순위 테이블 업데이트 (현재 페이지 유지)
+        this.renderRankingTable(recordsWithNames, studentName, false);
+        
+        const personalRank = personalRecord ? this.findRankForRecord(sortedRecords, personalRecord) : null;
         
         logger.debug('랭킹 데이터 업데이트 완료:', { 
             totalRecords: records.length, 
             avgRecord: avgRecord.toFixed(2),
-            personalRank: personalRecord ? records.findIndex(record => record === personalRecord) + 1 : null
+            personalRank: personalRank
         });
     }
     

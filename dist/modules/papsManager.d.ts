@@ -43,6 +43,9 @@ export declare class PapsManager {
     private saveDataToFirestore;
     private currentRankingData;
     private updateInterval;
+    private currentRankingPage;
+    private selectedStudentForChart;
+    private currentRankingRecords;
     constructor(papsData: PapsData, $: (id: string) => HTMLElement, saveDataToFirestore: () => void, cleanupSidebar?: () => void);
     /**
      * 리소스 정리 (메모리 누수 방지)
@@ -136,7 +139,23 @@ export declare class PapsManager {
      */
     private searchRanking;
     /**
+     * 같은 기록을 가진 경우 동일한 순위를 부여합니다.
+     * @param sortedRecords 정렬된 기록 배열 (내림차순)
+     * @returns 각 항목의 순위를 포함한 배열
+     */
+    private calculateRanks;
+    /**
+     * 특정 기록의 순위를 찾습니다.
+     * @param sortedRecords 정렬된 기록 배열 (내림차순)
+     * @param targetRecord 찾을 기록
+     * @returns 순위 (1부터 시작)
+     */
+    private findRankForRecord;
+    /**
      * 순위 테이블을 렌더링합니다.
+     * @param recordsWithNames 기록과 이름 배열
+     * @param studentName 학생 이름 (선택사항)
+     * @param resetPage 페이지를 1로 초기화할지 여부 (기본값: true)
      */
     private renderRankingTable;
     /**
@@ -155,6 +174,10 @@ export declare class PapsManager {
      * 공유 성공 모달을 표시합니다.
      */
     private showShareSuccessModal;
+    /**
+     * 순위표를 인쇄합니다.
+     */
+    private printRankingTable;
     /**
      * 순위표를 텍스트로 복사합니다.
      */
@@ -188,7 +211,7 @@ export declare class PapsManager {
      */
     renderPapsCharts(cls: PapsClass): void;
     /**
-     * 이해하기 쉬운 기록 분포 그래프를 그립니다.
+     * 정규 분포 곡선과 표준편차를 표시하는 그래프를 그립니다.
      */
     private drawStandardDeviationChart;
     /**
