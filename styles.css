@@ -2886,9 +2886,11 @@ div[style*="position: absolute"][style*="z-index"] {
 }
 
 #ranking-distribution-chart {
+  width: 800px;
+  height: 600px;
   max-width: 100%;
-  height: auto;
   border-radius: 4px;
+  display: block;
 }
 
 /* 진도표 제어 버튼 스타일 */
