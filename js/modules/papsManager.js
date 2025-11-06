@@ -455,6 +455,9 @@ export class PapsManager {
                                 <tbody id="ranking-table-body">
                                 </tbody>
                             </table>
+                            <div style="margin-top: 12px; font-size: 12px; color: #666; text-align: center; font-style: italic;">
+                                💡 이름을 클릭하면 그래프에서 학생의 위치를 볼 수 있습니다
+                            </div>
                         </div>
                     </div>
                     <div class="ranking-chart-container">
