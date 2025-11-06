@@ -173,7 +173,7 @@ export const showVersionNotification = (options: VersionNotificationOptions): vo
 export const updateVersionDisplay = (): void => {
   const versionElement = $('.version');
   if (versionElement) {
-    versionElement.textContent = `v${APP_VERSION}`;
+    versionElement.textContent = 'online';
   }
 };
 

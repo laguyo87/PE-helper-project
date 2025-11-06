@@ -119,7 +119,7 @@ export const showVersionNotification = (options) => {
 export const updateVersionDisplay = () => {
     const versionElement = $('.version');
     if (versionElement) {
-        versionElement.textContent = `v${APP_VERSION}`;
+        versionElement.textContent = 'online';
     }
 };
 // ========================================
