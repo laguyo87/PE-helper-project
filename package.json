@@ -8,6 +8,8 @@
     "build": "tsc && npm run copy-modules && npm run copy-main && npm run fix-main-imports",
     "build:prod": "NODE_ENV=production npm run build",
     "build:staging": "NODE_ENV=staging npm run build",
+    "update-version": "node scripts/update-version.js",
+    "deploy": "npm run build && npm run update-version && firebase deploy --only hosting",
     "copy-modules": "cp dist/modules/*.js js/modules/",
     "copy-main": "cp dist/main.js main.js",
     "fix-main-imports": "node scripts/fix-imports.cjs",
