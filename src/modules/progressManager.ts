@@ -219,7 +219,7 @@ export class ProgressManager {
             <span>총 방문자 수 : <span id="progress-visitor-count" style="font-weight: 600; color: var(--accent);">-</span></span>
           </div>
         </div>
-        <div>만든이: 김신회(laguyo87@gmail.com)</div>
+        <div>Copyright (c) 2025 김신회(laguyo87@gmail.com)</div>
       `;
       
       // 방문자 수 업데이트
