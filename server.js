@@ -7,14 +7,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const server = http.createServer((req, res) => {
-  let filePath = '.' + req.url;
+  // URL에서 쿼리 파라미터와 해시 제거
+  const urlPath = req.url.split('?')[0].split('#')[0];
+  
+  let filePath = '.' + urlPath;
   if (filePath === './') {
     filePath = './index.html';
   }
   
   // favicon.ico 요청에 대한 명시적 처리
-  if (req.url === '/favicon.ico') {
+  if (urlPath === '/favicon.ico') {
     filePath = './favicon.ico';
+  }
+  
+  // 경로 정규화
+  filePath = path.normalize(filePath);
+  
+  // 경로 보안: 상위 디렉토리 접근 방지 (../ 패턴 체크)
+  if (filePath.includes('..')) {
+    // 정규화 후에도 상위 디렉토리가 있는지 확인
+    const resolvedPath = path.resolve(__dirname, filePath);
+    const rootPath = path.resolve(__dirname);
+    if (!resolvedPath.startsWith(rootPath)) {
+      res.writeHead(403, { 'Content-Type': 'text/html' });
+      res.end('<h1>403 Forbidden</h1>', 'utf-8');
+      return;
+    }
   }
 
   const extname = String(path.extname(filePath)).toLowerCase();
