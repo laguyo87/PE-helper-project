@@ -55,12 +55,17 @@ const server = http.createServer((req, res) => {
 
   const contentType = mimeTypes[extname] || 'application/octet-stream';
 
+  // 디버깅 로그
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} -> ${filePath}`);
+
   fs.readFile(filePath, (error, content) => {
     if (error) {
       if (error.code === 'ENOENT') {
+        console.error(`404 Not Found: ${req.url} -> ${filePath}`);
         res.writeHead(404, { 'Content-Type': 'text/html' });
-        res.end('<h1>404 Not Found</h1>', 'utf-8');
+        res.end(`<h1>404 Not Found</h1><p>File: ${filePath}</p>`, 'utf-8');
       } else {
+        console.error(`Server Error: ${error.code} for ${filePath}`);
         res.writeHead(500);
         res.end(`Server Error: ${error.code}`);
       }
