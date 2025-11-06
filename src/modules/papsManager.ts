@@ -438,7 +438,7 @@ export class PapsManager {
             <!-- 나의 기록 랭킹 섹션 -->
             <section class="section-box">
                 <div class="paps-toolbar">
-                    <h2 style="margin:0;">👑 우리 학교 체력왕 랭킹 🏆</h2>
+                    <h2 style="margin:0;">👑 우리 학교 종목별 체력왕 랭킹 🏆</h2>
                 </div>
                 <div class="ranking-controls" style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
                     <div class="form-group">
