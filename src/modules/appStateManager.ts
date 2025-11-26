@@ -46,7 +46,7 @@ export interface AppState {
 /**
  * 상태 변경 콜백 함수 타입
  */
-export type StateChangeCallback<T = any> = (newState: T, oldState: T) => void;
+export type StateChangeCallback<T = unknown> = (newState: T, oldState: T) => void;
 
 /**
  * 저장 콜백 함수 타입

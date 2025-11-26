@@ -26,6 +26,15 @@ export interface ManagerInstances extends UIRendererManagers {
 }
 
 /**
+ * Window 객체 확장 타입 (디버깅 및 하위 호환성)
+ */
+interface WindowWithDebug {
+  debugModeButtons?: Record<string, HTMLElement>;
+  appMode?: string;
+  leagueManager?: unknown;
+}
+
+/**
  * UIRenderer 옵션
  */
 export interface UIRendererOptions {
@@ -55,6 +64,16 @@ export class UIRenderer {
   private abortController: AbortController | null = null;
   private domContentLoadedHandler: (() => void) | null = null;
   private renderRetryTimers: Map<string, ReturnType<typeof setTimeout> | null> = new Map();
+  // 디버깅 및 재시도 관련 private 속성
+  private __leagueRetryWarned: boolean = false;
+  private __tournamentRetryWarned: boolean = false;
+  private __papsRetryWarned: boolean = false;
+  private __progressRetryWarned: boolean = false;
+  private retryCounts: Map<string, number> = new Map();
+  private __leagueMaxRetriesWarned: boolean = false;
+  private __tournamentMaxRetriesWarned: boolean = false;
+  private __papsMaxRetriesWarned: boolean = false;
+  private __progressMaxRetriesWarned: boolean = false;
 
   /**
    * UIRenderer 인스턴스를 생성합니다.
@@ -278,10 +297,11 @@ export class UIRenderer {
       logger.debug(`   버튼 onclick 속성:`, btn.onclick);
       
       // 디버깅: 전역으로 버튼 접근 가능하도록 설정
-      if (!(window as any).debugModeButtons) {
-        (window as any).debugModeButtons = {};
+      const windowWithDebug = window as unknown as WindowWithDebug;
+      if (!windowWithDebug.debugModeButtons) {
+        windowWithDebug.debugModeButtons = {};
       }
-      (window as any).debugModeButtons[mode] = btn;
+      windowWithDebug.debugModeButtons[mode] = btn;
       
       // 추가 테스트: 버튼이 클릭 가능한지 확인
       logger.debug(`   버튼 disabled 상태:`, btn.hasAttribute('disabled'));
@@ -334,7 +354,7 @@ export class UIRenderer {
     
     // 전역 변수에 모드 저장 (하위 호환성)
     if (typeof window !== 'undefined') {
-      (window as any).appMode = mode;
+      (window as unknown as WindowWithDebug).appMode = mode;
     }
     
     // body 클래스 업데이트 (CSS 스타일링을 위해)
@@ -463,9 +483,9 @@ export class UIRenderer {
       const retryTimer = this.renderRetryTimers.get('league');
       if (!retryTimer) {
         // 재시도가 진행 중이 아니면 첫 경고만 출력
-        if (!(this as any).__leagueRetryWarned) {
+        if (!this.__leagueRetryWarned) {
           logger.debug('LeagueManager가 아직 초기화되지 않음 - 재시도 예정');
-          (this as any).__leagueRetryWarned = true;
+          this.__leagueRetryWarned = true;
         }
         this.scheduleRetry('league', () => this.renderLeagueMode(state), 200);
       }
@@ -473,8 +493,8 @@ export class UIRenderer {
     }
     
     // LeagueManager가 준비되었으면 경고 플래그 리셋
-    if ((this as any).__leagueRetryWarned) {
-      (this as any).__leagueRetryWarned = false;
+    if (this.__leagueRetryWarned) {
+      this.__leagueRetryWarned = false;
     }
     
     // 재시도 타이머가 있으면 취소
@@ -483,9 +503,10 @@ export class UIRenderer {
     try {
       // window.leagueManager 등록 확인 및 재등록 (리그전 모드에서 사용)
       if (this.managers.leagueManager) {
-        (window as any).leagueManager = this.managers.leagueManager;
+        const windowWithDebug = window as unknown as WindowWithDebug;
+        windowWithDebug.leagueManager = this.managers.leagueManager;
         logger.debug('window.leagueManager 등록 완료:', {
-          hasCreateClass: typeof (window as any).leagueManager?.createClass === 'function'
+          hasCreateClass: typeof (this.managers.leagueManager as { createClass?: () => void }).createClass === 'function'
         });
       }
       
@@ -516,9 +537,9 @@ export class UIRenderer {
       const retryTimer = this.renderRetryTimers.get('tournament');
       if (!retryTimer) {
         // 재시도가 진행 중이 아니면 첫 경고만 출력
-        if (!(this as any).__tournamentRetryWarned) {
+        if (!this.__tournamentRetryWarned) {
           logger.debug('TournamentManager가 아직 초기화되지 않음 - 재시도 예정');
-          (this as any).__tournamentRetryWarned = true;
+          this.__tournamentRetryWarned = true;
         }
         this.scheduleRetry('tournament', () => this.renderTournamentMode(state), 200);
       }
@@ -526,8 +547,8 @@ export class UIRenderer {
     }
     
     // TournamentManager가 준비되었으면 경고 플래그 리셋
-    if ((this as any).__tournamentRetryWarned) {
-      (this as any).__tournamentRetryWarned = false;
+    if (this.__tournamentRetryWarned) {
+      this.__tournamentRetryWarned = false;
     }
     
     // 재시도 타이머가 있으면 취소
@@ -561,9 +582,9 @@ export class UIRenderer {
       const retryTimer = this.renderRetryTimers.get('paps');
       if (!retryTimer) {
         // 재시도가 진행 중이 아니면 첫 경고만 출력
-        if (!(this as any).__papsRetryWarned) {
+        if (!this.__papsRetryWarned) {
           logger.debug('PapsManager가 아직 초기화되지 않음 - 재시도 예정');
-          (this as any).__papsRetryWarned = true;
+          this.__papsRetryWarned = true;
         }
         this.scheduleRetry('paps', () => this.renderPapsMode(state), 200);
       }
@@ -571,8 +592,8 @@ export class UIRenderer {
     }
     
     // PapsManager가 준비되었으면 경고 플래그 리셋
-    if ((this as any).__papsRetryWarned) {
-      (this as any).__papsRetryWarned = false;
+    if (this.__papsRetryWarned) {
+      this.__papsRetryWarned = false;
     }
     
     // 재시도 타이머가 있으면 취소
@@ -609,9 +630,9 @@ export class UIRenderer {
       const retryTimer = this.renderRetryTimers.get('progress');
       if (!retryTimer) {
         // 재시도가 진행 중이 아니면 첫 경고만 출력
-        if (!(this as any).__progressRetryWarned) {
+        if (!this.__progressRetryWarned) {
           logger.debug('ProgressManager가 아직 초기화되지 않음 - 재시도 예정');
-          (this as any).__progressRetryWarned = true;
+          this.__progressRetryWarned = true;
         }
         this.scheduleRetry('progress', () => this.renderProgressMode(state), 200);
       }
@@ -619,8 +640,8 @@ export class UIRenderer {
     }
     
     // ProgressManager가 준비되었으면 경고 플래그 리셋
-    if ((this as any).__progressRetryWarned) {
-      (this as any).__progressRetryWarned = false;
+    if (this.__progressRetryWarned) {
+      this.__progressRetryWarned = false;
     }
     
     // 재시도 타이머가 있으면 취소
@@ -640,19 +661,14 @@ export class UIRenderer {
    * 재시도 스케줄링 (Manager 초기화 대기)
    */
   private scheduleRetry(mode: string, retryFn: () => void, delay: number = 200, maxRetries: number = 15): void {
-    // 재시도 횟수 추적을 위한 Map 생성 (없으면)
-    if (!(this as any).retryCounts) {
-      (this as any).retryCounts = new Map<string, number>();
-    }
-    const retryCounts = (this as any).retryCounts as Map<string, number>;
-    
-    const currentRetry = retryCounts.get(mode) || 0;
+    const currentRetry = this.retryCounts.get(mode) || 0;
     
     if (currentRetry >= maxRetries) {
       // 최대 횟수 초과 시 한 번만 경고 출력
-      if (!(this as any)[`__${mode}MaxRetriesWarned`]) {
+      const maxRetriesWarnedKey = `__${mode}MaxRetriesWarned` as '__leagueMaxRetriesWarned' | '__tournamentMaxRetriesWarned' | '__papsMaxRetriesWarned' | '__progressMaxRetriesWarned';
+      if (!this[maxRetriesWarnedKey]) {
         logWarn(`${mode} 모드 렌더링 재시도 최대 횟수 초과 (${maxRetries}회). ProgressManager 초기화를 기다리는 중입니다.`);
-        (this as any)[`__${mode}MaxRetriesWarned`] = true;
+        this[maxRetriesWarnedKey] = true;
       }
       // 카운트는 유지하여 계속 체크하지 않도록 함
       return;
@@ -664,19 +680,20 @@ export class UIRenderer {
       clearTimeout(existingTimer);
     }
     
-    retryCounts.set(mode, currentRetry + 1);
+    this.retryCounts.set(mode, currentRetry + 1);
     logger.debug(`${mode} 모드 렌더링 재시도 예정 (${currentRetry + 1}/${maxRetries})`);
     
     const timer = setTimeout(() => {
-      const currentCount = retryCounts.get(mode) || 0;
+      const currentCount = this.retryCounts.get(mode) || 0;
       logger.debug(`${mode} 모드 렌더링 재시도 실행 (${currentCount}/${maxRetries})`);
       try {
         retryFn();
         // 성공하면 카운트 리셋하고 타이머 제거
-        retryCounts.set(mode, 0);
+        this.retryCounts.set(mode, 0);
         this.renderRetryTimers.set(mode, null);
         // 최대 횟수 경고 플래그도 리셋
-        (this as any)[`__${mode}MaxRetriesWarned`] = false;
+        const maxRetriesWarnedKey = `__${mode}MaxRetriesWarned` as '__leagueMaxRetriesWarned' | '__tournamentMaxRetriesWarned' | '__papsMaxRetriesWarned' | '__progressMaxRetriesWarned';
+        this[maxRetriesWarnedKey] = false;
       } catch (error) {
         logError(`${mode} 모드 렌더링 재시도 중 오류:`, error);
         this.renderRetryTimers.set(mode, null);
@@ -696,11 +713,10 @@ export class UIRenderer {
       this.renderRetryTimers.set(mode, null);
     }
     // 재시도 횟수와 경고 플래그 리셋 (성공적으로 렌더링된 경우)
-    if ((this as any).retryCounts) {
-      (this as any).retryCounts.set(mode, 0);
-    }
+    this.retryCounts.set(mode, 0);
     // 최대 횟수 경고 플래그도 리셋
-    (this as any)[`__${mode}MaxRetriesWarned`] = false;
+    const maxRetriesWarnedKey = `__${mode}MaxRetriesWarned` as '__leagueMaxRetriesWarned' | '__tournamentMaxRetriesWarned' | '__papsMaxRetriesWarned' | '__progressMaxRetriesWarned';
+    this[maxRetriesWarnedKey] = false;
   }
 }
 

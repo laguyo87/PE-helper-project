@@ -41,6 +41,15 @@ export declare class UIRenderer {
     private abortController;
     private domContentLoadedHandler;
     private renderRetryTimers;
+    private __leagueRetryWarned;
+    private __tournamentRetryWarned;
+    private __papsRetryWarned;
+    private __progressRetryWarned;
+    private retryCounts;
+    private __leagueMaxRetriesWarned;
+    private __tournamentMaxRetriesWarned;
+    private __papsMaxRetriesWarned;
+    private __progressMaxRetriesWarned;
     /**
      * UIRenderer 인스턴스를 생성합니다.
      * @param options UIRenderer 옵션

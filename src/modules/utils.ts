@@ -93,7 +93,11 @@ export function sanitizeHTML(html: string): string {
   }
   
   // 전역 DOMPurify 사용 (CDN에서 로드)
-  const purify = (window as any).DOMPurify || (typeof DOMPurify !== 'undefined' ? DOMPurify : null);
+  interface WindowWithDOMPurify {
+    DOMPurify?: typeof DOMPurify;
+  }
+  const windowWithDOMPurify = window as unknown as WindowWithDOMPurify;
+  const purify = windowWithDOMPurify.DOMPurify || (typeof DOMPurify !== 'undefined' ? DOMPurify : null);
   
   if (!purify) {
     // DOMPurify가 없으면 기본 정제만 수행

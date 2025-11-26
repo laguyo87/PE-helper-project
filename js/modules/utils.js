@@ -41,8 +41,8 @@ export function sanitizeHTML(html) {
         // 서버 사이드에서는 DOMPurify를 사용할 수 없음
         return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
     }
-    // 전역 DOMPurify 사용 (CDN에서 로드)
-    const purify = window.DOMPurify || (typeof DOMPurify !== 'undefined' ? DOMPurify : null);
+    const windowWithDOMPurify = window;
+    const purify = windowWithDOMPurify.DOMPurify || (typeof DOMPurify !== 'undefined' ? DOMPurify : null);
     if (!purify) {
         // DOMPurify가 없으면 기본 정제만 수행
         return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
