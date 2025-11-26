@@ -260,22 +260,29 @@ export class AuthManager {
    * 이벤트 리스너를 설정합니다.
    */
   private setupEventListeners(): void {
+    // 기존 AbortController가 있으면 취소하고 새로 생성 (중복 방지)
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
+
     // 회원가입 폼
     const signupForm = $('#signup-form') as HTMLFormElement;
     if (signupForm) {
-      signupForm.addEventListener('submit', (e) => this.handleSignup(e));
+      signupForm.addEventListener('submit', (e) => this.handleSignup(e), { signal });
     }
 
     // 로그인 폼
     const loginForm = $('#login-form') as HTMLFormElement;
     if (loginForm) {
-      loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+      loginForm.addEventListener('submit', (e) => this.handleLogin(e), { signal });
     }
 
     // 비밀번호 재설정 폼
     const resetForm = $('#reset-form') as HTMLFormElement;
     if (resetForm) {
-      resetForm.addEventListener('submit', (e) => this.handlePasswordReset(e));
+      resetForm.addEventListener('submit', (e) => this.handlePasswordReset(e), { signal });
     }
 
     // 링크 클릭 이벤트
@@ -284,7 +291,7 @@ export class AuthManager {
       forgotPasswordLink.addEventListener('click', (e) => {
         e.preventDefault();
         this.showAuthForm('reset');
-      });
+      }, { signal });
     }
 
     const backToLoginLink = $('#back-to-login-link');
@@ -292,7 +299,7 @@ export class AuthManager {
       backToLoginLink.addEventListener('click', (e) => {
         e.preventDefault();
         this.showAuthForm('login');
-      });
+      }, { signal });
     }
 
     // Google 로그인 버튼 이벤트 리스너 설정
@@ -598,11 +605,16 @@ export class AuthManager {
       return;
     }
 
-    // 기존 이벤트 리스너 제거 (중복 방지)
-    // cloneNode를 사용하여 기존 리스너 제거
-    const newGoogleLoginBtn = googleLoginBtn.cloneNode(true) as HTMLElement;
-    if (googleLoginBtn.parentNode) {
-      googleLoginBtn.parentNode.replaceChild(newGoogleLoginBtn, googleLoginBtn);
+    // 기존 AbortController가 있으면 취소하고 새로 생성 (중복 방지)
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
+
+    // 기존 핸들러가 있으면 제거 (이미 AbortController로 정리되지만 안전을 위해)
+    if (this.googleLoginHandler) {
+      googleLoginBtn.removeEventListener('click', this.googleLoginHandler);
     }
 
     // 새 이벤트 리스너 등록 (AbortController signal로 관리)
@@ -618,9 +630,11 @@ export class AuthManager {
       }
     };
     
-    newGoogleLoginBtn.addEventListener('click', this.googleLoginHandler, {
-      signal: this.abortController?.signal
+    googleLoginBtn.addEventListener('click', this.googleLoginHandler, {
+      signal: signal
     });
+    
+    log('Google 로그인 버튼 이벤트 리스너 등록 완료');
   }
 
   /**
@@ -633,11 +647,16 @@ export class AuthManager {
       return;
     }
 
-    // 기존 이벤트 리스너 제거 (중복 방지)
-    // cloneNode를 사용하여 기존 리스너 제거
-    const newLogoutBtn = logoutBtn.cloneNode(true) as HTMLElement;
-    if (logoutBtn.parentNode) {
-      logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+    // 기존 AbortController가 있으면 취소하고 새로 생성 (중복 방지)
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
+
+    // 기존 핸들러가 있으면 제거 (이미 AbortController로 정리되지만 안전을 위해)
+    if (this.logoutHandler) {
+      logoutBtn.removeEventListener('click', this.logoutHandler);
     }
 
     // 새 이벤트 리스너 등록 (AbortController signal로 관리)
@@ -653,9 +672,11 @@ export class AuthManager {
       }
     };
     
-    newLogoutBtn.addEventListener('click', this.logoutHandler, {
-      signal: this.abortController?.signal
+    logoutBtn.addEventListener('click', this.logoutHandler, {
+      signal: signal
     });
+    
+    log('로그아웃 버튼 이벤트 리스너 등록 완료');
   }
 
   /**

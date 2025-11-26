@@ -32,6 +32,9 @@ export declare class ErrorFilter {
     private filterEvents;
     private originalConsoleMethods;
     private mutationObserver;
+    private abortController;
+    private errorEventHandler;
+    private rejectionEventHandler;
     /**
      * ErrorFilter 인스턴스를 생성합니다.
      * @param options 에러 필터 옵션
@@ -74,6 +77,11 @@ export declare class ErrorFilter {
      * 에러 필터링을 비활성화합니다.
      */
     disable(): void;
+    /**
+     * 리소스 정리 (메모리 누수 방지)
+     * 이벤트 리스너를 정리합니다.
+     */
+    cleanup(): void;
     /**
      * 에러 필터링을 활성화합니다.
      */

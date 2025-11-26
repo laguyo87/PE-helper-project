@@ -23,6 +23,9 @@ export class ErrorFilter {
     constructor(options = {}) {
         this.originalConsoleMethods = {};
         this.mutationObserver = null;
+        this.abortController = null;
+        this.errorEventHandler = null;
+        this.rejectionEventHandler = null;
         this.patterns = options.patterns || [
             'cross-origin-opener-policy',
             'coop',
@@ -79,6 +82,27 @@ export class ErrorFilter {
         if (!text)
             return false;
         const str = String(text).toLowerCase();
+        // 스택 트레이스를 줄 단위로 분리하여 각 줄을 검사
+        const lines = str.split('\n');
+        let hasPopupTs = false;
+        let hasCOOPError = false;
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+            // popup.ts가 포함된 줄 확인
+            if (trimmedLine.includes('popup.ts')) {
+                hasPopupTs = true;
+            }
+            // Cross-Origin-Opener-Policy 또는 policy would block이 포함된 줄 확인
+            if (trimmedLine.includes('cross-origin-opener-policy') ||
+                trimmedLine.includes('coop') ||
+                (trimmedLine.includes('policy') && trimmedLine.includes('would') && trimmedLine.includes('block'))) {
+                hasCOOPError = true;
+            }
+            // popup.ts와 COOP 에러가 함께 있으면 필터링
+            if (hasPopupTs && hasCOOPError) {
+                return true;
+            }
+        }
         // 패턴 목록 확인
         if (this.patterns.some(pattern => str.includes(pattern.toLowerCase()))) {
             return true;
@@ -97,6 +121,8 @@ export class ErrorFilter {
             (str.includes('would') && str.includes('block') && (str.includes('window') || str.includes('popup') || str.includes('call'))) ||
             // "policy would block"과 "call" 조합
             (str.includes('policy') && str.includes('would') && str.includes('block') && str.includes('call')) ||
+            // "popup.ts"와 "Cross-Origin-Opener-Policy" 또는 "policy would block"이 함께 있는 경우 (스택 트레이스 전체에서)
+            (hasPopupTs && (str.includes('cross-origin-opener-policy') || str.includes('coop') || (str.includes('policy') && str.includes('would') && str.includes('block')))) ||
             // Chrome 확장 프로그램 관련 오류
             (str.includes('message') && str.includes('port') && str.includes('closed')) ||
             (str.includes('port closed') && str.includes('response')) ||
@@ -233,9 +259,22 @@ export class ErrorFilter {
      * 이벤트 필터링을 설정합니다.
      */
     setupEventFiltering() {
+        // 기존 AbortController가 있으면 취소하고 새로 생성 (중복 방지)
+        if (this.abortController) {
+            this.abortController.abort();
+        }
+        this.abortController = new AbortController();
+        const signal = this.abortController.signal;
+        // 기존 이벤트 리스너 제거 (이미 AbortController로 정리되지만 안전을 위해)
+        if (this.errorEventHandler) {
+            window.removeEventListener('error', this.errorEventHandler, true);
+        }
+        if (this.rejectionEventHandler) {
+            window.removeEventListener('unhandledrejection', this.rejectionEventHandler, true);
+        }
         // 에러 이벤트 리스너 (capture phase에서 먼저 처리)
         // 가장 먼저 실행되도록 { capture: true, passive: false } 사용
-        window.addEventListener('error', (event) => {
+        this.errorEventHandler = (event) => {
             const message = event.message || '';
             const stack = event.error?.stack || '';
             const filename = event.filename || '';
@@ -254,9 +293,14 @@ export class ErrorFilter {
                 event.stopImmediatePropagation();
                 return; // void 반환
             }
-        }, { capture: true, passive: false }); // capture phase에서 먼저 처리, 기본 동작 방지
+        };
+        window.addEventListener('error', this.errorEventHandler, {
+            capture: true,
+            passive: false,
+            signal: signal
+        }); // capture phase에서 먼저 처리, 기본 동작 방지
         // Promise rejection 이벤트
-        window.addEventListener('unhandledrejection', (event) => {
+        this.rejectionEventHandler = (event) => {
             const message = event.reason?.message || String(event.reason || '');
             const stack = event.reason?.stack || '';
             const reasonStr = String(event.reason || '');
@@ -266,7 +310,11 @@ export class ErrorFilter {
                 event.stopImmediatePropagation();
                 return;
             }
-        }, true); // capture phase에서 먼저 처리
+        };
+        window.addEventListener('unhandledrejection', this.rejectionEventHandler, {
+            capture: true,
+            signal: signal
+        }); // capture phase에서 먼저 처리
     }
     /**
      * 콘솔 에러를 더 강력하게 필터링합니다.
@@ -277,24 +325,31 @@ export class ErrorFilter {
         const originalError = console.error.bind(console);
         // console.error를 완전히 재정의
         console.error = (...args) => {
-            // 모든 인자를 문자열로 변환하여 검사
+            // 모든 인자를 문자열로 변환하여 검사 (스택 트레이스 포함)
             const fullMessage = args.map(arg => {
                 if (typeof arg === 'string')
                     return arg;
                 if (arg instanceof Error) {
-                    return `${arg.message} ${arg.stack} ${arg.name}`;
+                    // Error 객체의 모든 정보 포함
+                    return `${arg.message || ''} ${arg.stack || ''} ${arg.name || ''} ${arg.toString()}`;
                 }
                 if (typeof arg === 'object' && arg !== null) {
                     try {
-                        return this.safeStringify(arg);
+                        // 객체를 문자열로 변환 (스택 트레이스 포함)
+                        const stringified = this.safeStringify(arg);
+                        // Error 객체인 경우 stack 속성도 확인
+                        if (arg.stack) {
+                            return `${stringified} ${arg.stack}`;
+                        }
+                        return stringified;
                     }
                     catch {
                         return String(arg);
                     }
                 }
                 return String(arg);
-            }).join(' ').toLowerCase();
-            // COOP 에러인지 확인
+            }).join('\n'); // 줄바꿈으로 구분하여 스택 트레이스 보존
+            // COOP 에러인지 확인 (스택 트레이스 전체 검사)
             if (this.isCOOPError(fullMessage)) {
                 return; // COOP 에러는 완전히 무시
             }
@@ -346,7 +401,12 @@ export class ErrorFilter {
         };
         // DOM이 준비되면 Observer 설정
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', setupObserver);
+            const domContentLoadedHandler = () => {
+                setupObserver();
+            };
+            document.addEventListener('DOMContentLoaded', domContentLoadedHandler, {
+                signal: this.abortController?.signal
+            });
         }
         else {
             setupObserver();
@@ -364,11 +424,32 @@ export class ErrorFilter {
                 }
             });
         }
+        // 이벤트 리스너 정리
+        if (this.abortController) {
+            this.abortController.abort();
+            this.abortController = null;
+        }
+        // 수동으로 등록된 이벤트 리스너 제거 (안전을 위해)
+        if (this.errorEventHandler) {
+            window.removeEventListener('error', this.errorEventHandler, true);
+            this.errorEventHandler = null;
+        }
+        if (this.rejectionEventHandler) {
+            window.removeEventListener('unhandledrejection', this.rejectionEventHandler, true);
+            this.rejectionEventHandler = null;
+        }
         // MutationObserver 해제
         if (this.mutationObserver) {
             this.mutationObserver.disconnect();
             this.mutationObserver = null;
         }
+    }
+    /**
+     * 리소스 정리 (메모리 누수 방지)
+     * 이벤트 리스너를 정리합니다.
+     */
+    cleanup() {
+        this.disable();
     }
     /**
      * 에러 필터링을 활성화합니다.

@@ -96,8 +96,13 @@ export class PapsManager {
     cleanup() {
         // 실시간 업데이트 중지
         this.stopRealtimeUpdate();
+        // updateInterval이 남아있으면 강제로 정리
+        if (this.updateInterval !== null) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+            logger.debug('PapsManager: 남아있던 updateInterval 정리 완료');
+        }
         // 추가 리소스 정리가 필요한 경우 여기에 추가
-        // logger는 아직 import하지 않음 (점진적 전환)
         logger.debug('PapsManager 리소스 정리 완료');
     }
     /**
@@ -2459,6 +2464,12 @@ export class PapsManager {
     startRealtimeUpdate(eventId, grade, gender, studentName, cls) {
         // 기존 업데이트 중지
         this.stopRealtimeUpdate();
+        // 기존 타이머가 있으면 먼저 정리
+        if (this.updateInterval !== null) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+            logger.debug('기존 실시간 업데이트 타이머 정리');
+        }
         // 현재 랭킹 데이터 저장
         this.currentRankingData = { event: eventId, grade, gender, studentName };
         // 5초마다 업데이트
@@ -2471,12 +2482,12 @@ export class PapsManager {
      * 실시간 업데이트를 중지합니다.
      */
     stopRealtimeUpdate() {
-        if (this.updateInterval) {
+        if (this.updateInterval !== null) {
             clearInterval(this.updateInterval);
             this.updateInterval = null;
+            logger.debug('실시간 업데이트 중지: updateInterval 정리 완료');
         }
         this.currentRankingData = null;
-        logger.debug('실시간 업데이트 중지');
     }
     /**
      * 랭킹 데이터를 업데이트합니다.

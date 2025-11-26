@@ -36,7 +36,7 @@ const server = http.createServer((req, res) => {
   const extname = String(path.extname(filePath)).toLowerCase();
   const mimeTypes = {
     '.html': 'text/html',
-    '.js': 'text/javascript',
+    '.js': 'application/javascript',
     '.css': 'text/css',
     '.json': 'application/json',
     '.png': 'image/png',
@@ -54,6 +54,16 @@ const server = http.createServer((req, res) => {
   };
 
   const contentType = mimeTypes[extname] || 'application/octet-stream';
+  
+  // ES 모듈을 위한 추가 헤더
+  const headers = {
+    'Content-Type': contentType
+  };
+  
+  // JavaScript 파일의 경우 CORS 및 모듈 지원 헤더 추가
+  if (extname === '.js') {
+    headers['Access-Control-Allow-Origin'] = '*';
+  }
 
   // 디버깅 로그
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} -> ${filePath}`);
@@ -70,7 +80,7 @@ const server = http.createServer((req, res) => {
         res.end(`Server Error: ${error.code}`);
       }
     } else {
-      res.writeHead(200, { 'Content-Type': contentType });
+      res.writeHead(200, headers);
       res.end(content, 'utf-8');
     }
   });

@@ -153,6 +153,7 @@ export class AppStateManager {
     if (this.saveTimeout !== null) {
       clearTimeout(this.saveTimeout);
       this.saveTimeout = null;
+      console.log('[AppStateManager] 저장 타이머 정리 완료');
     }
     
     // 콜백 목록 정리
@@ -161,7 +162,7 @@ export class AppStateManager {
     // 히스토리 정리
     this.historyStack = [];
     
-    console.log('AppStateManager 리소스 정리 완료');
+    console.log('[AppStateManager] 리소스 정리 완료');
   }
 
   constructor(initialState?: Partial<AppState>, options: AppStateManagerOptions = {}) {
@@ -398,19 +399,23 @@ export class AppStateManager {
       return;
     }
 
-    // 기존 타이머 취소
+    // 기존 타이머 취소 (중복 방지)
     if (this.saveTimeout !== null) {
       clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
     }
 
     // 새 타이머 설정
     this.saveTimeout = window.setTimeout(() => {
+      // 타이머가 실행되면 즉시 null로 설정하여 중복 실행 방지
+      const timerId = this.saveTimeout;
+      this.saveTimeout = null;
+      
       if (this.options.saveCallback) {
         this.options.saveCallback().catch(error => {
-          console.error('Auto-save failed:', error);
+          console.error('[AppStateManager] Auto-save failed:', error);
         });
       }
-      this.saveTimeout = null;
     }, this.SAVE_DEBOUNCE_MS);
   }
 

@@ -53,11 +53,13 @@ export class DataManager {
     }
     /**
      * 디바운스 타이머 정리
+     * 메모리 누수 방지를 위해 항상 호출해야 합니다.
      */
     clearDebounceTimer() {
-        if (this.dbDebounceTimer) {
+        if (this.dbDebounceTimer !== null) {
             clearTimeout(this.dbDebounceTimer);
             this.dbDebounceTimer = null;
+            this.log('[DataManager] 디바운스 타이머 정리 완료');
         }
     }
     /**
@@ -72,12 +74,12 @@ export class DataManager {
             window.removeEventListener('firebaseReady', this.firebaseReadyHandler);
             this.firebaseReadyHandler = null;
         }
-        // AbortController로 등록된 모든 이벤트 리스너 정리
+        // AbortController로 등록된 이벤트 리스너 정리
         if (this.abortController) {
             this.abortController.abort();
             this.abortController = null;
         }
-        this.log('DataManager 리소스 정리 완료');
+        this.log('[DataManager] 리소스 정리 완료');
     }
     /**
      * 현재 사용자를 설정합니다.
@@ -125,9 +127,12 @@ export class DataManager {
                 return;
             }
         }
-        // 디바운스 타이머 정리
+        // 디바운스 타이머 정리 (이전 타이머가 있으면 먼저 정리)
         this.clearDebounceTimer();
         this.dbDebounceTimer = setTimeout(async () => {
+            // 타이머가 실행되면 즉시 null로 설정하여 중복 실행 방지
+            const timerId = this.dbDebounceTimer;
+            this.dbDebounceTimer = null;
             try {
                 this.log('Firestore에 데이터 저장 시작, retryCount:', retryCount);
                 // 데이터 복사 및 전처리
@@ -161,6 +166,12 @@ export class DataManager {
                 }
                 else {
                     await this.handleSaveError(error, retryCount, data, options);
+                }
+            }
+            finally {
+                // 타이머 완료 후 항상 null로 설정 (에러 발생 시에도)
+                if (this.dbDebounceTimer === timerId) {
+                    this.dbDebounceTimer = null;
                 }
             }
         }, 1000);

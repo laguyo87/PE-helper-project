@@ -156,6 +156,7 @@ export declare class DataManager {
     private initializeFirebase;
     /**
      * 디바운스 타이머 정리
+     * 메모리 누수 방지를 위해 항상 호출해야 합니다.
      */
     private clearDebounceTimer;
     /**

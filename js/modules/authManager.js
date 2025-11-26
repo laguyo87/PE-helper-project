@@ -188,20 +188,26 @@ export class AuthManager {
      * 이벤트 리스너를 설정합니다.
      */
     setupEventListeners() {
+        // 기존 AbortController가 있으면 취소하고 새로 생성 (중복 방지)
+        if (this.abortController) {
+            this.abortController.abort();
+        }
+        this.abortController = new AbortController();
+        const signal = this.abortController.signal;
         // 회원가입 폼
         const signupForm = $('#signup-form');
         if (signupForm) {
-            signupForm.addEventListener('submit', (e) => this.handleSignup(e));
+            signupForm.addEventListener('submit', (e) => this.handleSignup(e), { signal });
         }
         // 로그인 폼
         const loginForm = $('#login-form');
         if (loginForm) {
-            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e), { signal });
         }
         // 비밀번호 재설정 폼
         const resetForm = $('#reset-form');
         if (resetForm) {
-            resetForm.addEventListener('submit', (e) => this.handlePasswordReset(e));
+            resetForm.addEventListener('submit', (e) => this.handlePasswordReset(e), { signal });
         }
         // 링크 클릭 이벤트
         const forgotPasswordLink = $('#forgot-password-link');
@@ -209,14 +215,14 @@ export class AuthManager {
             forgotPasswordLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.showAuthForm('reset');
-            });
+            }, { signal });
         }
         const backToLoginLink = $('#back-to-login-link');
         if (backToLoginLink) {
             backToLoginLink.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.showAuthForm('login');
-            });
+            }, { signal });
         }
         // Google 로그인 버튼 이벤트 리스너 설정
         this.setupGoogleLoginButton();
@@ -487,11 +493,15 @@ export class AuthManager {
             log('Google 로그인 버튼을 찾을 수 없음');
             return;
         }
-        // 기존 이벤트 리스너 제거 (중복 방지)
-        // cloneNode를 사용하여 기존 리스너 제거
-        const newGoogleLoginBtn = googleLoginBtn.cloneNode(true);
-        if (googleLoginBtn.parentNode) {
-            googleLoginBtn.parentNode.replaceChild(newGoogleLoginBtn, googleLoginBtn);
+        // 기존 AbortController가 있으면 취소하고 새로 생성 (중복 방지)
+        if (this.abortController) {
+            this.abortController.abort();
+        }
+        this.abortController = new AbortController();
+        const signal = this.abortController.signal;
+        // 기존 핸들러가 있으면 제거 (이미 AbortController로 정리되지만 안전을 위해)
+        if (this.googleLoginHandler) {
+            googleLoginBtn.removeEventListener('click', this.googleLoginHandler);
         }
         // 새 이벤트 리스너 등록 (AbortController signal로 관리)
         this.googleLoginHandler = async (e) => {
@@ -506,9 +516,10 @@ export class AuthManager {
                 logErrorLocal('Google 로그인 중 오류:', error);
             }
         };
-        newGoogleLoginBtn.addEventListener('click', this.googleLoginHandler, {
-            signal: this.abortController?.signal
+        googleLoginBtn.addEventListener('click', this.googleLoginHandler, {
+            signal: signal
         });
+        log('Google 로그인 버튼 이벤트 리스너 등록 완료');
     }
     /**
      * 로그아웃 버튼 이벤트 리스너를 설정합니다.
@@ -519,11 +530,15 @@ export class AuthManager {
             log('로그아웃 버튼을 찾을 수 없음');
             return;
         }
-        // 기존 이벤트 리스너 제거 (중복 방지)
-        // cloneNode를 사용하여 기존 리스너 제거
-        const newLogoutBtn = logoutBtn.cloneNode(true);
-        if (logoutBtn.parentNode) {
-            logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+        // 기존 AbortController가 있으면 취소하고 새로 생성 (중복 방지)
+        if (this.abortController) {
+            this.abortController.abort();
+        }
+        this.abortController = new AbortController();
+        const signal = this.abortController.signal;
+        // 기존 핸들러가 있으면 제거 (이미 AbortController로 정리되지만 안전을 위해)
+        if (this.logoutHandler) {
+            logoutBtn.removeEventListener('click', this.logoutHandler);
         }
         // 새 이벤트 리스너 등록 (AbortController signal로 관리)
         this.logoutHandler = async (e) => {
@@ -538,9 +553,10 @@ export class AuthManager {
                 logErrorLocal('로그아웃 중 오류:', error);
             }
         };
-        newLogoutBtn.addEventListener('click', this.logoutHandler, {
-            signal: this.abortController?.signal
+        logoutBtn.addEventListener('click', this.logoutHandler, {
+            signal: signal
         });
+        log('로그아웃 버튼 이벤트 리스너 등록 완료');
     }
     /**
      * 인증 오류를 처리합니다.
