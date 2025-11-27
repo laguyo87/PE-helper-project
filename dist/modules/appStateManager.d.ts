@@ -59,7 +59,10 @@ export declare class AppStateManager {
     private options;
     private onChangeCallbacks;
     private saveTimeout;
-    private readonly SAVE_DEBOUNCE_MS;
+    private readonly SAVE_DEBOUNCE_MS_NORMAL;
+    private readonly SAVE_DEBOUNCE_MS_RAPID;
+    private readonly SAVE_DEBOUNCE_MS_SLOW;
+    private lastStateChangeTime;
     private historyStack;
     private readonly MAX_HISTORY_SIZE;
     private isUndoing;
@@ -130,6 +133,11 @@ export declare class AppStateManager {
      * 상태 변경 알림
      */
     private notify;
+    /**
+     * 상태 변경 빈도에 따라 최적의 디바운스 시간을 반환합니다.
+     * @returns 디바운스 시간 (밀리초)
+     */
+    private getOptimalDebounceTime;
     /**
      * 저장 스케줄링 (디바운스)
      */

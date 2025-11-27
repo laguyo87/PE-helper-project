@@ -146,6 +146,9 @@ export declare class DataManager {
     private lastSaveErrorTime;
     private firebaseReadyHandler;
     private abortController;
+    private readonly DEBOUNCE_MS_NORMAL;
+    private readonly DEBOUNCE_MS_SLOW;
+    private readonly DEBOUNCE_MS_FAST;
     /**
      * DataManager 인스턴스를 생성합니다.
      */
@@ -154,6 +157,11 @@ export declare class DataManager {
      * Firebase 초기화
      */
     private initializeFirebase;
+    /**
+     * 네트워크 상태에 따라 최적의 디바운스 시간을 반환합니다.
+     * @returns 디바운스 시간 (밀리초)
+     */
+    private getOptimalDebounceTime;
     /**
      * 디바운스 타이머 정리
      * 메모리 누수 방지를 위해 항상 호출해야 합니다.

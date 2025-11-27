@@ -55,6 +55,44 @@ export declare function $(selector: string): HTMLElement | null;
  */
 export declare function $$(selector: string): NodeListOf<HTMLElement>;
 /**
+ * ID로 DOM 요소를 안전하게 가져옵니다.
+ * @param id 요소 ID
+ * @param throwIfNotFound 요소를 찾지 못했을 때 에러를 던질지 여부 (기본값: false)
+ * @returns HTMLElement 또는 null
+ * @throws 요소를 찾지 못하고 throwIfNotFound가 true인 경우
+ */
+export declare function getElement(id: string, throwIfNotFound?: boolean): HTMLElement | null;
+/**
+ * CSS 선택자로 DOM 요소를 안전하게 가져옵니다.
+ * @param selector CSS 선택자
+ * @param throwIfNotFound 요소를 찾지 못했을 때 에러를 던질지 여부 (기본값: false)
+ * @returns HTMLElement 또는 null
+ * @throws 요소를 찾지 못하고 throwIfNotFound가 true인 경우
+ */
+export declare function getElementBySelector(selector: string, throwIfNotFound?: boolean): HTMLElement | null;
+/**
+ * CSS 선택자로 여러 DOM 요소를 안전하게 가져옵니다.
+ * @param selector CSS 선택자
+ * @returns HTMLElement 배열
+ */
+export declare function getElements(selector: string): HTMLElement[];
+/**
+ * 부모 요소 내에서 CSS 선택자로 DOM 요소를 안전하게 가져옵니다.
+ * @param parent 부모 요소
+ * @param selector CSS 선택자
+ * @param throwIfNotFound 요소를 찾지 못했을 때 에러를 던질지 여부 (기본값: false)
+ * @returns HTMLElement 또는 null
+ * @throws 요소를 찾지 못하고 throwIfNotFound가 true인 경우
+ */
+export declare function getElementInParent(parent: HTMLElement, selector: string, throwIfNotFound?: boolean): HTMLElement | null;
+/**
+ * 부모 요소 내에서 CSS 선택자로 여러 DOM 요소를 안전하게 가져옵니다.
+ * @param parent 부모 요소
+ * @param selector CSS 선택자
+ * @returns HTMLElement 배열
+ */
+export declare function getElementsInParent(parent: HTMLElement, selector: string): HTMLElement[];
+/**
  * HTML 문자열을 안전하게 정제합니다 (XSS 방지)
  * @param html 정제할 HTML 문자열
  * @returns 정제된 안전한 HTML 문자열
@@ -97,6 +135,31 @@ export declare function checkVersion(): void;
  * @returns 기본 앱 데이터
  */
 export declare function getDefaultData(): DefaultAppData;
+/**
+ * 데이터를 검증하고 저장하는 공통 패턴을 처리합니다.
+ * @param data 검증할 데이터
+ * @param schema Zod 스키마
+ * @param saveCallback 저장 콜백 함수
+ * @param onSuccess 성공 시 콜백 함수 (선택적)
+ * @param onError 에러 시 콜백 함수 (선택적)
+ * @returns 검증 및 저장 성공 여부
+ */
+export declare function validateAndSave<T>(data: unknown, schema: any, // Zod 스키마 타입 (순환 참조 방지)
+saveCallback: (validatedData: T) => Promise<void> | void, onSuccess?: () => void, onError?: (errors: string[]) => void): Promise<boolean>;
+/**
+ * 로컬 스토리지에 안전하게 데이터를 저장합니다.
+ * @param key 저장할 키
+ * @param data 저장할 데이터
+ * @returns 저장 성공 여부
+ */
+export declare function saveToLocalStorage(key: string, data: unknown): boolean;
+/**
+ * 로컬 스토리지에서 안전하게 데이터를 로드합니다.
+ * @param key 로드할 키
+ * @param defaultValue 데이터가 없거나 파싱 실패 시 반환할 기본값
+ * @returns 로드된 데이터 또는 기본값
+ */
+export declare function loadFromLocalStorage<T>(key: string, defaultValue: T): T;
 declare const _default: {
     $: typeof $;
     $$: typeof $$;
@@ -105,6 +168,14 @@ declare const _default: {
     getDefaultData: typeof getDefaultData;
     sanitizeHTML: typeof sanitizeHTML;
     setInnerHTMLSafe: typeof setInnerHTMLSafe;
+    getElement: typeof getElement;
+    getElementBySelector: typeof getElementBySelector;
+    getElements: typeof getElements;
+    getElementInParent: typeof getElementInParent;
+    getElementsInParent: typeof getElementsInParent;
+    validateAndSave: typeof validateAndSave;
+    saveToLocalStorage: typeof saveToLocalStorage;
+    loadFromLocalStorage: typeof loadFromLocalStorage;
 };
 export default _default;
 //# sourceMappingURL=utils.d.ts.map

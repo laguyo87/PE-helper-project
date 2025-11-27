@@ -85,7 +85,11 @@ export class AppStateManager {
     constructor(initialState, options = {}) {
         this.onChangeCallbacks = new Map();
         this.saveTimeout = null;
-        this.SAVE_DEBOUNCE_MS = 500; // 500ms 디바운스
+        // 디바운싱 설정: 상태 변경 빈도에 따라 동적으로 조정
+        this.SAVE_DEBOUNCE_MS_NORMAL = 500; // 일반적인 상태 변경: 500ms
+        this.SAVE_DEBOUNCE_MS_RAPID = 1000; // 빠른 연속 변경: 1000ms
+        this.SAVE_DEBOUNCE_MS_SLOW = 300; // 느린 변경: 300ms
+        this.lastStateChangeTime = 0;
         this.historyStack = []; // 실행 취소를 위한 히스토리 스택
         this.MAX_HISTORY_SIZE = 50; // 최대 히스토리 크기
         this.isUndoing = false; // 실행 취소 중인지 여부 (무한 루프 방지)
@@ -289,17 +293,39 @@ export class AppStateManager {
         }
     }
     /**
+     * 상태 변경 빈도에 따라 최적의 디바운스 시간을 반환합니다.
+     * @returns 디바운스 시간 (밀리초)
+     */
+    getOptimalDebounceTime() {
+        const now = Date.now();
+        const timeSinceLastChange = now - this.lastStateChangeTime;
+        // 빠른 연속 변경 (500ms 이내)
+        if (timeSinceLastChange < 500) {
+            return this.SAVE_DEBOUNCE_MS_RAPID;
+        }
+        // 느린 변경 (2초 이상)
+        if (timeSinceLastChange > 2000) {
+            return this.SAVE_DEBOUNCE_MS_SLOW;
+        }
+        // 일반적인 변경
+        return this.SAVE_DEBOUNCE_MS_NORMAL;
+    }
+    /**
      * 저장 스케줄링 (디바운스)
      */
     scheduleSave() {
         if (!this.options.autoSave || !this.options.saveCallback) {
             return;
         }
+        // 상태 변경 시간 업데이트
+        this.lastStateChangeTime = Date.now();
         // 기존 타이머 취소 (중복 방지)
         if (this.saveTimeout !== null) {
             clearTimeout(this.saveTimeout);
             this.saveTimeout = null;
         }
+        // 상태 변경 빈도에 따라 최적의 디바운스 시간 사용
+        const debounceMs = this.getOptimalDebounceTime();
         // 새 타이머 설정
         this.saveTimeout = window.setTimeout(() => {
             // 타이머가 실행되면 즉시 null로 설정하여 중복 실행 방지
@@ -310,7 +336,7 @@ export class AppStateManager {
                     logError('[AppStateManager] Auto-save failed:', error);
                 });
             }
-        }, this.SAVE_DEBOUNCE_MS);
+        }, debounceMs);
     }
     /**
      * 즉시 저장 (디바운스 없이)

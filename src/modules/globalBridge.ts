@@ -183,7 +183,7 @@ export class GlobalBridge {
           undoBtn.style.opacity = '0.5';
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              undoBtn.style.opacity = originalOpacity || '1';
+            undoBtn.style.opacity = originalOpacity || '1';
             });
           });
         }
@@ -319,7 +319,7 @@ export class GlobalBridge {
       // DOM이 이미 로드된 경우
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          this.setupSidebarToggle();
+        this.setupSidebarToggle();
         });
       });
     }

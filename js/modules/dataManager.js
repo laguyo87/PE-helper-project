@@ -27,6 +27,10 @@ export class DataManager {
         this.lastSaveErrorTime = 0;
         this.firebaseReadyHandler = null;
         this.abortController = null;
+        // 디바운싱 설정: 네트워크 상태에 따라 동적으로 조정
+        this.DEBOUNCE_MS_NORMAL = 1000; // 정상 네트워크: 1000ms
+        this.DEBOUNCE_MS_SLOW = 2000; // 느린 네트워크: 2000ms
+        this.DEBOUNCE_MS_FAST = 500; // 빠른 네트워크: 500ms
         this.abortController = new AbortController();
         this.initializeFirebase();
     }
@@ -50,6 +54,28 @@ export class DataManager {
                 signal: this.abortController?.signal
             });
         }
+    }
+    /**
+     * 네트워크 상태에 따라 최적의 디바운스 시간을 반환합니다.
+     * @returns 디바운스 시간 (밀리초)
+     */
+    getOptimalDebounceTime() {
+        // 네트워크 상태 확인
+        if (typeof navigator !== 'undefined' && 'connection' in navigator) {
+            const connection = navigator.connection;
+            if (connection) {
+                // 느린 네트워크 (2G, 3G)
+                if (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g') {
+                    return this.DEBOUNCE_MS_SLOW;
+                }
+                // 빠른 네트워크 (4G)
+                if (connection.effectiveType === '4g') {
+                    return this.DEBOUNCE_MS_FAST;
+                }
+            }
+        }
+        // 기본값 (정상 네트워크)
+        return this.DEBOUNCE_MS_NORMAL;
     }
     /**
      * 디바운스 타이머 정리
@@ -129,6 +155,8 @@ export class DataManager {
         }
         // 디바운스 타이머 정리 (이전 타이머가 있으면 먼저 정리)
         this.clearDebounceTimer();
+        // 네트워크 상태에 따라 디바운스 시간 조정
+        const debounceMs = this.getOptimalDebounceTime();
         this.dbDebounceTimer = setTimeout(async () => {
             // 타이머가 실행되면 즉시 null로 설정하여 중복 실행 방지
             const timerId = this.dbDebounceTimer;
@@ -174,7 +202,7 @@ export class DataManager {
                     this.dbDebounceTimer = null;
                 }
             }
-        }, 1000);
+        }, debounceMs);
     }
     /**
      * Firestore에서 데이터를 로드합니다.

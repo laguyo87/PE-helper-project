@@ -50,6 +50,19 @@ export class ErrorFilter {
             'Bad Request',
             'Write/channel',
             'gsessionid',
+            'service-worker',
+            'serviceworker',
+            'service worker',
+            'fetchevent',
+            'fetch event',
+            'failed to fetch',
+            'network error response',
+            'the promise was rejected',
+            'fetchevent for',
+            'resulted in a network error',
+            'err_failed',
+            'net::err_failed',
+            'localhost:8080',
         ];
         this.useMutationObserver = options.useMutationObserver !== false;
         this.filterConsole = options.filterConsole !== false;
@@ -143,7 +156,13 @@ export class ErrorFilter {
             (str.includes('err_quic_protocol_error') || str.includes('err_name_not_resolved') || str.includes('err_internet_disconnected')) ||
             // DataManager 타임아웃 에러 (일시적 네트워크 문제)
             (str.includes('Firestore 저장 시간 초과') || str.includes('Firestore 요청 시간 초과') ||
-                (str.includes('datamanager') && str.includes('시간 초과'))));
+                (str.includes('datamanager') && str.includes('시간 초과'))) ||
+            // 서비스 워커 및 FetchEvent 에러
+            (str.includes('fetchevent') || str.includes('fetch event')) ||
+            (str.includes('service-worker') || str.includes('serviceworker')) ||
+            (str.includes('resulted in a network error')) ||
+            (str.includes('err_failed') || str.includes('net::err_failed')) ||
+            (str.includes('localhost:8080') && (str.includes('failed') || str.includes('err_'))));
     }
     /**
      * 순환 참조를 안전하게 처리하는 함수

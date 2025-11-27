@@ -28,6 +28,66 @@ export function $(selector) {
 export function $$(selector) {
     return document.querySelectorAll(selector);
 }
+/**
+ * ID로 DOM 요소를 안전하게 가져옵니다.
+ * @param id 요소 ID
+ * @param throwIfNotFound 요소를 찾지 못했을 때 에러를 던질지 여부 (기본값: false)
+ * @returns HTMLElement 또는 null
+ * @throws 요소를 찾지 못하고 throwIfNotFound가 true인 경우
+ */
+export function getElement(id, throwIfNotFound = false) {
+    const element = document.getElementById(id);
+    if (!element && throwIfNotFound) {
+        throw new Error(`요소를 찾을 수 없습니다: #${id}`);
+    }
+    return element;
+}
+/**
+ * CSS 선택자로 DOM 요소를 안전하게 가져옵니다.
+ * @param selector CSS 선택자
+ * @param throwIfNotFound 요소를 찾지 못했을 때 에러를 던질지 여부 (기본값: false)
+ * @returns HTMLElement 또는 null
+ * @throws 요소를 찾지 못하고 throwIfNotFound가 true인 경우
+ */
+export function getElementBySelector(selector, throwIfNotFound = false) {
+    const element = document.querySelector(selector);
+    if (!element && throwIfNotFound) {
+        throw new Error(`요소를 찾을 수 없습니다: ${selector}`);
+    }
+    return element;
+}
+/**
+ * CSS 선택자로 여러 DOM 요소를 안전하게 가져옵니다.
+ * @param selector CSS 선택자
+ * @returns HTMLElement 배열
+ */
+export function getElements(selector) {
+    return Array.from(document.querySelectorAll(selector));
+}
+/**
+ * 부모 요소 내에서 CSS 선택자로 DOM 요소를 안전하게 가져옵니다.
+ * @param parent 부모 요소
+ * @param selector CSS 선택자
+ * @param throwIfNotFound 요소를 찾지 못했을 때 에러를 던질지 여부 (기본값: false)
+ * @returns HTMLElement 또는 null
+ * @throws 요소를 찾지 못하고 throwIfNotFound가 true인 경우
+ */
+export function getElementInParent(parent, selector, throwIfNotFound = false) {
+    const element = parent.querySelector(selector);
+    if (!element && throwIfNotFound) {
+        throw new Error(`부모 요소 내에서 요소를 찾을 수 없습니다: ${selector}`);
+    }
+    return element;
+}
+/**
+ * 부모 요소 내에서 CSS 선택자로 여러 DOM 요소를 안전하게 가져옵니다.
+ * @param parent 부모 요소
+ * @param selector CSS 선택자
+ * @returns HTMLElement 배열
+ */
+export function getElementsInParent(parent, selector) {
+    return Array.from(parent.querySelectorAll(selector));
+}
 // ========================================
 // XSS 방지 유틸리티
 // ========================================
@@ -212,6 +272,85 @@ export function getDefaultData() {
     };
 }
 // ========================================
+// 데이터 검증 및 저장 헬퍼 함수
+// ========================================
+/**
+ * 데이터를 검증하고 저장하는 공통 패턴을 처리합니다.
+ * @param data 검증할 데이터
+ * @param schema Zod 스키마
+ * @param saveCallback 저장 콜백 함수
+ * @param onSuccess 성공 시 콜백 함수 (선택적)
+ * @param onError 에러 시 콜백 함수 (선택적)
+ * @returns 검증 및 저장 성공 여부
+ */
+export async function validateAndSave(data, schema, // Zod 스키마 타입 (순환 참조 방지)
+saveCallback, onSuccess, onError) {
+    try {
+        const { validateData } = await import('./validators.js');
+        const result = validateData(schema, data);
+        if (!result.success) {
+            const errors = result.formattedErrors || ['데이터 검증에 실패했습니다.'];
+            if (onError) {
+                onError(errors);
+            }
+            return false;
+        }
+        if (result.success && result.data !== undefined) {
+            const validatedData = result.data;
+            await saveCallback(validatedData);
+            if (onSuccess) {
+                onSuccess();
+            }
+            return true;
+        }
+        return false;
+    }
+    catch (error) {
+        if (onError) {
+            onError([error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.']);
+        }
+        return false;
+    }
+}
+/**
+ * 로컬 스토리지에 안전하게 데이터를 저장합니다.
+ * @param key 저장할 키
+ * @param data 저장할 데이터
+ * @returns 저장 성공 여부
+ */
+export function saveToLocalStorage(key, data) {
+    try {
+        const json = JSON.stringify(data);
+        localStorage.setItem(key, json);
+        return true;
+    }
+    catch (error) {
+        console.warn(`로컬 스토리지 저장 실패 (${key}):`, error);
+        return false;
+    }
+}
+/**
+ * 로컬 스토리지에서 안전하게 데이터를 로드합니다.
+ * @param key 로드할 키
+ * @param defaultValue 데이터가 없거나 파싱 실패 시 반환할 기본값
+ * @returns 로드된 데이터 또는 기본값
+ */
+export function loadFromLocalStorage(key, defaultValue) {
+    try {
+        const json = localStorage.getItem(key);
+        if (json === null) {
+            return defaultValue;
+        }
+        const parsed = JSON.parse(json);
+        // 파싱된 데이터가 기본값과 호환되는지 확인
+        return parsed ?? defaultValue;
+    }
+    catch (error) {
+        console.warn(`로컬 스토리지 읽기 실패 (${key}):`, error);
+        return defaultValue;
+    }
+}
+// ========================================
 // 기본 내보내기
 // ========================================
 export default {
@@ -221,6 +360,14 @@ export default {
     checkVersion,
     getDefaultData,
     sanitizeHTML,
-    setInnerHTMLSafe
+    setInnerHTMLSafe,
+    getElement,
+    getElementBySelector,
+    getElements,
+    getElementInParent,
+    getElementsInParent,
+    validateAndSave,
+    saveToLocalStorage,
+    loadFromLocalStorage
 };
 //# sourceMappingURL=utils.js.map

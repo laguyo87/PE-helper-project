@@ -6,6 +6,49 @@
   <title>체육 수업 도우미 (온라인 버전)</title>
   <meta name="google-site-verification" content="BAb1Evt0W_EOPGPYxID08YyKTnsQ2D8uJvYpzfhxEfw" />
   <meta name="naver-site-verification" content="8e3626d5e947128b60282a78fdfe9a1a2e6a1d8b" />
+  
+  <!-- Service Worker 완전 제거 (최우선 실행) -->
+  <script>
+    (function() {
+      // 개발 환경 감지
+      var isDev = window.location.hostname === 'localhost' || 
+                  window.location.hostname === '127.0.0.1' ||
+                  window.location.hostname.startsWith('192.168.') ||
+                  window.location.hostname.startsWith('10.') ||
+                  window.location.hostname.startsWith('172.');
+      
+      if (isDev && 'serviceWorker' in navigator) {
+        // 즉시 서비스 워커 컨트롤러 업데이트 중지
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({type: 'SKIP_WAITING'});
+        }
+        
+        // 모든 서비스 워커 등록 해제
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          var unregisterPromises = [];
+          for(var i = 0; i < registrations.length; i++) {
+            unregisterPromises.push(registrations[i].unregister());
+          }
+          return Promise.all(unregisterPromises);
+        }).then(function() {
+          console.log('Service Worker 완전 제거 완료');
+          // 페이지 새로고침하여 서비스 워커 완전 제거
+          if (navigator.serviceWorker.controller) {
+            window.location.reload();
+          }
+        }).catch(function(error) {
+          console.warn('Service Worker 제거 중 오류:', error);
+        });
+        
+        // 서비스 워커 등록 방지
+        navigator.serviceWorker.register = function() {
+          console.warn('Service Worker 등록이 차단되었습니다 (개발 환경)');
+          return Promise.reject(new Error('Service Worker registration blocked in development'));
+        };
+      }
+    })();
+  </script>
+  
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1971c2"/>
   
@@ -105,7 +148,20 @@
         'bad request',
         'write/channel',
         'gsessionid',
-        '400'
+        '400',
+        'service-worker',
+        'serviceworker',
+        'service worker',
+        'fetchevent',
+        'fetch event',
+        'failed to fetch',
+        'network error response',
+        'the promise was rejected',
+        'fetchevent for',
+        'resulted in a network error',
+        'err_failed',
+        'net::err_failed',
+        'localhost:8080'
       ];
       
       // 에러가 필터링해야 할 에러인지 확인
@@ -150,6 +206,14 @@
         if (str.includes('firestore.googleapis.com') && 
             (str.includes('net::') || str.includes('err_') || str.includes('failed to load') || 
              str.includes('400') || str.includes('bad request') || str.includes('write/channel') || str.includes('gsessionid'))) {
+          return true;
+        }
+        
+        // 서비스 워커 및 FetchEvent 에러 패턴
+        if (str.includes('fetchevent') || str.includes('fetch event') || 
+            str.includes('service-worker') || str.includes('serviceworker') ||
+            str.includes('resulted in a network error') || str.includes('err_failed') ||
+            (str.includes('localhost:8080') && (str.includes('failed') || str.includes('err_')))) {
           return true;
         }
         
@@ -267,7 +331,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2025-11-26-1314">
+  <link rel="stylesheet" href="styles.css?v=2025-11-27-0304">
 </head>
 <body>
   <a href="#content-wrapper" id="skip-to-main" class="skip-link">본문으로 건너뛰기</a>
@@ -793,4 +857,4 @@
     }, 500);
   </script>
   
-  <script type="module" src="main.js?v=2025-11-26-1314"></script>
+  <script type="module" src="main.js?v=2025-11-27-0304"></script>
