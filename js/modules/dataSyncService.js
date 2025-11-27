@@ -8,6 +8,7 @@
  * @version 2.2.1
  * @since 2024-01-01
  */
+import { logger, logWarn, logError } from './logger.js';
 // ========================================
 // DataSyncService 클래스
 // ========================================
@@ -38,7 +39,7 @@ export class DataSyncService {
             }
             const timeoutId = setTimeout(() => {
                 window.removeEventListener('firebaseReady', handler);
-                console.warn('Firebase 초기화 대기 시간 초과');
+                logWarn('Firebase 초기화 대기 시간 초과');
                 resolve(false);
             }, timeout);
             const handler = () => {
@@ -53,10 +54,10 @@ export class DataSyncService {
      * Firestore에서 데이터 로드
      */
     async loadFromFirestore() {
-        console.log('=== DataSyncService: Firestore에서 데이터 로드 시작 ===');
+        logger.debug('=== DataSyncService: Firestore에서 데이터 로드 시작 ===');
         if (!this.dataManager) {
-            console.warn('DataManager가 초기화되지 않음, 로컬 스토리지에서 로드');
-            console.log('DataManager 초기화 대기 중...');
+            logWarn('DataManager가 초기화되지 않음, 로컬 스토리지에서 로드');
+            logger.debug('DataManager 초기화 대기 중...');
             // DataManager가 초기화될 때까지 최대 5초 대기
             let retryCount = 0;
             const maxRetries = 50; // 50 * 100ms = 5초
@@ -65,25 +66,25 @@ export class DataSyncService {
                 retryCount++;
             }
             if (!this.dataManager) {
-                console.warn('DataManager 초기화 대기 시간 초과, 로컬 스토리지에서 로드');
+                logWarn('DataManager 초기화 대기 시간 초과, 로컬 스토리지에서 로드');
                 return this.loadFromLocal();
             }
-            console.log('DataManager 초기화 완료, Firestore에서 로드 진행');
+            logger.debug('DataManager 초기화 완료, Firestore에서 로드 진행');
         }
         try {
             // Firebase 초기화 대기 (최대 10초)
             const firebaseReady = await this.waitForFirebase(10000);
             if (!firebaseReady || !window.firebase || !window.firebase.db) {
-                console.log('Firebase가 초기화되지 않음, 로컬 스토리지에서 로드');
+                logger.debug('Firebase가 초기화되지 않음, 로컬 스토리지에서 로드');
                 return this.loadFromLocal();
             }
             // AuthManager의 현재 사용자 가져오기
             const currentUser = this.authManager?.getCurrentUser() || null;
             const userId = currentUser?.uid || 'anonymous';
-            console.log('사용자 ID:', userId);
+            logger.debug('사용자 ID:', userId);
             // Firestore에서 데이터 로드
             const appData = await this.dataManager.loadDataFromFirestore(userId);
-            console.log('Firestore에서 데이터 로드 완료:', appData);
+            logger.debug('Firestore에서 데이터 로드 완료:', appData);
             if (appData && typeof appData === 'object' && Object.keys(appData).length > 0) {
                 // 데이터 처리 및 검증
                 const processedData = this.processLoadedData(appData);
@@ -101,13 +102,13 @@ export class DataSyncService {
                 };
             }
             else {
-                console.log('Firestore에 데이터 없음, 로컬 스토리지에서 로드');
+                logger.debug('Firestore에 데이터 없음, 로컬 스토리지에서 로드');
                 return this.loadFromLocal();
             }
         }
         catch (error) {
-            console.error('Firestore 데이터 로드 실패:', error);
-            console.log('로컬 스토리지에서 로드 재시도');
+            logError('Firestore 데이터 로드 실패:', error);
+            logger.debug('로컬 스토리지에서 로드 재시도');
             return this.loadFromLocal();
         }
     }
@@ -115,17 +116,17 @@ export class DataSyncService {
      * 로컬 스토리지에서 데이터 로드
      */
     loadFromLocal() {
-        console.log('=== DataSyncService: 로컬 스토리지에서 데이터 로드 시작 ===');
-        console.log('Storage Key:', this.storageKey);
+        logger.debug('=== DataSyncService: 로컬 스토리지에서 데이터 로드 시작 ===');
+        logger.debug('Storage Key:', this.storageKey);
         try {
             const storedData = localStorage.getItem(this.storageKey);
-            console.log('로컬 스토리지 데이터 존재 여부:', !!storedData);
+            logger.debug('로컬 스토리지 데이터 존재 여부:', !!storedData);
             if (!storedData) {
-                console.log('로컬 스토리지에 데이터 없음, 기본 데이터 사용');
+                logger.debug('로컬 스토리지에 데이터 없음, 기본 데이터 사용');
                 return this.loadDefault();
             }
             const appData = JSON.parse(storedData);
-            console.log('로컬 스토리지 데이터 로드 완료:', appData);
+            logger.debug('로컬 스토리지 데이터 로드 완료:', appData);
             if (appData && Object.keys(appData).length > 0) {
                 // 데이터 처리 및 검증
                 const processedData = this.processLoadedData(appData);
@@ -141,12 +142,12 @@ export class DataSyncService {
                 };
             }
             else {
-                console.log('로컬 스토리지 데이터가 비어있음, 기본 데이터 사용');
+                logger.debug('로컬 스토리지 데이터가 비어있음, 기본 데이터 사용');
                 return this.loadDefault();
             }
         }
         catch (error) {
-            console.error('로컬 스토리지 데이터 로드 실패:', error);
+            logError('로컬 스토리지 데이터 로드 실패:', error);
             return this.loadDefault();
         }
     }
@@ -154,7 +155,7 @@ export class DataSyncService {
      * 기본 데이터 로드
      */
     loadDefault() {
-        console.log('=== DataSyncService: 기본 데이터 로드 ===');
+        logger.debug('=== DataSyncService: 기본 데이터 로드 ===');
         try {
             const defaultData = this.getDefaultData();
             // AppStateManager에 상태 업데이트
@@ -169,7 +170,7 @@ export class DataSyncService {
             };
         }
         catch (error) {
-            console.error('기본 데이터 로드 실패:', error);
+            logError('기본 데이터 로드 실패:', error);
             return {
                 success: false,
                 source: 'default',
@@ -181,16 +182,16 @@ export class DataSyncService {
      * Firestore에 데이터 저장
      */
     async saveToFirestore() {
-        console.log('=== DataSyncService: Firestore에 데이터 저장 시작 ===');
+        logger.debug('=== DataSyncService: Firestore에 데이터 저장 시작 ===');
         if (!this.dataManager) {
-            console.warn('DataManager가 초기화되지 않음, 로컬 스토리지에만 저장');
+            logWarn('DataManager가 초기화되지 않음, 로컬 스토리지에만 저장');
             return this.saveToLocal();
         }
         try {
             // AppStateManager에서 상태 가져오기
             const state = this.stateManager ? this.stateManager.getState() : null;
             if (!state) {
-                console.warn('상태 데이터가 없음, 저장할 데이터 없음');
+                logWarn('상태 데이터가 없음, 저장할 데이터 없음');
                 return {
                     success: false,
                     source: 'firestore',
@@ -207,7 +208,7 @@ export class DataSyncService {
             };
             // Firestore에 저장
             await this.dataManager.saveDataToFirestore(data);
-            console.log('Firestore 데이터 저장 완료');
+            logger.debug('Firestore 데이터 저장 완료');
             // 로컬 스토리지에도 백업 저장
             this.saveToLocal(data);
             return {
@@ -216,7 +217,7 @@ export class DataSyncService {
             };
         }
         catch (error) {
-            console.error('Firestore 데이터 저장 실패:', error);
+            logError('Firestore 데이터 저장 실패:', error);
             // 실패 시 로컬 스토리지에 저장
             this.saveToLocal();
             return {
@@ -230,12 +231,12 @@ export class DataSyncService {
      * 로컬 스토리지에 데이터 저장
      */
     saveToLocal(data) {
-        console.log('=== DataSyncService: 로컬 스토리지에 데이터 저장 시작 ===');
+        logger.debug('=== DataSyncService: 로컬 스토리지에 데이터 저장 시작 ===');
         try {
             // 데이터 가져오기 (매개변수 또는 AppStateManager에서)
             const stateData = data || (this.stateManager ? this.stateManager.getState() : null);
             if (!stateData) {
-                console.warn('저장할 데이터가 없음');
+                logWarn('저장할 데이터가 없음');
                 return {
                     success: false,
                     source: 'local',
@@ -259,16 +260,16 @@ export class DataSyncService {
                 localStorage.setItem('progressData', JSON.stringify(dataToSave.progress || {}));
             }
             catch (e) {
-                console.warn('개별 키 저장 실패 (용량 초과 가능):', e);
+                logWarn('개별 키 저장 실패 (용량 초과 가능):', e);
             }
-            console.log('로컬 스토리지 저장 완료');
+            logger.debug('로컬 스토리지 저장 완료');
             return {
                 success: true,
                 source: 'local'
             };
         }
         catch (error) {
-            console.error('로컬 스토리지 저장 실패:', error);
+            logError('로컬 스토리지 저장 실패:', error);
             return {
                 success: false,
                 source: 'local',
@@ -395,14 +396,14 @@ export class DataSyncService {
      * 모든 저장소에서 데이터 동기화 (Firestore 우선)
      */
     async sync() {
-        console.log('=== DataSyncService: 데이터 동기화 시작 ===');
+        logger.debug('=== DataSyncService: 데이터 동기화 시작 ===');
         // Firestore에서 먼저 시도, 실패하면 로컬, 그것도 없으면 기본 데이터
         const result = await this.loadFromFirestore();
         if (result.success) {
-            console.log('데이터 동기화 완료:', result.source);
+            logger.debug('데이터 동기화 완료:', result.source);
         }
         else {
-            console.warn('데이터 동기화 실패, 기본 데이터 사용');
+            logWarn('데이터 동기화 실패, 기본 데이터 사용');
         }
         return result;
     }

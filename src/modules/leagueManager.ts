@@ -215,30 +215,32 @@ export class LeagueManager {
                 logger.debug('폼 HTML 설정 완료');
                 
                 // 버튼에 이벤트 리스너 직접 추가 (onclick이 제대로 작동하지 않을 수 있으므로)
-                // setInnerHTMLSafe 이후 약간의 지연을 주어 DOM이 완전히 업데이트되도록 함
-                setTimeout(() => {
-                    const createBtn = this.getElement('#createLeagueClassBtn');
-                    if (createBtn) {
-                        // 기존 리스너 제거 (중복 방지)
-                        const newBtn = createBtn.cloneNode(true);
-                        createBtn.parentNode?.replaceChild(newBtn, createBtn);
-                        
-                        (newBtn as HTMLElement).addEventListener('click', () => {
-                            this.log('createLeagueClassBtn 클릭 이벤트 발생');
-                            if (typeof (window as any).leagueManager?.createClass === 'function') {
-                                this.log('window.leagueManager.createClass 호출');
-                                (window as any).leagueManager.createClass();
-                            } else {
-                                this.log('❌ window.leagueManager.createClass가 함수가 아님:', typeof (window as any).leagueManager?.createClass);
-                                // 직접 호출
-                                this.createClass();
-                            }
-                        });
-                        logger.debug('createLeagueClassBtn 이벤트 리스너 등록 완료');
-                    } else {
-                        logError('❌ createLeagueClassBtn 요소를 찾을 수 없음');
-                    }
-                }, 0);
+                // setInnerHTMLSafe 이후 requestAnimationFrame으로 DOM 업데이트 대기
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const createBtn = this.getElement('#createLeagueClassBtn');
+                        if (createBtn) {
+                            // 기존 리스너 제거 (중복 방지)
+                            const newBtn = createBtn.cloneNode(true);
+                            createBtn.parentNode?.replaceChild(newBtn, createBtn);
+                            
+                            (newBtn as HTMLElement).addEventListener('click', () => {
+                                this.log('createLeagueClassBtn 클릭 이벤트 발생');
+                                if (typeof (window as any).leagueManager?.createClass === 'function') {
+                                    this.log('window.leagueManager.createClass 호출');
+                                    (window as any).leagueManager.createClass();
+                                } else {
+                                    this.log('❌ window.leagueManager.createClass가 함수가 아님:', typeof (window as any).leagueManager?.createClass);
+                                    // 직접 호출
+                                    this.createClass();
+                                }
+                            });
+                            logger.debug('createLeagueClassBtn 이벤트 리스너 등록 완료');
+                        } else {
+                            logError('❌ createLeagueClassBtn 요소를 찾을 수 없음');
+                        }
+                    });
+                });
             } else {
                 logError('❌ sidebar-form-container 요소를 찾을 수 없음');
             }
@@ -262,13 +264,13 @@ export class LeagueManager {
                 // 즉시 표시
                 sidebarListContainer.style.setProperty('display', 'flex', 'important');
                 
-                // 약간의 지연 후에도 다시 확인 (모드 전환 후 CSS가 재적용될 수 있음)
-                setTimeout(() => {
+                // requestAnimationFrame으로 다시 확인 (모드 전환 후 CSS가 재적용될 수 있음)
+                requestAnimationFrame(() => {
                     const el = this.getElement('#sidebar-list-container');
                     if (el && !document.body.classList.contains('progress-mode')) {
                         el.style.setProperty('display', 'flex', 'important');
                     }
-                }, 50);
+                });
             }
             
             // 사이드바 맨 아래에 엑셀 버튼 추가 (리그전 모드 전용)
@@ -393,10 +395,11 @@ export class LeagueManager {
         setInnerHTMLSafe(classList, html);
         
         // 이벤트 리스너 등록 (onclick이 제대로 작동하지 않을 수 있으므로)
-        setTimeout(() => {
-            const cards = classList.querySelectorAll('.list-card');
-            cards.forEach(card => {
-                const classId = card.getAttribute('data-class-id');
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const cards = classList.querySelectorAll('.list-card');
+                cards.forEach(card => {
+                    const classId = card.getAttribute('data-class-id');
                 if (!classId) return;
                 
                 // 카드 클릭 시 반 선택
@@ -467,10 +470,11 @@ export class LeagueManager {
                         }
                     });
                 }
+                });
+                
+                this.log('반 목록 이벤트 리스너 등록 완료, 카드 수:', cards.length);
             });
-            
-            this.log('반 목록 이벤트 리스너 등록 완료, 카드 수:', cards.length);
-        }, 0);
+        });
     }
 
     /**
@@ -1350,10 +1354,12 @@ export class LeagueManager {
         if (!container) {
             this.logError('❌ gamesTableContent 요소를 찾을 수 없음');
             // 요소를 찾을 수 없으면 재시도
-            setTimeout(() => {
-                this.log('재시도: renderGamesTable');
-                this.renderGamesTable(isReadOnly);
-            }, 100);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    this.log('재시도: renderGamesTable');
+                    this.renderGamesTable(isReadOnly);
+                });
+            });
             return;
         }
         
@@ -1533,16 +1539,18 @@ export class LeagueManager {
         this.log('✅ 경기 테이블 HTML 삽입 완료');
         
         // DOM에 삽입된 후 확인
-        setTimeout(() => {
-            const table = container.querySelector('table');
-            const tbody = table?.querySelector('tbody');
-            const rows = tbody?.querySelectorAll('tr');
-            if (table && rows && rows.length > 0) {
-                this.log(`✅ 경기 테이블이 성공적으로 렌더링되었습니다. (${rows.length}개 행)`);
-            } else {
-                this.logError('❌ 경기 테이블이 DOM에 없거나 행이 없습니다.');
-            }
-        }, 50);
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const table = container.querySelector('table');
+                const tbody = table?.querySelector('tbody');
+                const rows = tbody?.querySelectorAll('tr');
+                if (table && rows && rows.length > 0) {
+                    this.log(`✅ 경기 테이블이 성공적으로 렌더링되었습니다. (${rows.length}개 행)`);
+                } else {
+                    this.logError('❌ 경기 테이블이 DOM에 없거나 행이 없습니다.');
+                }
+            });
+        });
     }
 
     /**

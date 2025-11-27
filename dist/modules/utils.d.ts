@@ -74,6 +74,23 @@ export declare function cleanupSidebar(selectorFn?: DOMSelector): void;
 /**
  * 앱 버전을 체크하고 필요시 새로고침합니다.
  */
+/**
+ * DOM 업데이트가 완료될 때까지 대기하는 Promise를 반환합니다.
+ * requestAnimationFrame을 사용하여 브라우저 렌더링 사이클과 동기화합니다.
+ *
+ * @param frames 대기할 프레임 수 (기본값: 2, DOM 업데이트 후 렌더링까지 대기)
+ * @returns Promise<void>
+ */
+export declare function waitForDOMUpdate(frames?: number): Promise<void>;
+/**
+ * 특정 요소가 DOM에 나타날 때까지 대기하는 Promise를 반환합니다.
+ * MutationObserver와 requestAnimationFrame을 조합하여 사용합니다.
+ *
+ * @param selector CSS 선택자
+ * @param timeout 최대 대기 시간 (밀리초, 기본값: 5000)
+ * @returns Promise<HTMLElement | null>
+ */
+export declare function waitForElement(selector: string, timeout?: number): Promise<HTMLElement | null>;
 export declare function checkVersion(): void;
 /**
  * 기본 앱 데이터를 반환합니다.

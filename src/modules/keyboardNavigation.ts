@@ -155,10 +155,12 @@ export function openModal(modalElement: HTMLElement): void {
   // 모달이 열리면 첫 번째 포커스 가능한 요소에 포커스
   const focusableElements = getFocusableElements(modalElement);
   if (focusableElements.length > 0) {
-    // 약간의 지연 후 포커스 (애니메이션 고려)
-    setTimeout(() => {
-      focusableElements[0].focus();
-    }, 100);
+    // requestAnimationFrame으로 포커스 (애니메이션 고려)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        focusableElements[0].focus();
+      });
+    });
   }
   
   // 모달 외부 콘텐츠 숨기기 (body 대신 main, header, aside 등에 aria-hidden 적용)

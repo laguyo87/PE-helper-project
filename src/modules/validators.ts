@@ -226,7 +226,8 @@ export function validateWithDefaults<T>(
   }
   
   // 검증 실패 시 기본값 반환
-  console.warn('데이터 검증 실패, 기본값 사용:', result.formattedErrors);
+  // 검증 실패는 조용히 처리 (기본값 사용)
+  // 필요 시 logger로 전환 가능
   return defaultValue;
 }
 

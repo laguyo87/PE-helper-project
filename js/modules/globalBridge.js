@@ -128,10 +128,10 @@ export class GlobalBridge {
                 if (undoBtn) {
                     undoBtn.disabled = true;
                     undoBtn.style.opacity = '0.5';
-                    setTimeout(() => {
+                    requestAnimationFrame(() => {
                         undoBtn.disabled = false;
                         undoBtn.style.opacity = '1';
-                    }, 100);
+                    });
                 }
                 return;
             }
@@ -141,9 +141,11 @@ export class GlobalBridge {
                 if (undoBtn) {
                     const originalOpacity = undoBtn.style.opacity;
                     undoBtn.style.opacity = '0.5';
-                    setTimeout(() => {
-                        undoBtn.style.opacity = originalOpacity || '1';
-                    }, 200);
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            undoBtn.style.opacity = originalOpacity || '1';
+                        });
+                    });
                 }
                 console.log('실행 취소할 수 있는 이전 상태가 없습니다.');
                 return;
@@ -156,12 +158,12 @@ export class GlobalBridge {
                     if (undoBtn) {
                         undoBtn.disabled = true;
                         undoBtn.style.opacity = '0.5';
-                        setTimeout(() => {
+                        requestAnimationFrame(() => {
                             undoBtn.disabled = false;
                             undoBtn.style.opacity = '1';
                             // 실행 취소 가능 여부에 따라 버튼 상태 업데이트
                             this.updateUndoButtonState();
-                        }, 100);
+                        });
                     }
                     console.log('실행 취소 완료');
                 }
@@ -266,9 +268,11 @@ export class GlobalBridge {
         }
         else {
             // DOM이 이미 로드된 경우
-            setTimeout(() => {
-                this.setupSidebarToggle();
-            }, 100);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    this.setupSidebarToggle();
+                });
+            });
         }
     }
     /**

@@ -162,6 +162,74 @@ export function cleanupSidebar(selectorFn?: DOMSelector): void {
 /**
  * 앱 버전을 체크하고 필요시 새로고침합니다.
  */
+/**
+ * DOM 업데이트가 완료될 때까지 대기하는 Promise를 반환합니다.
+ * requestAnimationFrame을 사용하여 브라우저 렌더링 사이클과 동기화합니다.
+ * 
+ * @param frames 대기할 프레임 수 (기본값: 2, DOM 업데이트 후 렌더링까지 대기)
+ * @returns Promise<void>
+ */
+export function waitForDOMUpdate(frames: number = 2): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let frameCount = 0;
+    const tick = () => {
+      frameCount++;
+      if (frameCount >= frames) {
+        resolve();
+      } else {
+        requestAnimationFrame(tick);
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+/**
+ * 특정 요소가 DOM에 나타날 때까지 대기하는 Promise를 반환합니다.
+ * MutationObserver와 requestAnimationFrame을 조합하여 사용합니다.
+ * 
+ * @param selector CSS 선택자
+ * @param timeout 최대 대기 시간 (밀리초, 기본값: 5000)
+ * @returns Promise<HTMLElement | null>
+ */
+export function waitForElement(selector: string, timeout: number = 5000): Promise<HTMLElement | null> {
+  return new Promise<HTMLElement | null>((resolve) => {
+    // 즉시 확인
+    const element = document.querySelector(selector) as HTMLElement | null;
+    if (element) {
+      resolve(element);
+      return;
+    }
+
+    const startTime = Date.now();
+    const observer = new MutationObserver(() => {
+      const el = document.querySelector(selector) as HTMLElement | null;
+      if (el) {
+        observer.disconnect();
+        resolve(el);
+        return;
+      }
+
+      if (Date.now() - startTime > timeout) {
+        observer.disconnect();
+        resolve(null);
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    // 타임아웃 처리
+    setTimeout(() => {
+      observer.disconnect();
+      const el = document.querySelector(selector) as HTMLElement | null;
+      resolve(el);
+    }, timeout);
+  });
+}
+
 export function checkVersion(): void {
   const stored = localStorage.getItem('pe_helper_version');
   

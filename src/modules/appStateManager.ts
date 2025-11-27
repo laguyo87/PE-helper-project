@@ -12,6 +12,7 @@
 
 import { LeagueData } from './leagueManager.js';
 import { PapsData } from './papsManager.js';
+import { logger, logError } from './logger.js';
 
 // ========================================
 // 타입 정의
@@ -153,7 +154,7 @@ export class AppStateManager {
     if (this.saveTimeout !== null) {
       clearTimeout(this.saveTimeout);
       this.saveTimeout = null;
-      console.log('[AppStateManager] 저장 타이머 정리 완료');
+      logger.debug('[AppStateManager] 저장 타이머 정리 완료');
     }
     
     // 콜백 목록 정리
@@ -162,7 +163,7 @@ export class AppStateManager {
     // 히스토리 정리
     this.historyStack = [];
     
-    console.log('[AppStateManager] 리소스 정리 완료');
+    logger.debug('[AppStateManager] 리소스 정리 완료');
   }
 
   constructor(initialState?: Partial<AppState>, options: AppStateManagerOptions = {}) {
@@ -385,7 +386,7 @@ export class AppStateManager {
         try {
           callback(newState, oldState);
         } catch (error) {
-          console.error(`State change callback error for ${key}:`, error);
+          logError(`State change callback error for ${key}:`, error);
         }
       });
     }
@@ -413,7 +414,7 @@ export class AppStateManager {
       
       if (this.options.saveCallback) {
         this.options.saveCallback().catch(error => {
-          console.error('[AppStateManager] Auto-save failed:', error);
+          logError('[AppStateManager] Auto-save failed:', error);
         });
       }
     }, this.SAVE_DEBOUNCE_MS);

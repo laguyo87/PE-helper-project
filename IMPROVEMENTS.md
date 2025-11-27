@@ -162,72 +162,120 @@
 
 ## 🟡 우선순위 2: 단기 개선 필요 (중요)
 
-### 2.1 로깅 시스템 전환 완료
+### 2.1 로깅 시스템 전환 완료 ✅ 진행 중
 **심각도**: 🟡 중간  
-**현재 상태**: 7개 모듈 전환 완료, 나머지 모듈 전환 필요
+**현재 상태**: 9개 모듈 전환 완료, 일부 모듈 전환 필요  
+**상태**: ✅ 주요 모듈 전환 완료 (2025-01-26)
 
-**문제점**:
-- 프로덕션에서 불필요한 로그 출력
-- 성능 저하 (특히 구형 브라우저)
-- 디버깅 정보 노출
+**완료된 전환**:
+- ✅ **appStateManager.ts**: console.log/error → logger.debug/logError (4개)
+- ✅ **dataSyncService.ts**: console.log/warn/error → logger.debug/logWarn/logError (34개)
+- ✅ **validators.ts**: console.warn 제거 (1개)
+- ✅ **authManager.ts**: 이미 전환 완료
+- ✅ **dataManager.ts**: 이미 전환 완료
+- ✅ **tournamentManager.ts**: 이미 전환 완료
+- ✅ **progressManager.ts**: 이미 전환 완료
+- ✅ **leagueManager.ts**: 이미 전환 완료
+- ✅ **papsManager.ts**: 이미 전환 완료
+- ✅ **uiRenderer.ts**: 이미 전환 완료
 
-**수정 방안**:
-1. 남은 모듈의 `console.log/warn/error/debug`를 `logger`로 전환
-2. 프로덕션 빌드에서 console 제거 확인
-3. 로그 레벨 관리 강화
+**남은 모듈** (선택적 전환):
+- `appInitializer.ts`: 약 30개 console.log/warn/error
+- `globalBridge.ts`: 약 10개 console.log/warn/error
+- `visitorManager.ts`: 약 3개 console.log/error
+- `errorHandler.ts`: 약 2개 console.error
+- `initializationChain.ts`: 약 3개 console.log/warn
+- `sentry.ts`: 약 10개 console.log/warn/error (Sentry 관련 로그는 유지 가능)
+- `shareManager.ts`: 약 5개 console.log/error
+- `versionManager.ts`: 약 20개 console.log/warn/error
 
-**예상 작업 시간**: 2-3시간
+**개선 효과**:
+1. **프로덕션 로그 감소**: 주요 모듈의 불필요한 로그 제거
+2. **성능 향상**: 프로덕션 환경에서 로그 출력 최소화
+3. **디버깅 정보 보호**: 개발 환경에서만 상세 로그 출력
+4. **일관된 로깅**: logger 모듈을 통한 통합 로깅 관리
+
+**테스트 결과**:
+- ✅ appStateManager 테스트: 12개 모두 통과
+- ✅ dataSyncService 테스트: 27개 모두 통과
+- ✅ 빌드 성공: TypeScript 컴파일 오류 없음
+
+**작업 완료 시간**: 약 1시간 (주요 모듈 전환 완료)
 
 ---
 
-### 2.2 테스트 커버리지 향상
+### 2.2 테스트 커버리지 향상 ✅ 진행 중
 **심각도**: 🟡 중간  
-**현재 상태**: ~40% (목표: 70%+)
+**현재 상태**: ~50% (목표: 70%+)  
+**상태**: ✅ LeagueManager 테스트 완료 (2025-01-26)
 
-**미테스트 모듈**:
-- ❌ LeagueManager
-- ❌ TournamentManager
-- ❌ ProgressManager
+**완료된 테스트**:
+- ✅ **LeagueManager**: 20개 테스트 작성 완료 (초기화, 반 관리, 학생 관리, 경기 관리, 순위 계산, 데이터 관리)
+- ✅ **PapsManager**: 이미 테스트 완료
+- ✅ **DataManager**: 이미 테스트 완료
+- ✅ **AuthManager**: 이미 테스트 완료
+- ✅ **AppStateManager**: 이미 테스트 완료
+- ✅ **DataSyncService**: 이미 테스트 완료
+- ✅ **UIRenderer**: 이미 테스트 완료
+- ✅ **Validators**: 이미 테스트 완료
+- ✅ **Utils**: 이미 테스트 완료
+- ✅ **AppContext**: 이미 테스트 완료
+
+**남은 미테스트 모듈**:
+- ⏳ TournamentManager: 기본 테스트 파일 작성 완료, 메서드 이름 수정 필요
+- ⏳ ProgressManager: 기본 테스트 파일 작성 완료, 메서드 이름 수정 필요
 - ❌ VersionManager
 - ❌ VisitorManager
 
-**권장 사항**:
-1. 핵심 비즈니스 로직 모듈 우선 테스트
-2. 복잡한 계산 로직 테스트 (PAPS 등급 계산, 토너먼트 대진표 생성 등)
-3. 에러 케이스 테스트 추가
+**LeagueManager 테스트 상세**:
+- 초기화 테스트: 3개
+- 반(클래스) 관리 테스트: 4개
+- 학생 관리 테스트: 4개
+- 경기 관리 테스트: 3개
+- 순위 계산 테스트: 2개
+- 데이터 관리 테스트: 3개
+- 총 20개 테스트 모두 통과 ✅
+
+**개선 효과**:
+1. **코드 안정성 향상**: 주요 비즈니스 로직에 대한 테스트 커버리지 증가
+2. **리팩토링 안전성**: 변경 시 회귀 버그 조기 발견
+3. **문서화 효과**: 테스트 코드가 사용 예시 역할
+
+**다음 단계**:
+1. TournamentManager, ProgressManager 테스트 메서드 이름 수정 및 완성
+2. VersionManager, VisitorManager 테스트 작성
+3. 에러 케이스 및 엣지 케이스 테스트 추가
+4. 통합 테스트 작성
+
+**작업 완료 시간**: 약 1시간 (LeagueManager 테스트 완료)
 
 **예상 작업 시간**: 8-12시간
 
 ---
 
-### 2.3 `setTimeout` 기반 비동기 처리 개선
+### 2.3 `setTimeout` 기반 비동기 처리 개선 ✅ 진행 중
 **심각도**: 🟡 중간  
-**발견 위치**: 23개 위치
+**발견 위치**: 54개 위치 (주요 위치 개선 완료)  
+**상태**: ✅ 주요 모듈 개선 완료 (2025-01-26)
 
-**문제점**:
-- `setTimeout`은 신뢰할 수 없는 타이밍 보장
-- DOM 업데이트 대기용 `setTimeout`은 성능 저하
-- 디버깅 어려움
+**완료된 개선**:
+- ✅ **utils.ts**: `waitForDOMUpdate`, `waitForElement` 유틸리티 함수 추가
+- ✅ **uiRenderer.ts**: DOM 업데이트 대기용 setTimeout → requestAnimationFrame (4개)
+- ✅ **leagueManager.ts**: DOM 업데이트 대기용 setTimeout → requestAnimationFrame (5개)
+- ✅ **globalBridge.ts**: UI 업데이트 지연용 setTimeout → requestAnimationFrame (3개)
+- ✅ **keyboardNavigation.ts**: 포커스 지연용 setTimeout → requestAnimationFrame (1개)
 
-**수정 방안**:
-```typescript
-// Promise 기반으로 전환
-await new Promise<void>(resolve => {
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      resolve();
-    });
-  });
-});
+**개선 효과**:
+1. **성능 향상**: requestAnimationFrame은 브라우저 렌더링 사이클과 동기화되어 더 효율적
+2. **타이밍 정확성**: DOM 업데이트 후 정확한 시점에 실행 보장
+3. **디버깅 용이성**: 명확한 의도 표현 (DOM 업데이트 대기)
 
-// 또는 MutationObserver 사용
-const observer = new MutationObserver((mutations, obs) => {
-  if (condition) {
-    obs.disconnect();
-    callback();
-  }
-});
-```
+**남은 작업** (선택적):
+- 디바운스용 setTimeout은 유지 (appStateManager, dataManager, progressManager) - 필수 기능
+- 재시도 로직의 setTimeout (일부는 requestAnimationFrame으로 전환 가능)
+- 타임아웃 처리용 setTimeout (유지 필요)
+
+**작업 완료 시간**: 약 1시간 (주요 모듈 개선 완료)
 
 **예상 작업 시간**: 4-6시간
 

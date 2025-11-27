@@ -161,11 +161,13 @@ export class UIRenderer {
     logger.debug('모드 버튼 설정 즉시 시도...');
     this.setupModeButtons();
     
-    // DOM이 완전히 준비되기 전일 수 있으므로 약간의 지연 후에도 설정
-    setTimeout(() => {
-      logger.debug('모드 버튼 설정 재시도 (100ms 후)...');
-      this.setupModeButtons();
-    }, 100);
+    // DOM이 완전히 준비되기 전일 수 있으므로 requestAnimationFrame으로 재시도
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        logger.debug('모드 버튼 설정 재시도 (DOM 업데이트 후)...');
+        this.setupModeButtons();
+      });
+    });
     
     // 추가 안전장치: DOM이 완전히 준비되면 다시 시도
     if (document.readyState === 'loading') {
@@ -177,11 +179,15 @@ export class UIRenderer {
         signal: this.abortController?.signal
       });
     } else {
-      // 이미 로드되었으면 추가로 시도
-      setTimeout(() => {
-        logger.debug('DOM 이미 로드됨, 모드 버튼 추가 확인 (300ms 후)...');
-        this.setupModeButtons();
-      }, 300);
+      // 이미 로드되었으면 requestAnimationFrame으로 추가 시도
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            logger.debug('DOM 이미 로드됨, 모드 버튼 추가 확인...');
+            this.setupModeButtons();
+          });
+        });
+      });
     }
     
     // 초기 렌더링은 데이터 로드 후 main.ts에서 수행
@@ -221,11 +227,15 @@ export class UIRenderer {
       logError('- [data-mode]:', document.querySelectorAll('[data-mode]').length);
       logError('- button.mode-switch-btn:', document.querySelectorAll('button.mode-switch-btn').length);
       
-      // DOM이 준비되지 않았을 수 있으므로 다시 시도
-      setTimeout(() => {
-        logger.debug('모드 버튼 재검색 (500ms 후)...');
-        this.setupModeButtons();
-      }, 500);
+      // DOM이 준비되지 않았을 수 있으므로 requestAnimationFrame으로 다시 시도
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            logger.debug('모드 버튼 재검색 (DOM 업데이트 후)...');
+            this.setupModeButtons();
+          });
+        });
+      });
       return;
     }
     
@@ -382,12 +392,12 @@ export class UIRenderer {
         // 다른 모드에서는 표시 (CSS의 !important를 override)
         sidebarListContainer.style.setProperty('display', 'flex', 'important');
         
-        // 약간의 지연 후에도 다시 확인 (모드 전환 후 CSS가 재적용될 수 있음)
-        setTimeout(() => {
+        // requestAnimationFrame으로 다시 확인 (모드 전환 후 CSS가 재적용될 수 있음)
+        requestAnimationFrame(() => {
           if (sidebarListContainer && !document.body.classList.contains('progress-mode')) {
             sidebarListContainer.style.setProperty('display', 'flex', 'important');
           }
-        }, 10);
+        });
       }
     }
     
