@@ -8,6 +8,7 @@
  * @version 2.2.1
  * @since 2024-01-01
  */
+import { logger, logWarn, logError } from './logger.js';
 // ========================================
 // GlobalBridge 클래스
 // ========================================
@@ -124,7 +125,7 @@ export class GlobalBridge {
             const undoBtn = document.getElementById('undo-btn');
             // AppStateManager가 있는지 확인
             if (!this.context.appStateManager) {
-                console.warn('실행 취소: AppStateManager가 초기화되지 않았습니다.');
+                logWarn('실행 취소: AppStateManager가 초기화되지 않았습니다.');
                 if (undoBtn) {
                     undoBtn.disabled = true;
                     undoBtn.style.opacity = '0.5';
@@ -147,7 +148,7 @@ export class GlobalBridge {
                         });
                     });
                 }
-                console.log('실행 취소할 수 있는 이전 상태가 없습니다.');
+                logger.debug('실행 취소할 수 있는 이전 상태가 없습니다.');
                 return;
             }
             // 실행 취소 수행
@@ -165,14 +166,14 @@ export class GlobalBridge {
                             this.updateUndoButtonState();
                         });
                     }
-                    console.log('실행 취소 완료');
+                    logger.debug('실행 취소 완료');
                 }
                 else {
-                    console.warn('실행 취소 실패');
+                    logWarn('실행 취소 실패');
                 }
             }
             catch (error) {
-                console.error('실행 취소 중 오류 발생:', error);
+                logError('실행 취소 중 오류 발생:', error);
                 if (undoBtn) {
                     undoBtn.disabled = false;
                     undoBtn.style.opacity = '1';
@@ -190,7 +191,7 @@ export class GlobalBridge {
                 const sidebar = document.getElementById('sidebar');
                 const sidebarToggle = document.getElementById('sidebar-toggle');
                 if (!sidebar || !sidebarToggle) {
-                    console.warn('사이드바 또는 사이드바 토글 버튼을 찾을 수 없습니다.');
+                    logWarn('사이드바 또는 사이드바 토글 버튼을 찾을 수 없습니다.');
                     return;
                 }
                 const isCollapsed = sidebar.classList.contains('collapsed');
@@ -206,7 +207,7 @@ export class GlobalBridge {
                         sidebarToggle.style.setProperty('left', '340px', 'important');
                     }
                     sidebarToggle.setAttribute('aria-expanded', 'true');
-                    console.log('사이드바 열기 (GlobalBridge)');
+                    logger.debug('사이드바 열기 (GlobalBridge)');
                 }
                 else {
                     // 사이드바 닫기
@@ -220,13 +221,13 @@ export class GlobalBridge {
                         sidebarToggle.style.setProperty('left', '0', 'important');
                     }
                     sidebarToggle.setAttribute('aria-expanded', 'false');
-                    console.log('사이드바 닫기 (GlobalBridge)');
+                    logger.debug('사이드바 닫기 (GlobalBridge)');
                 }
             };
         }
         // 사이드바 토글 버튼 이벤트 등록 (HTML onclick이 작동하지 않을 경우를 대비)
         this.initializeSidebarToggle();
-        console.log('전역 함수 등록 완료');
+        logger.debug('전역 함수 등록 완료');
     }
     /**
      * 실행 취소 버튼의 tooltip을 플랫폼에 맞게 업데이트합니다.
@@ -282,7 +283,7 @@ export class GlobalBridge {
         const sidebarToggle = document.getElementById('sidebar-toggle');
         const sidebar = document.getElementById('sidebar');
         if (!sidebarToggle || !sidebar) {
-            console.warn('사이드바 토글 버튼 또는 사이드바 요소를 찾을 수 없습니다.');
+            logWarn('사이드바 토글 버튼 또는 사이드바 요소를 찾을 수 없습니다.');
             return;
         }
         // 기존 이벤트 리스너 제거 후 새로 추가 (중복 방지)
@@ -308,7 +309,7 @@ export class GlobalBridge {
                 }
             }
         });
-        console.log('사이드바 토글 버튼 이벤트 등록 완료');
+        logger.debug('사이드바 토글 버튼 이벤트 등록 완료');
     }
     /**
      * 특정 전역 함수를 등록합니다.
@@ -351,7 +352,7 @@ export class GlobalBridge {
         globalFunctions.forEach(name => {
             delete window[name];
         });
-        console.log('전역 함수 제거 완료');
+        logger.debug('전역 함수 제거 완료');
     }
     /**
      * appMode를 업데이트합니다.

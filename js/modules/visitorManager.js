@@ -9,6 +9,7 @@
  * @version 2.2.1
  * @since 2024-01-01
  */
+import { logger, logError } from './logger.js';
 // ========================================
 // VisitorManager 클래스
 // ========================================
@@ -659,7 +660,7 @@ export class VisitorManager {
      * @param args 추가 인수
      */
     log(message, ...args) {
-        console.log(`[VisitorManager] ${message}`, ...args);
+        logger.debug(`[VisitorManager] ${message}`, ...args);
     }
     /**
      * 오류 로그를 출력합니다.
@@ -667,7 +668,7 @@ export class VisitorManager {
      * @param args 추가 인수
      */
     logError(message, ...args) {
-        console.error(`[VisitorManager] ${message}`, ...args);
+        logError(`[VisitorManager] ${message}`, ...args);
     }
 }
 // ========================================
@@ -691,7 +692,7 @@ export function initializeVisitorManager(options) {
 export function resetVisitorCount() {
     const sessionKey = 'visitor_counted_' + new Date().toDateString();
     sessionStorage.removeItem(sessionKey);
-    console.log('방문자 수 카운트 세션 초기화됨. 페이지를 새로고침하면 방문자 수가 증가합니다.');
+    logger.debug('방문자 수 카운트 세션 초기화됨. 페이지를 새로고침하면 방문자 수가 증가합니다.');
 }
 // ========================================
 // 기본 내보내기

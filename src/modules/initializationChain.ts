@@ -16,6 +16,7 @@ import { UIRenderer } from './uiRenderer.js';
 import { ShareManager } from './shareManager.js';
 import { GlobalBridge } from './globalBridge.js';
 import { getDefaultData } from './utils.js';
+import { logger, logWarn } from './logger.js';
 
 /**
  * 초기화 단계 타입
@@ -301,7 +302,7 @@ export class InitializationChain {
 
       const timeoutId = setTimeout(() => {
         window.removeEventListener('firebaseReady', handler);
-        console.warn('[InitializationChain] Firebase 초기화 대기 시간 초과');
+        logWarn('[InitializationChain] Firebase 초기화 대기 시간 초과');
         resolve(false);
       }, timeout);
 
@@ -326,9 +327,9 @@ export class InitializationChain {
       }
 
       // Firebase 초기화 대기 (데이터 로드 전에 Firebase가 준비되어야 함)
-      console.log('[InitializationChain] Firebase 초기화 대기 중...');
+      logger.debug('[InitializationChain] Firebase 초기화 대기 중...');
       await this.waitForFirebase(10000);
-      console.log('[InitializationChain] Firebase 준비 완료, 데이터 로드 시작');
+      logger.debug('[InitializationChain] Firebase 준비 완료, 데이터 로드 시작');
 
       const syncResult = await this.options.dataSyncService.sync();
 

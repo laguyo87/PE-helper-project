@@ -8,6 +8,7 @@
  * @version 2.2.1
  * @since 2024-01-01
  */
+import { logger, logWarn, logError } from './logger.js';
 // ========================================
 // 상수 정의
 // ========================================
@@ -40,7 +41,7 @@ const setLocalStorage = (key, value) => {
         localStorage.setItem(key, value);
     }
     catch (error) {
-        console.warn(`로컬 스토리지 저장 실패 (${key}):`, error);
+        logWarn(`로컬 스토리지 저장 실패 (${key}):`, error);
     }
 };
 /**
@@ -53,7 +54,7 @@ const getLocalStorage = (key) => {
         return localStorage.getItem(key);
     }
     catch (error) {
-        console.warn(`로컬 스토리지 읽기 실패 (${key}):`, error);
+        logWarn(`로컬 스토리지 읽기 실패 (${key}):`, error);
         return null;
     }
 };
@@ -78,13 +79,13 @@ export const checkVersion = () => {
     const timestamp = Date.now().toString();
     setLocalStorage(CACHE_BUSTER_KEY, timestamp);
     if (storedVersion !== APP_VERSION) {
-        console.log(`새 버전 감지: ${APP_VERSION} (이전: ${storedVersion})`);
+        logger.debug(`새 버전 감지: ${APP_VERSION} (이전: ${storedVersion})`);
         // 새 버전 저장
         setLocalStorage(VERSION_KEY, APP_VERSION);
         // 버전이 변경되었으면 자동으로 새로고침하여 최신 버전 사용
         // 알림 없이 바로 새로고침하여 항상 최신 버전을 사용하도록 함
         if (storedVersion) {
-            console.log('버전이 변경되었습니다. 최신 버전으로 자동 새로고침합니다.');
+            logger.debug('버전이 변경되었습니다. 최신 버전으로 자동 새로고침합니다.');
             // 약간의 지연 후 새로고침 (데이터 저장 완료 대기)
             setTimeout(() => {
                 // 캐시를 완전히 무시하고 새로고침 (쿼리 파라미터 추가)
@@ -104,7 +105,7 @@ export const checkVersion = () => {
 export const showVersionNotification = (options) => {
     // 알림 기능 제거됨 - 버전이 변경되면 자동으로 새로고침됨
     // 이 함수는 호환성을 위해 남겨두지만 실제로는 아무 작업도 하지 않습니다.
-    console.debug('showVersionNotification 호출됨 (비활성화됨)', options);
+    logger.debug('showVersionNotification 호출됨 (비활성화됨)', options);
 };
 /**
  * 상단바의 버전 표시를 업데이트합니다.
@@ -168,13 +169,13 @@ export const checkBrowserCompatibility = () => {
     }
     // Windows 환경 디버깅 정보
     if (navigator.platform.toLowerCase().includes('win')) {
-        console.log('Windows 환경 감지됨');
-        console.log('User Agent:', userAgent);
-        console.log('Screen resolution:', `${screen.width}x${screen.height}`);
-        console.log('Viewport size:', `${window.innerWidth}x${window.innerHeight}`);
+        logger.debug('Windows 환경 감지됨');
+        logger.debug('User Agent:', userAgent);
+        logger.debug('Screen resolution:', `${screen.width}x${screen.height}`);
+        logger.debug('Viewport size:', `${window.innerWidth}x${window.innerHeight}`);
     }
     // 경고 메시지 출력
-    warnings.forEach(warning => console.warn(warning));
+    warnings.forEach(warning => logWarn(warning));
     return {
         isCompatible: true,
         browserType: browserInfo.type,
@@ -253,22 +254,22 @@ const isOldVersion = (version, minVersion) => {
  */
 export const initializeVersionManager = () => {
     try {
-        console.log('=== 버전 관리 시스템 초기화 시작 ===');
+        logger.debug('=== 버전 관리 시스템 초기화 시작 ===');
         // 브라우저 호환성 체크
         const compatibility = checkBrowserCompatibility();
         if (!compatibility.isCompatible) {
-            console.error('브라우저 호환성 문제로 초기화 실패');
+            logError('브라우저 호환성 문제로 초기화 실패');
             return false;
         }
         // 버전 체크
         checkVersion();
         // 버전 표시 업데이트
         updateVersionDisplay();
-        console.log('=== 버전 관리 시스템 초기화 완료 ===');
+        logger.debug('=== 버전 관리 시스템 초기화 완료 ===');
         return true;
     }
     catch (error) {
-        console.error('버전 관리 시스템 초기화 중 오류 발생:', error);
+        logError('버전 관리 시스템 초기화 중 오류 발생:', error);
         return false;
     }
 };
@@ -333,7 +334,7 @@ export const compareVersions = (version1, version2) => {
 export const invalidateCache = () => {
     const timestamp = Date.now().toString();
     setLocalStorage(CACHE_BUSTER_KEY, timestamp);
-    console.log('캐시 무효화 완료:', timestamp);
+    logger.debug('캐시 무효화 완료:', timestamp);
 };
 /**
  * 버전 관리 시스템의 상태를 반환합니다.

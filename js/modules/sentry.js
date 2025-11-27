@@ -8,6 +8,7 @@
  * @since 2024-01-01
  */
 import * as Sentry from '@sentry/browser';
+import { logger, logWarn, logError } from './logger.js';
 // ========================================
 // Sentry 초기화
 // ========================================
@@ -20,12 +21,12 @@ let isInitialized = false;
 export function initSentry(config = {}) {
     // 이미 초기화된 경우 스킵
     if (isInitialized) {
-        console.warn('[Sentry] 이미 초기화되었습니다.');
+        logWarn('[Sentry] 이미 초기화되었습니다.');
         return;
     }
     // DSN이 없거나 비활성화된 경우 초기화하지 않음
     if (!config.dsn || !config.enabled) {
-        console.log('[Sentry] DSN이 없거나 비활성화되어 초기화를 건너뜁니다.');
+        logger.debug('[Sentry] DSN이 없거나 비활성화되어 초기화를 건너뜁니다.');
         return;
     }
     try {
@@ -70,10 +71,10 @@ export function initSentry(config = {}) {
             ]
         });
         isInitialized = true;
-        console.log('[Sentry] 초기화 완료:', config.environment || 'development');
+        logger.debug('[Sentry] 초기화 완료:', config.environment || 'development');
     }
     catch (error) {
-        console.error('[Sentry] 초기화 실패:', error);
+        logError('[Sentry] 초기화 실패:', error);
     }
 }
 /**
@@ -91,15 +92,15 @@ export function setUser(user) {
                 email: user.email,
                 username: user.username || user.email
             });
-            console.log('[Sentry] 사용자 컨텍스트 설정:', user.email || user.id);
+            logger.debug('[Sentry] 사용자 컨텍스트 설정:', user.email || user.id);
         }
         else {
             Sentry.setUser(null);
-            console.log('[Sentry] 사용자 컨텍스트 초기화');
+            logger.debug('[Sentry] 사용자 컨텍스트 초기화');
         }
     }
     catch (error) {
-        console.error('[Sentry] 사용자 컨텍스트 설정 실패:', error);
+        logError('[Sentry] 사용자 컨텍스트 설정 실패:', error);
     }
 }
 /**
@@ -125,7 +126,7 @@ export function captureException(error, context) {
         }
     }
     catch (err) {
-        console.error('[Sentry] 에러 리포팅 실패:', err);
+        logError('[Sentry] 에러 리포팅 실패:', err);
     }
 }
 /**
@@ -152,7 +153,7 @@ export function captureMessage(message, level = 'info', context) {
         }
     }
     catch (error) {
-        console.error('[Sentry] 메시지 리포팅 실패:', error);
+        logError('[Sentry] 메시지 리포팅 실패:', error);
     }
 }
 /**
@@ -168,7 +169,7 @@ export function setContext(key, data) {
         Sentry.setContext(key, data);
     }
     catch (error) {
-        console.error('[Sentry] 컨텍스트 설정 실패:', error);
+        logError('[Sentry] 컨텍스트 설정 실패:', error);
     }
 }
 /**
@@ -184,7 +185,7 @@ export function setTag(key, value) {
         Sentry.setTag(key, value);
     }
     catch (error) {
-        console.error('[Sentry] 태그 설정 실패:', error);
+        logError('[Sentry] 태그 설정 실패:', error);
     }
 }
 /**

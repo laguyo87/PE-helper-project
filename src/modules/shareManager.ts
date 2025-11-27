@@ -9,6 +9,8 @@
  * @since 2024-01-01
  */
 
+import { logger, logError } from './logger.js';
+
 // ========================================
 // 타입 정의
 // ========================================
@@ -81,7 +83,7 @@ export class ShareManager {
    */
   public async handleSharedRanking(shareId: string): Promise<void> {
     try {
-      console.log('공유된 순위표 로딩:', shareId);
+      logger.debug('공유된 순위표 로딩:', shareId);
 
       // Firebase에서 공유 데이터 가져오기 (window.firebase 사용)
       const { doc, getDoc, db } = (window as any).firebase || {};
@@ -100,7 +102,7 @@ export class ShareManager {
       const shareData = shareDoc.data() as SharedRankingData;
       this.showSharedRankingModal(shareData);
     } catch (error) {
-      console.error('공유된 순위표 로딩 실패:', error);
+      logError('공유된 순위표 로딩 실패:', error);
       alert('공유된 순위표를 불러오는데 실패했습니다.');
     }
   }
@@ -212,9 +214,9 @@ export class ShareManager {
   public async copyShareUrlToClipboard(shareUrl: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      console.log('공유 링크가 클립보드에 복사되었습니다:', shareUrl);
+      logger.debug('공유 링크가 클립보드에 복사되었습니다:', shareUrl);
     } catch (error) {
-      console.error('클립보드 복사 실패:', error);
+      logError('클립보드 복사 실패:', error);
       throw error;
     }
   }
@@ -240,9 +242,9 @@ export class ShareManager {
         lastUpdated: new Date()
       });
       
-      console.log('공유 순위표가 저장되었습니다:', shareId);
+      logger.debug('공유 순위표가 저장되었습니다:', shareId);
     } catch (error) {
-      console.error('공유 순위표 저장 실패:', error);
+      logError('공유 순위표 저장 실패:', error);
       throw error;
     }
   }

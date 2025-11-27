@@ -9,6 +9,7 @@
  */
 import { APP_VERSION } from './versionManager.js';
 import DOMPurify from 'dompurify';
+import { logWarn } from './logger.js';
 // ========================================
 // DOM 헬퍼 함수
 // ========================================
@@ -325,7 +326,7 @@ export function saveToLocalStorage(key, data) {
         return true;
     }
     catch (error) {
-        console.warn(`로컬 스토리지 저장 실패 (${key}):`, error);
+        logWarn(`로컬 스토리지 저장 실패 (${key}):`, error);
         return false;
     }
 }
@@ -346,7 +347,7 @@ export function loadFromLocalStorage(key, defaultValue) {
         return parsed ?? defaultValue;
     }
     catch (error) {
-        console.warn(`로컬 스토리지 읽기 실패 (${key}):`, error);
+        logWarn(`로컬 스토리지 읽기 실패 (${key}):`, error);
         return defaultValue;
     }
 }

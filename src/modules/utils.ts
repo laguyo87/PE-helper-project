@@ -10,6 +10,7 @@
 
 import { APP_VERSION } from './versionManager.js';
 import DOMPurify from 'dompurify';
+import { logWarn } from './logger.js';
 
 // ========================================
 // 타입 정의
@@ -415,7 +416,7 @@ export function saveToLocalStorage(key: string, data: unknown): boolean {
     localStorage.setItem(key, json);
     return true;
   } catch (error) {
-    console.warn(`로컬 스토리지 저장 실패 (${key}):`, error);
+    logWarn(`로컬 스토리지 저장 실패 (${key}):`, error);
     return false;
   }
 }
@@ -436,7 +437,7 @@ export function loadFromLocalStorage<T>(key: string, defaultValue: T): T {
     // 파싱된 데이터가 기본값과 호환되는지 확인
     return (parsed as T) ?? defaultValue;
   } catch (error) {
-    console.warn(`로컬 스토리지 읽기 실패 (${key}):`, error);
+    logWarn(`로컬 스토리지 읽기 실패 (${key}):`, error);
     return defaultValue;
   }
 }

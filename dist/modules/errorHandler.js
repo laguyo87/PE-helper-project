@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { formatValidationErrors } from './validators.js';
 import { showSuccessToast, showErrorToast, showWarningToast } from './toast.js';
 import { captureException } from './sentry.js';
+import { logError, logWarn } from './logger.js';
 // ========================================
 // 에러 타입 정의
 // ========================================
@@ -143,10 +144,10 @@ export function showError(error, elementId) {
     }
     // 토스트 알림으로 표시
     showErrorToast(fullMessage);
-    // 콘솔에도 로깅 (개발 환경)
-    console.error('에러 발생:', appError);
+    // 로깅 (개발 환경)
+    logError('에러 발생:', appError);
     if (appError.originalError) {
-        console.error('원본 에러:', appError.originalError);
+        logError('원본 에러:', appError.originalError);
     }
     // Sentry에 에러 리포팅 (검증 에러는 제외)
     if (appError.type !== ErrorType.VALIDATION && appError.originalError) {
@@ -257,7 +258,7 @@ export function safeExecuteWithDefault(fn, defaultValue) {
     catch (error) {
         // 에러는 로깅만 하고 사용자에게 표시하지 않음
         if (error instanceof Error) {
-            console.warn('함수 실행 중 에러 발생 (무시됨):', error.message);
+            logWarn('함수 실행 중 에러 발생 (무시됨):', error.message);
         }
         return defaultValue;
     }
@@ -275,7 +276,7 @@ export async function safeAsyncExecuteWithDefault(fn, defaultValue) {
     catch (error) {
         // 에러는 로깅만 하고 사용자에게 표시하지 않음
         if (error instanceof Error) {
-            console.warn('비동기 함수 실행 중 에러 발생 (무시됨):', error.message);
+            logWarn('비동기 함수 실행 중 에러 발생 (무시됨):', error.message);
         }
         return defaultValue;
     }

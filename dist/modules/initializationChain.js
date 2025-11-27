@@ -8,6 +8,7 @@
  * @version 2.2.1
  * @since 2024-01-01
  */
+import { logger, logWarn } from './logger.js';
 /**
  * 초기화 체인 클래스
  */
@@ -208,7 +209,7 @@ export class InitializationChain {
             }
             const timeoutId = setTimeout(() => {
                 window.removeEventListener('firebaseReady', handler);
-                console.warn('[InitializationChain] Firebase 초기화 대기 시간 초과');
+                logWarn('[InitializationChain] Firebase 초기화 대기 시간 초과');
                 resolve(false);
             }, timeout);
             const handler = () => {
@@ -229,9 +230,9 @@ export class InitializationChain {
                 throw new Error('DataSyncService가 초기화되지 않았습니다.');
             }
             // Firebase 초기화 대기 (데이터 로드 전에 Firebase가 준비되어야 함)
-            console.log('[InitializationChain] Firebase 초기화 대기 중...');
+            logger.debug('[InitializationChain] Firebase 초기화 대기 중...');
             await this.waitForFirebase(10000);
-            console.log('[InitializationChain] Firebase 준비 완료, 데이터 로드 시작');
+            logger.debug('[InitializationChain] Firebase 준비 완료, 데이터 로드 시작');
             const syncResult = await this.options.dataSyncService.sync();
             const result = {
                 step: 'data-load',

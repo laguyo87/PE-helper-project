@@ -8,6 +8,7 @@
  * @version 2.2.1
  * @since 2024-01-01
  */
+import { logger, logWarn, logError } from './logger.js';
 import { initializeVersionManager } from './versionManager.js';
 import { initializeAuthManager, setupGlobalAuthFunctions } from './authManager.js';
 import { initializeDataManager } from './dataManager.js';
@@ -41,10 +42,10 @@ export class AppInitializer {
      */
     async initialize(initialData) {
         if (this.initialized) {
-            console.warn('앱이 이미 초기화되었습니다.');
+            logWarn('앱이 이미 초기화되었습니다.');
             return this.managers;
         }
-        console.log('=== 앱 초기화 시작 ===');
+        logger.debug('=== 앱 초기화 시작 ===');
         try {
             // 0. Sentry 초기화 (가장 먼저 실행)
             this.initializeSentry();
@@ -78,11 +79,11 @@ export class AppInitializer {
             // 13. UI 초기화
             this.options.initializeUI();
             this.initialized = true;
-            console.log('=== 앱 초기화 완료 ===');
+            logger.debug('=== 앱 초기화 완료 ===');
             return this.managers;
         }
         catch (error) {
-            console.error('앱 초기화 중 오류:', error);
+            logError('앱 초기화 중 오류:', error);
             throw error;
         }
     }
@@ -105,13 +106,13 @@ export class AppInitializer {
      * 버전 관리자 초기화
      */
     async initializeVersionManager() {
-        console.log('VersionManager 초기화 시작...');
+        logger.debug('VersionManager 초기화 시작...');
         try {
             this.managers.versionManager = initializeVersionManager();
-            console.log('VersionManager 초기화 완료');
+            logger.debug('VersionManager 초기화 완료');
         }
         catch (error) {
-            console.error('VersionManager 초기화 실패:', error);
+            logError('VersionManager 초기화 실패:', error);
             throw error;
         }
     }
@@ -119,14 +120,14 @@ export class AppInitializer {
      * 인증 관리자 초기화
      */
     async initializeAuthManager() {
-        console.log('AuthManager 초기화 시작...');
+        logger.debug('AuthManager 초기화 시작...');
         try {
             this.managers.authManager = initializeAuthManager();
             setupGlobalAuthFunctions();
-            console.log('AuthManager 초기화 완료');
+            logger.debug('AuthManager 초기화 완료');
         }
         catch (error) {
-            console.error('AuthManager 초기화 실패:', error);
+            logError('AuthManager 초기화 실패:', error);
             throw error;
         }
     }
@@ -134,13 +135,13 @@ export class AppInitializer {
      * 데이터 관리자 초기화
      */
     async initializeDataManager() {
-        console.log('DataManager 초기화 시작...');
+        logger.debug('DataManager 초기화 시작...');
         try {
             this.managers.dataManager = initializeDataManager();
-            console.log('DataManager 초기화 완료');
+            logger.debug('DataManager 초기화 완료');
         }
         catch (error) {
-            console.error('DataManager 초기화 실패:', error);
+            logError('DataManager 초기화 실패:', error);
             throw error;
         }
     }
@@ -148,16 +149,16 @@ export class AppInitializer {
      * AuthManager와 DataManager 연결
      */
     async connectAuthAndData() {
-        console.log('AuthManager와 DataManager 연결 시작...');
+        logger.debug('AuthManager와 DataManager 연결 시작...');
         if (!this.managers.authManager || !this.managers.dataManager) {
-            console.warn('AuthManager 또는 DataManager가 초기화되지 않아 연결할 수 없습니다.');
+            logWarn('AuthManager 또는 DataManager가 초기화되지 않아 연결할 수 없습니다.');
             return;
         }
         // 초기 호출인지 확인하는 플래그
         let isInitialCall = true;
         try {
             this.managers.authManager.onAuthStateChange(async (user) => {
-                console.log('인증 상태 변경됨, DataManager에 사용자 정보 설정:', user);
+                logger.debug('인증 상태 변경됨, DataManager에 사용자 정보 설정:', user);
                 this.managers.dataManager?.setCurrentUser(user);
                 // Sentry 사용자 컨텍스트 설정
                 if (user) {
@@ -181,35 +182,35 @@ export class AppInitializer {
                 if (appRoot && authContainer) {
                     authContainer.classList.add('hidden');
                     appRoot.classList.remove('hidden');
-                    console.log('앱 화면 표시됨 (인증 상태:', user ? '로그인' : '게스트', ')');
+                    logger.debug('앱 화면 표시됨 (인증 상태:', user ? '로그인' : '게스트', ')');
                 }
                 // 초기 호출인 경우 데이터 로드 건너뛰기 (DataSyncService 초기화가 아직 완료되지 않았을 수 있음)
                 if (isInitialCall) {
-                    console.log('초기 인증 상태 확인 완료, 데이터 로드는 DataSyncService 초기화 후에 수행됩니다.');
+                    logger.debug('초기 인증 상태 확인 완료, 데이터 로드는 DataSyncService 초기화 후에 수행됩니다.');
                     isInitialCall = false;
                     return;
                 }
                 // 로그인 성공 시 데이터 다시 로드 (초기 호출 이후의 인증 상태 변경만)
                 if (user) {
-                    console.log('로그인 성공, 데이터 다시 로드 시작');
+                    logger.debug('로그인 성공, 데이터 다시 로드 시작');
                     try {
                         if (typeof this.options.loadDataFromFirestore === 'function') {
                             await this.options.loadDataFromFirestore();
-                            console.log('데이터 재로드 완료');
+                            logger.debug('데이터 재로드 완료');
                         }
                         else {
-                            console.error('loadDataFromFirestore 함수가 정의되지 않음');
+                            logError('loadDataFromFirestore 함수가 정의되지 않음');
                         }
                     }
                     catch (error) {
-                        console.error('데이터 재로드 중 오류 발생:', error);
+                        logError('데이터 재로드 중 오류 발생:', error);
                     }
                 }
             });
-            console.log('AuthManager와 DataManager 연결 완료');
+            logger.debug('AuthManager와 DataManager 연결 완료');
         }
         catch (error) {
-            console.error('AuthManager와 DataManager 연결 실패:', error);
+            logError('AuthManager와 DataManager 연결 실패:', error);
             throw error;
         }
     }
@@ -217,33 +218,33 @@ export class AppInitializer {
      * 방문자 관리자 초기화
      */
     async initializeVisitorManager() {
-        console.log('=== VisitorManager 초기화 시작 ===');
+        logger.debug('=== VisitorManager 초기화 시작 ===');
         try {
             this.managers.visitorManager = initializeVisitorManager();
-            console.log('VisitorManager 초기화 완료:', this.managers.visitorManager);
+            logger.debug('VisitorManager 초기화 완료:', this.managers.visitorManager);
             // 방문자 수 업데이트
             if (this.managers.visitorManager) {
-                console.log('방문자 수 업데이트 시작');
+                logger.debug('방문자 수 업데이트 시작');
                 try {
                     const result = await this.managers.visitorManager.updateVisitorCount();
-                    console.log('방문자 수 업데이트 결과:', result);
+                    logger.debug('방문자 수 업데이트 결과:', result);
                     // 방문자 수 표시 확인
                     const visitorCountElement = document.querySelector('#visitor-count');
-                    console.log('방문자 수 요소 찾기:', visitorCountElement);
+                    logger.debug('방문자 수 요소 찾기:', visitorCountElement);
                     if (visitorCountElement) {
-                        console.log('현재 방문자 수 요소 값:', visitorCountElement.textContent);
+                        logger.debug('현재 방문자 수 요소 값:', visitorCountElement.textContent);
                     }
                 }
                 catch (error) {
-                    console.error('방문자 수 업데이트 오류:', error);
+                    logError('방문자 수 업데이트 오류:', error);
                 }
             }
             else {
-                console.error('VisitorManager가 초기화되지 않음');
+                logError('VisitorManager가 초기화되지 않음');
             }
         }
         catch (error) {
-            console.error('VisitorManager 초기화 오류:', error);
+            logError('VisitorManager 초기화 오류:', error);
             throw error;
         }
     }
@@ -251,16 +252,16 @@ export class AppInitializer {
      * 리그 관리자 초기화
      */
     async initializeLeagueManager(leagueData) {
-        console.log('LeagueManager 초기화 시작...');
+        logger.debug('LeagueManager 초기화 시작...');
         try {
             this.managers.leagueManager = new LeagueManager(leagueData);
             // 저장 콜백 설정
             this.managers.leagueManager.setSaveCallback(this.options.saveDataToFirestore);
             window.leagueManager = this.managers.leagueManager; // 전역 변수로 등록
-            console.log('LeagueManager 초기화 완료:', this.managers.leagueManager);
+            logger.debug('LeagueManager 초기화 완료:', this.managers.leagueManager);
         }
         catch (error) {
-            console.error('LeagueManager 초기화 실패:', error);
+            logError('LeagueManager 초기화 실패:', error);
             throw error;
         }
     }
@@ -268,14 +269,14 @@ export class AppInitializer {
      * 토너먼트 관리자 초기화
      */
     async initializeTournamentManager(tournamentData) {
-        console.log('TournamentManager 초기화 시작...');
+        logger.debug('TournamentManager 초기화 시작...');
         try {
             this.managers.tournamentManager = new TournamentManager(tournamentData, this.options.saveDataToFirestore);
             window.tournamentManager = this.managers.tournamentManager; // 전역 변수로 등록
-            console.log('TournamentManager 초기화 완료:', this.managers.tournamentManager);
+            logger.debug('TournamentManager 초기화 완료:', this.managers.tournamentManager);
         }
         catch (error) {
-            console.error('TournamentManager 초기화 실패:', error);
+            logError('TournamentManager 초기화 실패:', error);
             throw error;
         }
     }
@@ -283,7 +284,7 @@ export class AppInitializer {
      * PAPS 관리자 초기화
      */
     async initializePapsManager(papsData) {
-        console.log('PapsManager 초기화 시작...');
+        logger.debug('PapsManager 초기화 시작...');
         try {
             // $ 함수를 HTMLElement 반환으로 래핑 (null이 아닌 것을 보장)
             const $safe = (selector) => {
@@ -295,12 +296,12 @@ export class AppInitializer {
             };
             this.managers.papsManager = new PapsManager(papsData, $safe, this.options.saveDataToFirestore, this.options.cleanupSidebar);
             window.papsManager = this.managers.papsManager; // 전역 변수로 등록
-            console.log('PapsManager 초기화 완료:', this.managers.papsManager);
-            console.log('window.papsManager 등록됨:', window.papsManager);
-            console.log('window.papsManager.selectPapsClass:', typeof window.papsManager?.selectPapsClass);
+            logger.debug('PapsManager 초기화 완료:', this.managers.papsManager);
+            logger.debug('window.papsManager 등록됨:', window.papsManager);
+            logger.debug('window.papsManager.selectPapsClass:', typeof window.papsManager?.selectPapsClass);
         }
         catch (error) {
-            console.error('PapsManager 초기화 실패:', error);
+            logError('PapsManager 초기화 실패:', error);
             throw error;
         }
     }
@@ -308,7 +309,7 @@ export class AppInitializer {
      * ProgressManager 초기화
      */
     async initializeProgressManager(progressClasses, selectedClassId) {
-        console.log('ProgressManager 초기화 시작...');
+        logger.debug('ProgressManager 초기화 시작...');
         try {
             // $ 함수를 HTMLElement 반환으로 래핑
             const $safe = (selector) => {
@@ -322,19 +323,19 @@ export class AppInitializer {
             };
             this.managers.progressManager = initializeProgressManager($safe, $$safe, this.options.saveProgressData);
             window.progressManager = this.managers.progressManager; // 전역 변수로 등록
-            console.log('ProgressManager 초기화 완료');
+            logger.debug('ProgressManager 초기화 완료');
             // 데이터가 있는 경우에만 초기화
             if (progressClasses && progressClasses.length > 0) {
                 this.managers.progressManager.initialize(progressClasses, selectedClassId || null);
-                console.log('ProgressManager 데이터와 함께 초기화 완료');
+                logger.debug('ProgressManager 데이터와 함께 초기화 완료');
             }
             else {
                 this.managers.progressManager.initialize([], null);
-                console.log('ProgressManager 빈 데이터로 초기화 완료');
+                logger.debug('ProgressManager 빈 데이터로 초기화 완료');
             }
         }
         catch (error) {
-            console.error('ProgressManager 초기화 실패:', error);
+            logError('ProgressManager 초기화 실패:', error);
             throw error;
         }
     }

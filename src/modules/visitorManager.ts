@@ -10,6 +10,8 @@
  * @since 2024-01-01
  */
 
+import { logger, logError } from './logger.js';
+
 // ========================================
 // 타입 정의
 // ========================================
@@ -751,7 +753,7 @@ export class VisitorManager {
      * @param args 추가 인수
      */
     private log(message: string, ...args: any[]): void {
-        console.log(`[VisitorManager] ${message}`, ...args);
+        logger.debug(`[VisitorManager] ${message}`, ...args);
     }
 
     /**
@@ -760,7 +762,7 @@ export class VisitorManager {
      * @param args 추가 인수
      */
     private logError(message: string, ...args: any[]): void {
-        console.error(`[VisitorManager] ${message}`, ...args);
+        logError(`[VisitorManager] ${message}`, ...args);
     }
 }
 
@@ -788,7 +790,7 @@ export function initializeVisitorManager(options?: VisitorStatsOptions): Visitor
 export function resetVisitorCount(): void {
     const sessionKey = 'visitor_counted_' + new Date().toDateString();
     sessionStorage.removeItem(sessionKey);
-    console.log('방문자 수 카운트 세션 초기화됨. 페이지를 새로고침하면 방문자 수가 증가합니다.');
+    logger.debug('방문자 수 카운트 세션 초기화됨. 페이지를 새로고침하면 방문자 수가 증가합니다.');
 }
 
 // ========================================
