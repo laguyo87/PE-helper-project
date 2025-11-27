@@ -902,12 +902,30 @@ export class DataManager {
         userId: string, 
         options: LoadOptions
     ): Promise<AppData | null> {
-        this.logError("Firestore 로드 실패:", error);
-        this.logError("오류 상세:", error.message);
-        this.logError("오류 코드:", error.code);
+        // 개발 환경 확인
+        const isDevelopment = typeof window !== 'undefined' && 
+            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        
+        // 권한 에러 확인
+        const isPermissionError = error?.code === 'permission-denied' || 
+            error?.message?.includes('Missing or insufficient permissions') ||
+            error?.message?.includes('permission-denied');
 
-        // 재시도 로직 (최대 3회)
-        if (options.retryCount && options.retryCount < 3) {
+        // 개발 환경에서 권한 에러는 조용히 처리 (로그인하지 않은 상태는 정상)
+        if (isDevelopment && isPermissionError) {
+            logger.debug('[DataManager] Firestore 권한 없음 (개발 환경, 로컬 스토리지 사용)');
+            return this.loadFallbackData();
+        }
+
+        // 그 외 에러는 상세 로깅
+        this.logError("Firestore 로드 실패:", error);
+        if (!isPermissionError) {
+            this.logError("오류 상세:", error.message);
+            this.logError("오류 코드:", error.code);
+        }
+
+        // 재시도 로직 (최대 3회, 권한 에러는 재시도하지 않음)
+        if (!isPermissionError && options.retryCount && options.retryCount < 3) {
             this.log(`데이터 로드 재시도 중... (${options.retryCount + 1}/3)`);
             setTimeout(() => {
                 this.loadDataFromFirestore(userId, { ...options, retryCount: options.retryCount! + 1 });
@@ -916,7 +934,11 @@ export class DataManager {
         }
 
         // 최종 실패 시 폴백 데이터 사용
-        this.logError('데이터 로드 최종 실패, 폴백 데이터 사용');
+        if (!isPermissionError) {
+            this.logError('데이터 로드 최종 실패, 폴백 데이터 사용');
+        } else {
+            logger.debug('[DataManager] 권한 없음, 폴백 데이터 사용');
+        }
         return this.loadFallbackData();
     }
 

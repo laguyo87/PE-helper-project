@@ -318,6 +318,17 @@ export class AppInitializer {
           }
         }
       });
+      
+      // AuthManager에 데이터 재로드 콜백 등록
+      if (this.managers.authManager && typeof this.options.loadDataFromFirestore === 'function') {
+        this.managers.authManager.setDataReloadCallback(async () => {
+          logger.debug('AuthManager에서 요청한 데이터 재로드 시작');
+          await this.options.loadDataFromFirestore();
+          logger.debug('AuthManager에서 요청한 데이터 재로드 완료');
+        });
+        logger.debug('AuthManager에 데이터 재로드 콜백 등록 완료');
+      }
+      
       logger.debug('AuthManager와 DataManager 연결 완료');
     } catch (error) {
       logError('AuthManager와 DataManager 연결 실패:', error);

@@ -56,6 +56,11 @@ export declare class AuthManager {
     private abortController;
     private googleLoginHandler;
     private logoutHandler;
+    private eventListenerSetupRetryCount;
+    private readonly MAX_EVENT_LISTENER_RETRY;
+    private dataReloadCallback;
+    private isLoggingIn;
+    private isReloadingData;
     constructor(config?: Partial<AuthConfig>);
     /**
      * 리소스 정리 (메모리 누수 방지)
@@ -81,6 +86,12 @@ export declare class AuthManager {
      * @param callback 콜백 함수
      */
     onAuthStateChange(callback: AuthStateChangeCallback): void;
+    /**
+     * 데이터 재로드 콜백을 등록합니다.
+     * 로그인 성공 후 Firebase에서 데이터를 다시 로드하기 위해 사용됩니다.
+     * @param callback 데이터 재로드 콜백 함수
+     */
+    setDataReloadCallback(callback: (() => Promise<void>) | null): void;
     /**
      * 인증 상태 변경을 알립니다.
      * @param user 사용자 정보
@@ -108,6 +119,14 @@ export declare class AuthManager {
      * @param event 폼 제출 이벤트
      */
     private handleLogin;
+    /**
+     * 실제 로그인을 수행합니다.
+     * @param email 이메일
+     * @param password 비밀번호
+     * @param emailInput 이메일 입력 필드
+     * @param passwordInput 비밀번호 입력 필드
+     */
+    private performLogin;
     /**
      * Google 로그인을 처리합니다.
      * 팝업 방식을 사용하며, COOP 에러는 필터링으로 처리됩니다.

@@ -331,7 +331,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2025-11-27-0809">
+  <link rel="stylesheet" href="styles.css?v=2025-11-27-0831">
 </head>
 <body>
   <a href="#content-wrapper" id="skip-to-main" class="skip-link">본문으로 건너뛰기</a>
@@ -349,7 +349,7 @@
               <button id="login-tab-btn" class="active" onclick="showAuthForm('login')" role="tab" aria-selected="true" aria-controls="login-form">로그인</button>
               <button id="signup-tab-btn" onclick="showAuthForm('signup')" role="tab" aria-selected="false" aria-controls="signup-form">회원가입</button>
           </div>
-          <form id="login-form" class="auth-form" role="tabpanel" aria-labelledby="login-tab">
+          <form id="login-form" class="auth-form" role="tabpanel" aria-labelledby="login-tab" onsubmit="if(window.__handleLoginFormSubmit){window.__handleLoginFormSubmit(event);}return false;">
               <div class="field">
                   <label for="login-email" class="sr-only">이메일</label>
                   <input type="email" id="login-email" placeholder="이메일" autocomplete="email" required aria-required="true" aria-describedby="login-error">
@@ -360,12 +360,12 @@
               </div>
               <a href="#" id="forgot-password-link" class="forgot-password-link">비밀번호를 잊으셨나요?</a>
               <p id="login-error" class="error-message hidden" role="alert" aria-live="polite"></p>
-              <button type="submit" class="btn primary">로그인</button>
+              <button type="submit" class="btn primary" onclick="if(window.__handleLoginButtonDirectClick){window.__handleLoginButtonDirectClick(event);}return false;">로그인</button>
           </form>
           <form id="signup-form" class="auth-form hidden" role="tabpanel" aria-labelledby="signup-tab-btn">
               <div class="field">
-                  <label for="signup-name" class="sr-only">사용자 성명</label>
-                  <input type="text" id="signup-name" placeholder="사용자 성명" autocomplete="name" required aria-required="true" aria-describedby="signup-error">
+                  <label for="signup-name" class="sr-only">닉 네임</label>
+                  <input type="text" id="signup-name" placeholder="닉 네임" autocomplete="name" required aria-required="true" aria-describedby="signup-error">
               </div>
               <div class="field">
                   <label for="signup-email" class="sr-only">이메일</label>
@@ -434,7 +434,7 @@
                 </div>
                 <div id="guest-status" class="guest-status hidden">
                     <span style="color: var(--ink-muted); font-size: 0.9rem;" aria-live="polite">로컬 모드</span>
-                    <button id="login-btn" class="btn primary" onclick="showLoginModal()" aria-label="로그인">로그인</button>
+                    <button id="login-btn" class="btn primary" onclick="if(window.__handleLoginButtonClick){window.__handleLoginButtonClick();}else if(window.showLoginModal){window.showLoginModal();}else{console.error('로그인 함수를 찾을 수 없음');}" aria-label="로그인">로그인</button>
                 </div>
             </div>
             <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" aria-label="다크/라이트 모드 전환" aria-pressed="false" data-tooltip="다크/라이트 모드 전환">
@@ -857,4 +857,4 @@
     }, 500);
   </script>
   
-  <script type="module" src="main.js?v=2025-11-27-0809"></script>
+  <script type="module" src="main.js?v=2025-11-27-0831"></script>
