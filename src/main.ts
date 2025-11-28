@@ -392,14 +392,23 @@ async function waitForFirebase(timeout: number = 10000): Promise<boolean> {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[main] DOMContentLoaded 이벤트 발생');
+  console.log('[main] 현재 URL:', window.location.href);
+  
   const urlParams = new URLSearchParams(window.location.search);
   const shareId = urlParams.get('share');
   const papsShareId = urlParams.get('paps');
   
+  console.log('[main] URL 파라미터 확인:', { shareId, papsShareId });
+  
   if (papsShareId) {
+    console.log('[main] PAPS 공유 링크 처리 시작, shareId:', papsShareId);
+    
     // PAPS 개별 학생 공유 링크 처리
     // Firebase 초기화 대기
+    console.log('[main] Firebase 초기화 대기 시작');
     const firebaseReady = await waitForFirebase();
+    console.log('[main] Firebase 초기화 대기 완료, ready:', firebaseReady);
     
     if (!firebaseReady) {
       console.error('[main] Firebase 초기화 실패 - PAPS 공유 링크 처리 불가');
@@ -407,20 +416,35 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    console.log('[main] Firebase 초기화 확인 완료, ShareManager 생성 시작');
     try {
       const { createShareManager } = await import('./modules/shareManager.js');
+      console.log('[main] ShareManager 모듈 로드 완료');
+      
       const sm = createShareManager({
         firebaseDb: typeof window !== 'undefined' ? (window as any).firebase?.db : undefined,
         $: (selector: string) => document.querySelector(selector)
       });
+      console.log('[main] ShareManager 인스턴스 생성 완료');
+      
+      console.log('[main] handleSharedPapsStudent 호출 시작');
       await sm.handleSharedPapsStudent(papsShareId);
-    } catch (error) {
+      console.log('[main] handleSharedPapsStudent 호출 완료');
+    } catch (error: any) {
       console.error('[main] PAPS 공유 링크 처리 실패:', error);
-      alert('개인 기록을 불러오는데 실패했습니다. QR 코드를 다시 확인해주세요.');
+      console.error('[main] 에러 상세:', {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack
+      });
+      alert(`개인 기록을 불러오는데 실패했습니다.\n에러: ${error?.message || '알 수 없는 오류'}\nQR 코드를 다시 확인해주세요.`);
     }
   } else if (shareId) {
+    console.log('[main] 공유 순위표 링크 처리 시작');
     await handleSharedRanking(shareId);
   } else {
+    console.log('[main] 일반 앱 초기화 시작');
     await initialize_app();
   }
 });

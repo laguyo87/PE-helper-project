@@ -398,10 +398,26 @@ export class ShareManager {
    */
   public async handleSharedPapsStudent(shareId: string): Promise<void> {
     try {
-      console.log('[ShareManager] PAPS 개별 학생 공유 데이터 로딩 시작:', shareId);
+      console.log('[ShareManager] ===== PAPS 개별 학생 공유 데이터 로딩 시작 =====');
+      console.log('[ShareManager] shareId:', shareId);
+      console.log('[ShareManager] shareId 타입:', typeof shareId);
+      console.log('[ShareManager] shareId 길이:', shareId?.length);
+
+      if (!shareId || shareId.trim() === '') {
+        console.error('[ShareManager] shareId가 비어있습니다.');
+        this.showErrorModal('QR 코드 정보가 올바르지 않습니다. QR 코드를 다시 확인해주세요.');
+        return;
+      }
 
       // Firebase 초기화 확인
       const firebase = (window as any).firebase;
+      console.log('[ShareManager] Firebase 객체 확인:', { 
+        exists: !!firebase, 
+        hasDb: !!firebase?.db,
+        hasDoc: !!firebase?.doc,
+        hasGetDoc: !!firebase?.getDoc
+      });
+      
       if (!firebase) {
         console.error('[ShareManager] Firebase가 초기화되지 않았습니다.');
         this.showErrorModal('Firebase가 초기화되지 않았습니다. 페이지를 새로고침해주세요.');
@@ -411,7 +427,12 @@ export class ShareManager {
       const { doc, getDoc, db } = firebase;
       
       if (!db || !doc || !getDoc) {
-        console.error('[ShareManager] Firebase 객체가 완전하지 않습니다:', { db: !!db, doc: !!doc, getDoc: !!getDoc });
+        console.error('[ShareManager] Firebase 객체가 완전하지 않습니다:', { 
+          db: !!db, 
+          doc: !!doc, 
+          getDoc: !!getDoc,
+          firebaseKeys: firebase ? Object.keys(firebase) : []
+        });
         throw new Error('Firebase가 초기화되지 않았습니다.');
       }
 
