@@ -447,31 +447,73 @@ export class ShareManager {
       overflow-y: auto;
       padding: 20px;
     `;
-        // PAPS 항목 정의
+        // PAPS 항목 정의 (체지방 제외 - 신장/체중 행에서만 표시)
         const PAPS_ITEMS = {
             "심폐지구력": { id: "endurance", label: "심폐지구력" },
             "유연성": { id: "flexibility", label: "유연성" },
             "근력/근지구력": { id: "strength", label: "근력/근지구력" },
-            "순발력": { id: "power", label: "순발력" },
-            "체지방": { id: "bodyfat", label: "체지방" }
+            "순발력": { id: "power", label: "순발력" }
         };
         // 기록 테이블 생성 - 모든 종목 표시
         let recordsTable = '';
         Object.keys(PAPS_ITEMS).forEach(category => {
             const item = PAPS_ITEMS[category];
-            const record = shareData.records[item.id];
-            const grade = shareData.grades[item.id] || '-';
-            const ranking = gradeRankings[item.id] || '-';
             const eventName = shareData.eventNames?.[item.id] || category;
-            // 모든 종목 표시 (기록이 없어도 표시)
-            recordsTable += `
-        <tr>
-          <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName}</td>
-          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${record !== undefined && record !== null && record !== 0 ? record : '-'}</td>
-          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(grade)};">${grade}</td>
-          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${ranking}</td>
-        </tr>
-      `;
+            // 악력 종목 처리 (왼손/오른손)
+            if (eventName === '악력') {
+                const leftRecord = shareData.records[`${item.id}_left`];
+                const rightRecord = shareData.records[`${item.id}_right`];
+                const leftGrade = shareData.grades[`${item.id}_left`] || '-';
+                const rightGrade = shareData.grades[`${item.id}_right`] || '-';
+                const ranking = gradeRankings[item.id] || '-';
+                // 왼손/오른손 기록이 있으면 표시
+                if (leftRecord !== undefined && leftRecord !== null && leftRecord !== 0) {
+                    recordsTable += `
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName} (왼손)</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${leftRecord}</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(leftGrade)};">${leftGrade}</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${ranking}</td>
+            </tr>
+          `;
+                }
+                if (rightRecord !== undefined && rightRecord !== null && rightRecord !== 0) {
+                    recordsTable += `
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName} (오른손)</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${rightRecord}</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(rightGrade)};">${rightGrade}</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${ranking}</td>
+            </tr>
+          `;
+                }
+                // 왼손/오른손 모두 없으면 하나의 행으로 표시
+                if ((leftRecord === undefined || leftRecord === null || leftRecord === 0) &&
+                    (rightRecord === undefined || rightRecord === null || rightRecord === 0)) {
+                    recordsTable += `
+            <tr>
+              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName}</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">-</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold;">-</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">-</td>
+            </tr>
+          `;
+                }
+            }
+            else {
+                // 일반 종목 처리
+                const record = shareData.records[item.id];
+                const grade = shareData.grades[item.id] || '-';
+                const ranking = gradeRankings[item.id] || '-';
+                recordsTable += `
+          <tr>
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName}</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${record !== undefined && record !== null && record !== 0 ? record : '-'}</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(grade)};">${grade}</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${ranking}</td>
+          </tr>
+        `;
+            }
         });
         // 신장, 체중 추가
         const height = shareData.records.height;
@@ -576,48 +618,35 @@ export class ShareManager {
         const handleBeforeInstallPrompt = (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            if (installBtn) {
-                installBtn.style.display = 'inline-flex';
-            }
         };
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        // 이미 설치되어 있는지 확인
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
-            if (installBtn) {
-                installBtn.style.display = 'none';
-            }
-        }
-        else {
-            // 설치 가능 여부 확인
-            if (installBtn) {
-                installBtn.addEventListener('click', async () => {
-                    if (deferredPrompt) {
-                        deferredPrompt.prompt();
-                        const { outcome } = await deferredPrompt.userChoice;
-                        console.log(`PWA 설치 결과: ${outcome}`);
-                        deferredPrompt = null;
-                        if (installBtn) {
-                            installBtn.style.display = 'none';
-                        }
+        // 설치 버튼 클릭 이벤트 (항상 표시)
+        if (installBtn) {
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    // 자동 설치 프롬프트 사용 가능
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`PWA 설치 결과: ${outcome}`);
+                    deferredPrompt = null;
+                }
+                else {
+                    // 수동 설치 안내
+                    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                    const isAndroid = /Android/.test(navigator.userAgent);
+                    let message = '';
+                    if (isIOS) {
+                        message = 'iOS에서 설치하려면:\n1. Safari에서 공유 버튼(□↑)을 누르세요\n2. "홈 화면에 추가"를 선택하세요';
+                    }
+                    else if (isAndroid) {
+                        message = 'Android에서 설치하려면:\n1. 브라우저 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가" 또는 "설치"를 선택하세요';
                     }
                     else {
-                        // 수동 설치 안내
-                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                        const isAndroid = /Android/.test(navigator.userAgent);
-                        let message = '';
-                        if (isIOS) {
-                            message = 'iOS에서 설치하려면:\n1. Safari에서 공유 버튼(□↑)을 누르세요\n2. "홈 화면에 추가"를 선택하세요';
-                        }
-                        else if (isAndroid) {
-                            message = 'Android에서 설치하려면:\n1. 브라우저 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가" 또는 "설치"를 선택하세요';
-                        }
-                        else {
-                            message = '브라우저 메뉴에서 "앱 설치" 또는 "홈 화면에 추가"를 선택하세요';
-                        }
-                        alert(message);
+                        message = '브라우저 메뉴에서 "앱 설치" 또는 "홈 화면에 추가"를 선택하세요';
                     }
-                });
-            }
+                    alert(message);
+                }
+            });
         }
         // 모달 닫기 함수
         const removeModal = () => {
