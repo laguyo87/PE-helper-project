@@ -48,6 +48,14 @@ function handleKeyDown(event: KeyboardEvent): void {
     return;
   }
   
+  // Ctrl+Y 또는 Ctrl+Shift+Z (Mac: Cmd+Shift+Z): 다시 실행하기
+  if ((event.ctrlKey || event.metaKey) && 
+      (event.key === 'y' || (event.key === 'z' && event.shiftKey))) {
+    event.preventDefault();
+    handleRedoKey();
+    return;
+  }
+  
   // Tab 키: 모달 내부에서만 포커스 유지 (필요시)
   if (event.key === 'Tab') {
     handleTabKey(event);
@@ -79,6 +87,19 @@ function handleUndoKey(): void {
     undoFunction();
   } else {
     logger.debug('실행 취소 함수를 찾을 수 없습니다.');
+  }
+}
+
+/**
+ * 다시 실행하기 키 처리 (Ctrl+Y 또는 Ctrl+Shift+Z / Cmd+Shift+Z)
+ */
+function handleRedoKey(): void {
+  // 전역 redo 함수 호출
+  const redoFunction = (window as any).handleRedo;
+  if (redoFunction && typeof redoFunction === 'function') {
+    redoFunction();
+  } else {
+    logger.debug('다시 실행하기 함수를 찾을 수 없습니다.');
   }
 }
 

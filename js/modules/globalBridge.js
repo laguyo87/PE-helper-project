@@ -164,6 +164,8 @@ export class GlobalBridge {
                             undoBtn.style.opacity = '1';
                             // 실행 취소 가능 여부에 따라 버튼 상태 업데이트
                             this.updateUndoButtonState();
+                            // redo 버튼 상태도 업데이트 (undo 후 redo 가능하므로)
+                            this.updateRedoButtonState();
                         });
                     }
                     logger.debug('실행 취소 완료');
@@ -180,10 +182,76 @@ export class GlobalBridge {
                 }
             }
         };
+        // 다시 실행하기 함수 등록
+        window.handleRedo = () => {
+            const redoBtn = document.getElementById('redo-btn');
+            // AppStateManager가 있는지 확인
+            if (!this.context.appStateManager) {
+                logWarn('다시 실행하기: AppStateManager가 초기화되지 않았습니다.');
+                if (redoBtn) {
+                    redoBtn.disabled = true;
+                    redoBtn.style.opacity = '0.5';
+                    requestAnimationFrame(() => {
+                        redoBtn.disabled = false;
+                        redoBtn.style.opacity = '1';
+                    });
+                }
+                return;
+            }
+            // 다시 실행하기 가능 여부 확인
+            if (!this.context.appStateManager.canRedo()) {
+                // 다시 실행하기 불가능한 경우 시각적 피드백
+                if (redoBtn) {
+                    const originalOpacity = redoBtn.style.opacity;
+                    redoBtn.style.opacity = '0.5';
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            redoBtn.style.opacity = originalOpacity || '1';
+                        });
+                    });
+                }
+                logger.debug('다시 실행할 수 있는 상태가 없습니다.');
+                return;
+            }
+            // 다시 실행하기 수행
+            try {
+                const success = this.context.appStateManager.redo();
+                if (success) {
+                    // 버튼 시각적 피드백
+                    if (redoBtn) {
+                        redoBtn.disabled = true;
+                        redoBtn.style.opacity = '0.5';
+                        requestAnimationFrame(() => {
+                            redoBtn.disabled = false;
+                            redoBtn.style.opacity = '1';
+                            // 다시 실행하기 가능 여부에 따라 버튼 상태 업데이트
+                            this.updateRedoButtonState();
+                            // undo 버튼 상태도 업데이트 (undo 후 redo 가능하므로)
+                            this.updateUndoButtonState();
+                        });
+                    }
+                    logger.debug('다시 실행하기 완료');
+                }
+                else {
+                    logWarn('다시 실행하기 실패');
+                }
+            }
+            catch (error) {
+                logError('다시 실행하기 중 오류 발생:', error);
+                if (redoBtn) {
+                    redoBtn.disabled = false;
+                    redoBtn.style.opacity = '1';
+                }
+            }
+        };
         // 실행 취소 버튼의 tooltip에 플랫폼별 단축키 표시
         this.updateUndoTooltip();
         // 실행 취소 버튼 상태 초기화
         this.updateUndoButtonState();
+        // 다시 실행하기 버튼의 tooltip에 플랫폼별 단축키 표시
+        this.updateRedoTooltip();
+        // 다시 실행하기 버튼 상태 초기화
+        this.updateRedoButtonState();
         // 사이드바 토글 함수 등록 (HTML에서 이미 정의되어 있을 수 있지만, 확실히 하기 위해 재정의)
         // HTML에서 이미 정의되어 있으면 그대로 사용
         if (!window.toggleSidebar || typeof window.toggleSidebar !== 'function') {
@@ -255,6 +323,33 @@ export class GlobalBridge {
         const canUndo = this.context.appStateManager.canUndo();
         undoBtn.disabled = !canUndo;
         undoBtn.style.opacity = canUndo ? '1' : '0.5';
+    }
+    /**
+     * 다시 실행하기 버튼의 tooltip을 플랫폼에 맞게 업데이트합니다.
+     */
+    updateRedoTooltip() {
+        const redoBtn = document.getElementById('redo-btn');
+        if (!redoBtn)
+            return;
+        // Mac/iOS 체크
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0 ||
+            navigator.platform.toUpperCase().indexOf('IPHONE') >= 0 ||
+            navigator.platform.toUpperCase().indexOf('IPAD') >= 0 ||
+            navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
+        const shortcut = isMac ? 'Cmd+Shift+Z' : 'Ctrl+Y';
+        redoBtn.setAttribute('data-tooltip', `다시 실행하기 (${shortcut})`);
+        redoBtn.setAttribute('aria-label', `다시 실행하기 (${shortcut})`);
+    }
+    /**
+     * 다시 실행하기 버튼의 활성화 상태를 업데이트합니다.
+     */
+    updateRedoButtonState() {
+        const redoBtn = document.getElementById('redo-btn');
+        if (!redoBtn || !this.context.appStateManager)
+            return;
+        const canRedo = this.context.appStateManager.canRedo();
+        redoBtn.disabled = !canRedo;
+        redoBtn.style.opacity = canRedo ? '1' : '0.5';
     }
     /**
      * 사이드바 토글 버튼 이벤트를 초기화합니다.

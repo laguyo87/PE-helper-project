@@ -639,7 +639,7 @@ export class AuthManager {
       }
       return;
     }
-
+    
     if (!this.firebase) {
       // Firebase가 아직 초기화되지 않았으면 잠시 대기 후 재시도
       logInfo('Firebase 초기화 대기 중, 1초 후 재시도...');
@@ -677,17 +677,17 @@ export class AuthManager {
       console.log('⚠️ [performLogin] 이미 로그인 진행 중, 중복 요청 무시', { email });
       return;
     }
-    
+
     this.isLoggingIn = true;
     console.log('🔵 [performLogin] 시작!', { email, hasPassword: !!password, timestamp: new Date().toISOString() });
-    
+
     try {
       if (!this.firebase) {
         console.error('❌ [performLogin] Firebase가 초기화되지 않음');
         logErrorLocal('Firebase가 초기화되지 않음');
         this.showAuthError('Firebase 연결에 문제가 있습니다. 잠시 후 다시 시도해주세요.', 'login');
-        return;
-      }
+      return;
+    }
 
       // Firebase 객체 유효성 검사
       if (!this.firebase.auth || !this.firebase.signInWithEmailAndPassword) {

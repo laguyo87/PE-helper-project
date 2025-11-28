@@ -240,7 +240,7 @@ export class DataManager {
             this.log('[DataManager] 디바운스 타이머 정리 완료');
         }
     }
-    
+
     /**
      * 리소스 정리 (메모리 누수 방지)
      * 타이머와 이벤트 리스너를 정리합니다.
@@ -373,7 +373,7 @@ export class DataManager {
                 // 타이머 완료 후 항상 null로 설정 (에러 발생 시에도)
                 if (this.dbDebounceTimer === timerId) {
                     this.dbDebounceTimer = null;
-                }
+            }
             }
         }, debounceMs);
     }
@@ -920,8 +920,8 @@ export class DataManager {
         // 그 외 에러는 상세 로깅
         this.logError("Firestore 로드 실패:", error);
         if (!isPermissionError) {
-            this.logError("오류 상세:", error.message);
-            this.logError("오류 코드:", error.code);
+        this.logError("오류 상세:", error.message);
+        this.logError("오류 코드:", error.code);
         }
 
         // 재시도 로직 (최대 3회, 권한 에러는 재시도하지 않음)
@@ -935,7 +935,7 @@ export class DataManager {
 
         // 최종 실패 시 폴백 데이터 사용
         if (!isPermissionError) {
-            this.logError('데이터 로드 최종 실패, 폴백 데이터 사용');
+        this.logError('데이터 로드 최종 실패, 폴백 데이터 사용');
         } else {
             logger.debug('[DataManager] 권한 없음, 폴백 데이터 사용');
         }

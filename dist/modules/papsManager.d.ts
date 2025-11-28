@@ -235,5 +235,29 @@ export declare class PapsManager {
      * sidebar-list-container는 renderPapsClassList()에서 관리하므로 여기서 비우지 않습니다.
      */
     private cleanupSidebar;
+    /**
+     * 유효 기간 입력 모달을 표시합니다.
+     * @returns Promise<number | null> 입력된 일수 또는 null (취소 시)
+     */
+    private showExpiresDaysModal;
+    /**
+     * 반별 모든 학생의 QR 코드를 생성합니다.
+     * @param expiresInDays 유효 기간 (일 단위, 기본값: 365일)
+     */
+    generateClassQRCodes(expiresInDays?: number): Promise<void>;
+    /**
+     * QR 코드 출력 모달을 표시합니다.
+     * @param className 반 이름
+     * @param studentQRCodes 학생 QR 코드 목록
+     * @param expiresAt 만료일
+     */
+    private showQRPrintModal;
+    /**
+     * QR 코드를 인쇄합니다.
+     * @param studentQRCodes 학생 QR 코드 목록
+     * @param className 반 이름
+     * @param perPage 페이지당 학생 수
+     */
+    private printQRCodes;
 }
 //# sourceMappingURL=papsManager.d.ts.map

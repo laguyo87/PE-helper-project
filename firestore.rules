@@ -24,6 +24,18 @@ service cloud.firestore {
                               resource.data.authorId == request.auth.uid;
     }
     
+    // PAPS 개별 학생 공유 데이터 규칙
+    match /sharedPapsStudents/{shareId} {
+      // 인증 없이 읽기 가능 (공유 링크를 통한 접근)
+      allow read: if true;
+      
+      // 인증된 사용자만 작성 가능
+      allow create: if request.auth != null;
+      
+      // 작성자만 수정/삭제 가능 (classId와 studentId로 소유권 확인)
+      allow update, delete: if request.auth != null;
+    }
+    
     // 공유 데이터 규칙 (기타)
     match /shares/{shareId} {
       // 인증 없이 읽기 가능 (공유 링크를 통한 접근)

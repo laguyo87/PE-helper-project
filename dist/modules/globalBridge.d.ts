@@ -52,6 +52,14 @@ export declare class GlobalBridge {
      */
     private updateUndoButtonState;
     /**
+     * 다시 실행하기 버튼의 tooltip을 플랫폼에 맞게 업데이트합니다.
+     */
+    private updateRedoTooltip;
+    /**
+     * 다시 실행하기 버튼의 활성화 상태를 업데이트합니다.
+     */
+    private updateRedoButtonState;
+    /**
      * 사이드바 토글 버튼 이벤트를 초기화합니다.
      * HTML onclick이 작동하지 않을 경우를 대비한 백업입니다.
      */

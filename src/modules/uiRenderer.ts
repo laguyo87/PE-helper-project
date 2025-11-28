@@ -165,7 +165,7 @@ export class UIRenderer {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         logger.debug('모드 버튼 설정 재시도 (DOM 업데이트 후)...');
-        this.setupModeButtons();
+      this.setupModeButtons();
       });
     });
     
@@ -184,7 +184,7 @@ export class UIRenderer {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             logger.debug('DOM 이미 로드됨, 모드 버튼 추가 확인...');
-            this.setupModeButtons();
+        this.setupModeButtons();
           });
         });
       });
@@ -232,7 +232,7 @@ export class UIRenderer {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             logger.debug('모드 버튼 재검색 (DOM 업데이트 후)...');
-            this.setupModeButtons();
+        this.setupModeButtons();
           });
         });
       });

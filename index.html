@@ -444,6 +444,9 @@
             <button id="undo-btn" class="btn" onclick="handleUndo()" aria-label="실행 취소" data-tooltip="실행 취소 (Ctrl+Z 또는 Cmd+Z)">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
             </button>
+            <button id="redo-btn" class="btn" onclick="handleRedo()" aria-label="다시 실행하기" data-tooltip="다시 실행하기 (Ctrl+Y 또는 Ctrl+Shift+Z)">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path></svg>
+            </button>
             <button class="btn" onclick="openHelpPopup()" aria-label="사용설명서 열기">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 사용설명서
@@ -499,155 +502,235 @@
             </button>
         </div>
         <div class="help-popup-content" style="overflow-y: auto;">
-            <h2 style="margin-top: 0;">프로그램 사용 설명서</h2>
+            <h2 style="margin-top: 0;">📚 프로그램 사용 설명서</h2>
             
-            <h3>📌 기본 사용법</h3>
-            <p>화면 상단의 <code>수업 진도 관리</code> / <code>리그전 수업</code> / <code>토너먼트 수업</code> / <code>PAPS 수업</code> 버튼으로 네 가지 수업 모드를 전환할 수 있습니다. 각 모드의 데이터는 독립적으로 저장됩니다.</p>
+            <div style="background: var(--bg-secondary, #f5f5f5); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--primary, #007bff);">
+                <h3 style="margin-top: 0; color: var(--primary, #007bff);">📌 기본 사용법</h3>
+                <p style="margin-bottom: 0;">화면 상단의 <code>수업 진도 관리</code> / <code>리그전 수업</code> / <code>토너먼트 수업</code> / <code>PAPS 수업</code> 버튼으로 네 가지 수업 모드를 전환할 수 있습니다. 각 모드의 데이터는 독립적으로 저장됩니다.</p>
+            </div>
 
-            <h3>1️⃣ 수업 진도 관리</h3>
-            <p><strong>반 생성 및 관리</strong></p>
-            <ul>
-                <li>왼쪽 사이드바에서 '새로운 반 이름'을 입력하고 <code>+</code> 버튼을 눌러 반을 생성합니다.</li>
-                <li>반 카드의 연필 아이콘을 클릭하면 반 이름을 수정할 수 있습니다.</li>
-                <li>휴지통 아이콘을 클릭하면 반과 관련된 모든 데이터가 삭제됩니다.</li>
-            </ul>
-            <p><strong>수업 설정</strong></p>
-            <ul>
-                <li>반을 선택한 후, 담당교사, 단원 내용, 주당 시간을 입력하고 <code>설정 저장</code>을 누릅니다.</li>
-                <li>설정 저장 후 수업 기록 테이블이 자동으로 생성됩니다.</li>
-            </ul>
-            <p><strong>수업 기록 입력</strong></p>
-            <ul>
-                <li>각 주차별로 수업 날짜, 교시(1~7교시), 수업 내용을 입력할 수 있습니다.</li>
-                <li>날짜를 입력하면 요일이 자동으로 표시됩니다.</li>
-                <li>수업 내용은 실시간으로 저장됩니다.</li>
-            </ul>
-            <p><strong>엑셀 내보내기/가져오기</strong></p>
-            <ul>
-                <li>왼쪽 사이드바 하단의 <code>모든 반 수업 기록 엑셀로 내보내기</code> 버튼으로 모든 반의 수업 기록을 엑셀 파일로 저장할 수 있습니다.</li>
-                <li>엑셀 파일은 반별로 시트가 구분되어 저장됩니다.</li>
-                <li><code>모든 반 수업 기록 엑셀에서 가져오기</code> 버튼으로 엑셀 파일의 데이터를 불러올 수 있습니다.</li>
-            </ul>
+            <div style="margin-bottom: 2rem;">
+                <h3 style="border-bottom: 2px solid var(--line, #e0e0e0); padding-bottom: 0.5rem; margin-bottom: 1rem;">📝 1️⃣ 수업 진도 관리</h3>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">🏫 반 생성 및 관리</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>왼쪽 사이드바에서 '새로운 반 이름'을 입력하고 <code>+</code> 버튼을 눌러 반을 생성합니다.</li>
+                        <li>✏️ 반 카드의 연필 아이콘을 클릭하면 반 이름을 수정할 수 있습니다.</li>
+                        <li>🗑️ 휴지통 아이콘을 클릭하면 반과 관련된 모든 데이터가 삭제됩니다.</li>
+                    </ul>
+                </div>
 
-            <h3>2️⃣ 리그전 수업</h3>
-            <p><strong>반 생성 및 학생 관리</strong></p>
-            <ul>
-                <li>왼쪽 사이드바에서 '새로운 반(팀) 이름'을 입력하고 <code>+</code> 버튼을 눌러 리그를 생성합니다.</li>
-                <li>반을 선택한 후, '신규 선수 추가'에 학생 이름을 입력하고 <code>추가</code> 버튼을 누릅니다.</li>
-                <li><code>일괄 추가</code> 버튼으로 여러 명의 이름을 쉼표(,)로 구분해 한 번에 등록할 수 있습니다.</li>
-                <li><code>가나다 순 정렬</code> 버튼으로 학생 목록을 이름 순으로 정렬할 수 있습니다.</li>
-            </ul>
-            <p><strong>경기 일정 생성</strong></p>
-            <ul>
-                <li>학생 추가가 완료되면 <code>일정 생성</code> 버튼을 누르세요.</li>
-                <li>모든 학생이 한 번씩 맞붙는 리그전 대진표(라운드 로빈)가 자동으로 생성됩니다.</li>
-            </ul>
-            <p><strong>경기 결과 입력</strong></p>
-            <ul>
-                <li>경기 일정 표에서 각 경기의 점수를 입력하면 자동으로 승점이 계산되고 '완료' 상태로 변경됩니다.</li>
-                <li>경기 강조 표시 기능으로 특정 경기를 하이라이트할 수 있습니다.</li>
-                <li>점수를 입력하면 순위표가 실시간으로 업데이트됩니다.</li>
-            </ul>
-            <p><strong>엑셀 내보내기/가져오기</strong></p>
-            <ul>
-                <li>왼쪽 사이드바 하단의 <code>모든 반 경기 기록 엑셀로 내보내기</code> 버튼으로 모든 반의 경기 기록을 엑셀 파일로 저장할 수 있습니다.</li>
-                <li>엑셀 파일에는 순위표와 경기 일정이 포함되며, 반별로 시트가 구분됩니다.</li>
-                <li><code>모든 반 경기 기록 엑셀에서 가져오기</code> 버튼으로 엑셀 파일의 데이터를 불러올 수 있습니다.</li>
-            </ul>
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">⚙️ 수업 설정</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>반을 선택한 후, 담당교사, 단원 내용, 주당 시간을 입력하고 <code>설정 저장</code>을 누릅니다.</li>
+                        <li>✅ 설정 저장 후 수업 기록 테이블이 자동으로 생성됩니다.</li>
+                    </ul>
+                </div>
 
-            <h3>3️⃣ 토너먼트 수업</h3>
-            <p><strong>토너먼트 생성</strong></p>
-            <ul>
-                <li>왼쪽 사이드바에서 '새로운 토너먼트 이름'을 입력하고 <code>+</code> 버튼을 눌러 토너먼트를 생성합니다.</li>
-            </ul>
-            <p><strong>팀 추가 및 설정</strong></p>
-            <ul>
-                <li>토너먼트를 선택한 후, '참가 팀 관리'에서 팀 이름을 추가합니다.</li>
-                <li><code>토너먼트 설정</code> 버튼을 클릭하여 경기 종목, 시드 배정 방식(입력 순 또는 무작위) 등을 설정하고 <code>설정 저장</code>을 누릅니다.</li>
-            </ul>
-            <p><strong>대진표 관리</strong></p>
-            <ul>
-                <li>팀을 추가/삭제하면 대진표가 자동으로 생성 및 업데이트됩니다.</li>
-                <li>경기 후 대진표의 점수 칸에 결과를 입력하면 승자가 자동으로 다음 라운드로 진출합니다.</li>
-                <li>최종 순위는 대진표에 메달 아이콘으로 표시됩니다.</li>
-            </ul>
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📅 수업 기록 입력</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>각 주차별로 수업 날짜, 교시(1~7교시), 수업 내용을 입력할 수 있습니다.</li>
+                        <li>📆 날짜를 입력하면 요일이 자동으로 표시됩니다.</li>
+                        <li>💾 수업 내용은 실시간으로 저장됩니다.</li>
+                    </ul>
+                </div>
 
-            <h3>4️⃣ PAPS 수업</h3>
-            <p><strong>반 생성 및 설정</strong></p>
-            <ul>
-                <li>왼쪽 사이드바에서 '새로운 PAPS 반 이름'을 입력하고 <code>+</code> 버튼을 눌러 PAPS 반을 생성합니다.</li>
-                <li>반을 선택한 후, 학년을 설정합니다. (초등학교 4-6학년, 중학교 1-3학년, 고등학교 1-3학년)</li>
-            </ul>
-            <p><strong>종목 설정</strong></p>
-            <ul>
-                <li><strong>심폐지구력:</strong> 왕복오래달리기, 오래달리기, 스텝검사</li>
-                <li><strong>유연성:</strong> 앉아윗몸앞으로굽히기, 종합유연성검사</li>
-                <li><strong>근력/근지구력:</strong> 악력(왼손/오른손), 팔굽혀펴기, 윗몸말아올리기</li>
-                <li><strong>순발력:</strong> 제자리멀리뛰기, 50m 달리기</li>
-                <li><strong>체지방:</strong> BMI (신장, 체중 입력 후 자동 계산)</li>
-            </ul>
-            <p><strong>학생 추가 및 기록 입력</strong></p>
-            <ul>
-                <li><code>학생 추가</code> 버튼으로 개별 추가하거나, 엑셀 파일로 일괄 업로드할 수 있습니다.</li>
-                <li>학생의 번호, 이름, 성별을 입력합니다.</li>
-                <li>기록입력 테이블에서 각 학생의 측정 기록을 입력합니다.</li>
-                <li>악력은 왼손과 오른손 각각의 기록을 입력할 수 있습니다.</li>
-                <li>신장(cm)과 체중(kg)을 입력하면 BMI가 자동 계산됩니다.</li>
-                <li>기록을 입력하면 성별과 학년에 따른 PAPS 등급이 자동으로 계산되어 표시됩니다.</li>
-            </ul>
-            <p><strong>엑셀 내보내기/가져오기</strong></p>
-            <ul>
-                <li>왼쪽 사이드바 하단의 <code>모든 반 PAPS 기록 엑셀로 내보내기</code> 버튼으로 모든 반의 PAPS 기록을 엑셀 파일로 저장할 수 있습니다.</li>
-                <li>엑셀 파일은 반별로 시트가 구분되어 저장됩니다.</li>
-                <li><code>모든 반 PAPS 기록 엑셀에서 가져오기</code> 버튼으로 엑셀 파일의 데이터를 불러올 수 있습니다.</li>
-            </ul>
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📊 엑셀 내보내기/가져오기</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>📤 왼쪽 사이드바 하단의 <code>모든 반 수업 기록 엑셀로 내보내기</code> 버튼으로 모든 반의 수업 기록을 엑셀 파일로 저장할 수 있습니다.</li>
+                        <li>📑 엑셀 파일은 반별로 시트가 구분되어 저장됩니다.</li>
+                        <li>📥 <code>모든 반 수업 기록 엑셀에서 가져오기</code> 버튼으로 엑셀 파일의 데이터를 불러올 수 있습니다.</li>
+                    </ul>
+                </div>
+            </div>
 
-            <h3>🛠️ 공통 기능</h3>
-            <p><strong>데이터 저장</strong></p>
-            <ul>
-                <li>모든 데이터는 로그인된 계정에 연결되어 클라우드에 실시간으로 자동 저장됩니다.</li>
-                <li>다른 기기에서 로그인해도 동일한 데이터를 사용할 수 있습니다.</li>
-                <li>인터넷 연결이 없어도 로컬 스토리지에 임시 저장되며, 연결 시 자동으로 동기화됩니다.</li>
-            </ul>
-            <p><strong>실행 취소 (Undo)</strong></p>
-            <ul>
-                <li>상단 바의 실행 취소 아이콘을 클릭하거나 <code>Ctrl+Z</code> (Windows/Linux) / <code>Cmd+Z</code> (Mac)를 누르면 마지막 작업을 취소할 수 있습니다.</li>
-                <li>최대 50개의 이전 상태까지 되돌릴 수 있습니다.</li>
-            </ul>
-            <p><strong>사이드바 토글</strong></p>
-            <ul>
-                <li>왼쪽 사이드바의 화살표 버튼을 클릭하면 사이드바를 열고 닫을 수 있습니다.</li>
-                <li>화면 공간을 효율적으로 사용하기 위해 필요시 사이드바를 숨길 수 있습니다.</li>
-            </ul>
-            <p><strong>야간 모드 (다크 모드)</strong></p>
-            <ul>
-                <li>상단 바의 해/달 아이콘을 클릭하면 라이트 모드와 다크 모드를 전환할 수 있습니다.</li>
-                <li>선택한 테마는 자동으로 저장되어 다음 방문 시에도 유지됩니다.</li>
-            </ul>
-            <p><strong>엑셀 호환성</strong></p>
-            <ul>
-                <li>모든 수업 모드에서 엑셀 파일로 데이터를 내보내고 가져올 수 있습니다.</li>
-                <li>엑셀 파일은 반별로 시트가 구분되어 있어 관리가 용이합니다.</li>
-                <li>기존 스프레드시트와 연동하여 데이터를 공유할 수 있습니다.</li>
-            </ul>
+            <div style="margin-bottom: 2rem;">
+                <h3 style="border-bottom: 2px solid var(--line, #e0e0e0); padding-bottom: 0.5rem; margin-bottom: 1rem;">🏆 2️⃣ 리그전 수업</h3>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">👥 반 생성 및 학생 관리</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>왼쪽 사이드바에서 '새로운 반(팀) 이름'을 입력하고 <code>+</code> 버튼을 눌러 리그를 생성합니다.</li>
+                        <li>➕ 반을 선택한 후, '신규 선수 추가'에 학생 이름을 입력하고 <code>추가</code> 버튼을 누릅니다.</li>
+                        <li>📋 <code>일괄 추가</code> 버튼으로 여러 명의 이름을 쉼표(,)로 구분해 한 번에 등록할 수 있습니다.</li>
+                        <li>🔤 <code>가나다 순 정렬</code> 버튼으로 학생 목록을 이름 순으로 정렬할 수 있습니다.</li>
+                    </ul>
+                </div>
 
-            <h3>⌨️ 키보드 단축키</h3>
-            <ul>
-                <li><code>Ctrl+Z</code> 또는 <code>Cmd+Z</code> (Mac): 실행 취소</li>
-                <li><code>Escape</code>: 열려있는 모달 창 닫기</li>
-            </ul>
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📅 경기 일정 생성</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>학생 추가가 완료되면 <code>일정 생성</code> 버튼을 누르세요.</li>
+                        <li>🎯 모든 학생이 한 번씩 맞붙는 리그전 대진표(라운드 로빈)가 자동으로 생성됩니다.</li>
+                    </ul>
+                </div>
 
-            <h3>💡 주요 특징</h3>
-            <ul>
-                <li><strong>실시간 계산:</strong> 모든 점수, 순위, 등급이 실시간으로 자동 계산됩니다.</li>
-                <li><strong>반응형 디자인:</strong> PC, 태블릿, 스마트폰 등 모든 기기에서 최적화된 화면으로 사용할 수 있습니다.</li>
-                <li><strong>직관적 UI:</strong> 체육 교사가 쉽게 사용할 수 있도록 직관적인 인터페이스를 제공합니다.</li>
-                <li><strong>PAPS 2024 기준:</strong> 최신 PAPS 평가 기준을 반영하여 정확한 등급을 제공합니다.</li>
-                <li><strong>데이터 안전성:</strong> 클라우드 자동 저장 및 로컬 백업으로 데이터 손실을 방지합니다.</li>
-            </ul>
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">⚽ 경기 결과 입력</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>경기 일정 표에서 각 경기의 점수를 입력하면 자동으로 승점이 계산되고 '완료' 상태로 변경됩니다.</li>
+                        <li>✨ 경기 강조 표시 기능으로 특정 경기를 하이라이트할 수 있습니다.</li>
+                        <li>📈 점수를 입력하면 순위표가 실시간으로 업데이트됩니다.</li>
+                    </ul>
+                </div>
 
-            <h3>📞 문의</h3>
-            <p>프로그램 사용 중 문제가 발생하거나 개선 사항이 있으면 개발자에게 문의해주세요.</p>
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📊 엑셀 내보내기/가져오기</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>📤 왼쪽 사이드바 하단의 <code>모든 반 경기 기록 엑셀로 내보내기</code> 버튼으로 모든 반의 경기 기록을 엑셀 파일로 저장할 수 있습니다.</li>
+                        <li>📑 엑셀 파일에는 순위표와 경기 일정이 포함되며, 반별로 시트가 구분됩니다.</li>
+                        <li>📥 <code>모든 반 경기 기록 엑셀에서 가져오기</code> 버튼으로 엑셀 파일의 데이터를 불러올 수 있습니다.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3 style="border-bottom: 2px solid var(--line, #e0e0e0); padding-bottom: 0.5rem; margin-bottom: 1rem;">🎯 3️⃣ 토너먼트 수업</h3>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">🏁 토너먼트 생성</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>왼쪽 사이드바에서 '새로운 토너먼트 이름'을 입력하고 <code>+</code> 버튼을 눌러 토너먼트를 생성합니다.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">👥 팀 추가 및 설정</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>토너먼트를 선택한 후, '참가 팀 관리'에서 팀 이름을 추가합니다.</li>
+                        <li>⚙️ <code>토너먼트 설정</code> 버튼을 클릭하여 경기 종목, 시드 배정 방식(입력 순 또는 무작위) 등을 설정하고 <code>설정 저장</code>을 누릅니다.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📋 대진표 관리</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>🔄 팀을 추가/삭제하면 대진표가 자동으로 생성 및 업데이트됩니다.</li>
+                        <li>⚽ 경기 후 대진표의 점수 칸에 결과를 입력하면 승자가 자동으로 다음 라운드로 진출합니다.</li>
+                        <li>🏅 최종 순위는 대진표에 메달 아이콘으로 표시됩니다.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h3 style="border-bottom: 2px solid var(--line, #e0e0e0); padding-bottom: 0.5rem; margin-bottom: 1rem;">💪 4️⃣ PAPS 수업</h3>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">🏫 반 생성 및 설정</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>왼쪽 사이드바에서 '새로운 PAPS 반 이름'을 입력하고 <code>+</code> 버튼을 눌러 PAPS 반을 생성합니다.</li>
+                        <li>🎓 반을 선택한 후, 학년을 설정합니다. (초등학교 4-6학년, 중학교 1-3학년, 고등학교 1-3학년)</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">🏃 종목 설정</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>❤️ <strong>심폐지구력:</strong> 왕복오래달리기, 오래달리기, 스텝검사</li>
+                        <li>🤸 <strong>유연성:</strong> 앉아윗몸앞으로굽히기, 종합유연성검사</li>
+                        <li>💪 <strong>근력/근지구력:</strong> 악력(왼손/오른손), 팔굽혀펴기, 윗몸말아올리기</li>
+                        <li>⚡ <strong>순발력:</strong> 제자리멀리뛰기, 50m 달리기</li>
+                        <li>📏 <strong>체지방:</strong> BMI (신장, 체중 입력 후 자동 계산)</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">👨‍🎓 학생 추가 및 기록 입력</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>➕ <code>학생 추가</code> 버튼으로 개별 추가하거나, 엑셀 파일로 일괄 업로드할 수 있습니다.</li>
+                        <li>📝 학생의 번호, 이름, 성별을 입력합니다.</li>
+                        <li>📊 기록입력 테이블에서 각 학생의 측정 기록을 입력합니다.</li>
+                        <li>🤲 악력은 왼손과 오른손 각각의 기록을 입력할 수 있습니다.</li>
+                        <li>📐 신장(cm)과 체중(kg)을 입력하면 BMI가 자동 계산됩니다.</li>
+                        <li>⭐ 기록을 입력하면 성별과 학년에 따른 PAPS 등급이 자동으로 계산되어 표시됩니다.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📊 엑셀 내보내기/가져오기</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>📤 왼쪽 사이드바 하단의 <code>모든 반 PAPS 기록 엑셀로 내보내기</code> 버튼으로 모든 반의 PAPS 기록을 엑셀 파일로 저장할 수 있습니다.</li>
+                        <li>📑 엑셀 파일은 반별로 시트가 구분되어 저장됩니다.</li>
+                        <li>📥 <code>모든 반 PAPS 기록 엑셀에서 가져오기</code> 버튼으로 엑셀 파일의 데이터를 불러올 수 있습니다.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="background: var(--bg-secondary, #f5f5f5); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <h3 style="border-bottom: 2px solid var(--line, #e0e0e0); padding-bottom: 0.5rem; margin-bottom: 1rem; margin-top: 0;">🛠️ 공통 기능</h3>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">☁️ 데이터 저장</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>💾 모든 데이터는 로그인된 계정에 연결되어 클라우드에 실시간으로 자동 저장됩니다.</li>
+                        <li>📱 다른 기기에서 로그인해도 동일한 데이터를 사용할 수 있습니다.</li>
+                        <li>🔄 인터넷 연결이 없어도 로컬 스토리지에 임시 저장되며, 연결 시 자동으로 동기화됩니다.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">↩️ 실행 취소 / 다시 실행하기</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>↩️ 상단 바의 실행 취소 아이콘을 클릭하거나 <code>Ctrl+Z</code> (Windows/Linux) / <code>Cmd+Z</code> (Mac)를 누르면 마지막 작업을 취소할 수 있습니다.</li>
+                        <li>↪️ 상단 바의 다시 실행하기 아이콘을 클릭하거나 <code>Ctrl+Y</code> (Windows/Linux) / <code>Cmd+Shift+Z</code> (Mac)를 누르면 취소한 작업을 다시 실행할 수 있습니다.</li>
+                        <li>📚 최대 50개의 이전 상태까지 되돌릴 수 있습니다.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📂 사이드바 토글</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>◀️ ▶️ 왼쪽 사이드바의 화살표 버튼을 클릭하면 사이드바를 열고 닫을 수 있습니다.</li>
+                        <li>💻 화면 공간을 효율적으로 사용하기 위해 필요시 사이드바를 숨길 수 있습니다.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">🌙 야간 모드 (다크 모드)</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>☀️ 🌙 상단 바의 해/달 아이콘을 클릭하면 라이트 모드와 다크 모드를 전환할 수 있습니다.</li>
+                        <li>💾 선택한 테마는 자동으로 저장되어 다음 방문 시에도 유지됩니다.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">📊 엑셀 호환성</h4>
+                    <ul style="margin-top: 0.5rem;">
+                        <li>📤 모든 수업 모드에서 엑셀 파일로 데이터를 내보내고 가져올 수 있습니다.</li>
+                        <li>📑 엑셀 파일은 반별로 시트가 구분되어 있어 관리가 용이합니다.</li>
+                        <li>🔗 기존 스프레드시트와 연동하여 데이터를 공유할 수 있습니다.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <h3 style="margin-top: 0; color: white;">⌨️ 키보드 단축키</h3>
+                <ul style="margin-bottom: 0;">
+                    <li>↩️ <code>Ctrl+Z</code> 또는 <code>Cmd+Z</code> (Mac): 실행 취소</li>
+                    <li>↪️ <code>Ctrl+Y</code> 또는 <code>Ctrl+Shift+Z</code> (Windows/Linux) / <code>Cmd+Shift+Z</code> (Mac): 다시 실행하기</li>
+                    <li>🚪 <code>Escape</code>: 열려있는 모달 창 닫기</li>
+                </ul>
+            </div>
+
+            <div style="background: var(--bg-secondary, #f5f5f5); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <h3 style="margin-top: 0;">💡 주요 특징</h3>
+                <ul style="margin-bottom: 0;">
+                    <li>⚡ <strong>실시간 계산:</strong> 모든 점수, 순위, 등급이 실시간으로 자동 계산됩니다.</li>
+                    <li>📱 <strong>반응형 디자인:</strong> PC, 태블릿, 스마트폰 등 모든 기기에서 최적화된 화면으로 사용할 수 있습니다.</li>
+                    <li>🎨 <strong>직관적 UI:</strong> 체육 교사가 쉽게 사용할 수 있도록 직관적인 인터페이스를 제공합니다.</li>
+                    <li>📋 <strong>PAPS 2024 기준:</strong> 최신 PAPS 평가 기준을 반영하여 정확한 등급을 제공합니다.</li>
+                    <li>🔒 <strong>데이터 안전성:</strong> 클라우드 자동 저장 및 로컬 백업으로 데이터 손실을 방지합니다.</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; padding: 1rem; background: var(--bg-secondary, #f5f5f5); border-radius: 8px;">
+                <h3 style="margin-top: 0;">📞 문의</h3>
+                <p style="margin-bottom: 0;">프로그램 사용 중 문제가 발생하거나 개선 사항이 있으면 개발자에게 문의해주세요. 🙏</p>
+            </div>
         </div>
     </div>
   </div>

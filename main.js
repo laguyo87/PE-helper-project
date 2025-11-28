@@ -328,7 +328,23 @@ async function handleSharedRanking(shareId) {
 document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const shareId = urlParams.get('share');
-    if (shareId) {
+    const papsShareId = urlParams.get('paps');
+    if (papsShareId) {
+        // PAPS 개별 학생 공유 링크 처리
+        const context = getAppContext();
+        if (context.shareManager) {
+            await context.shareManager.handleSharedPapsStudent(papsShareId);
+        }
+        else {
+            const { createShareManager } = await import('./modules/shareManager.js');
+            const sm = createShareManager({
+                firebaseDb: typeof window !== 'undefined' ? window.firebase?.db : undefined,
+                $: (selector) => document.querySelector(selector)
+            });
+            await sm.handleSharedPapsStudent(papsShareId);
+        }
+    }
+    else if (shareId) {
         await handleSharedRanking(shareId);
     }
     else {

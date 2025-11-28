@@ -24,6 +24,25 @@ export interface SharedRankingData {
     lastUpdated: Date | string;
 }
 /**
+ * PAPS 개별 학생 공유 데이터 구조
+ */
+export interface SharedPapsStudentData {
+    shareId: string;
+    classId: number;
+    className: string;
+    studentId: number;
+    studentName: string;
+    studentNumber: number;
+    studentGender: '남자' | '여자';
+    gradeLevel: string;
+    records: Record<string, number>;
+    grades: Record<string, string>;
+    overallGrade: string;
+    expiresAt?: Date | string;
+    createdAt: Date | string;
+    lastUpdated: Date | string;
+}
+/**
  * ShareManager 옵션
  */
 export interface ShareManagerOptions {
@@ -79,6 +98,66 @@ export declare class ShareManager {
      * @returns Promise<void>
      */
     saveSharedRanking(shareId: string, shareData: Partial<SharedRankingData>): Promise<void>;
+    /**
+     * 기존 PAPS 학생 공유 데이터를 찾습니다.
+     * @param classId 반 ID
+     * @param studentId 학생 ID
+     * @returns Promise<SharedPapsStudentData | null> 기존 공유 데이터 또는 null
+     */
+    findExistingPapsStudentShare(classId: number, studentId: number): Promise<SharedPapsStudentData | null>;
+    /**
+     * PAPS 개별 학생 공유 데이터를 Firebase에 저장합니다.
+     * @param shareData PAPS 개별 학생 공유 데이터
+     * @returns Promise<string> 공유 ID
+     */
+    saveSharedPapsStudent(shareData: Partial<SharedPapsStudentData>): Promise<string>;
+    /**
+     * PAPS 개별 학생 공유 링크를 생성합니다.
+     * @param shareId 공유 ID
+     * @returns 공유 링크 URL
+     */
+    generatePapsShareUrl(shareId: string): string;
+    /**
+     * PAPS 개별 학생 공유 링크를 처리합니다.
+     * @param shareId 공유 ID
+     * @returns Promise<void>
+     */
+    handleSharedPapsStudent(shareId: string): Promise<void>;
+    /**
+     * shareId로 최신 데이터를 가져옵니다.
+     * @param shareId 공유 ID
+     * @returns Promise<SharedPapsStudentData | null>
+     */
+    private fetchLatestShareData;
+    /**
+     * PAPS 개별 학생 기록을 표시합니다.
+     * @param shareData 공유 데이터
+     * @param shareId 공유 ID (업데이트용)
+     */
+    private showPapsStudentRecord;
+    /**
+     * 학년 랭킹을 계산합니다.
+     * @param shareData 공유 데이터
+     * @returns 종목별 랭킹 정보
+     */
+    private calculateGradeRankings;
+    /**
+     * AI 운동 처방을 생성합니다.
+     * @param shareData 공유 데이터
+     * @returns 운동 처방 텍스트
+     */
+    private generateExercisePrescription;
+    /**
+     * 등급에 따른 색상을 반환합니다.
+     * @param grade 등급
+     * @returns 색상 코드
+     */
+    private getGradeColor;
+    /**
+     * 에러 모달을 표시합니다.
+     * @param message 에러 메시지
+     */
+    private showErrorModal;
 }
 /**
  * ShareManager 인스턴스를 생성하는 팩토리 함수

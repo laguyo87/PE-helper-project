@@ -28,6 +28,10 @@ export class AppStateManager {
         if (this.historyStack.length > this.MAX_HISTORY_SIZE) {
             this.historyStack.shift(); // 가장 오래된 항목 제거
         }
+        // 일반 상태 변경 시 redo 스택 비우기 (일반적인 undo/redo 동작)
+        if (!this.isUndoing && !this.isRedoing) {
+            this.redoStack = [];
+        }
     }
     /**
      * 실행 취소 (이전 상태로 복원)
@@ -40,6 +44,13 @@ export class AppStateManager {
         // 실행 취소 플래그 설정 (무한 루프 방지)
         this.isUndoing = true;
         try {
+            // 현재 상태를 redo 스택에 저장 (다시 실행하기를 위해)
+            const currentStateCopy = JSON.parse(JSON.stringify(this.state));
+            this.redoStack.push(currentStateCopy);
+            // redo 스택 크기 제한
+            if (this.redoStack.length > this.MAX_HISTORY_SIZE) {
+                this.redoStack.shift(); // 가장 오래된 항목 제거
+            }
             // 히스토리에서 이전 상태 가져오기
             const previousState = this.historyStack.pop();
             // 현재 상태를 이전 상태로 복원
@@ -66,6 +77,49 @@ export class AppStateManager {
         return this.historyStack.length > 0;
     }
     /**
+     * 다시 실행하기 (undo로 되돌린 상태를 다시 복원)
+     * @returns 성공 여부
+     */
+    redo() {
+        if (this.redoStack.length === 0) {
+            return false; // redo 스택이 없음
+        }
+        // 다시 실행하기 플래그 설정 (무한 루프 방지)
+        this.isRedoing = true;
+        try {
+            // 현재 상태를 히스토리에 저장 (undo를 위해)
+            const currentStateCopy = JSON.parse(JSON.stringify(this.state));
+            this.historyStack.push(currentStateCopy);
+            // 히스토리 크기 제한
+            if (this.historyStack.length > this.MAX_HISTORY_SIZE) {
+                this.historyStack.shift(); // 가장 오래된 항목 제거
+            }
+            // redo 스택에서 다음 상태 가져오기
+            const nextState = this.redoStack.pop();
+            // 현재 상태를 다음 상태로 복원
+            const oldState = { ...this.state };
+            this.state = nextState;
+            // 모든 변경사항 notify
+            this.notify('leagues', this.state.leagues, oldState.leagues);
+            this.notify('tournaments', this.state.tournaments, oldState.tournaments);
+            this.notify('paps', this.state.paps, oldState.paps);
+            this.notify('progress', this.state.progress, oldState.progress);
+            // 저장
+            this.scheduleSave();
+            return true;
+        }
+        finally {
+            // 다시 실행하기 플래그 해제
+            this.isRedoing = false;
+        }
+    }
+    /**
+     * 다시 실행하기 가능 여부 확인
+     */
+    canRedo() {
+        return this.redoStack.length > 0;
+    }
+    /**
      * 리소스 정리 (메모리 누수 방지)
      * 타이머를 정리합니다.
      */
@@ -80,6 +134,7 @@ export class AppStateManager {
         this.onChangeCallbacks.clear();
         // 히스토리 정리
         this.historyStack = [];
+        this.redoStack = [];
         logger.debug('[AppStateManager] 리소스 정리 완료');
     }
     constructor(initialState, options = {}) {
@@ -91,8 +146,10 @@ export class AppStateManager {
         this.SAVE_DEBOUNCE_MS_SLOW = 300; // 느린 변경: 300ms
         this.lastStateChangeTime = 0;
         this.historyStack = []; // 실행 취소를 위한 히스토리 스택
+        this.redoStack = []; // 다시 실행하기를 위한 스택
         this.MAX_HISTORY_SIZE = 50; // 최대 히스토리 크기
         this.isUndoing = false; // 실행 취소 중인지 여부 (무한 루프 방지)
+        this.isRedoing = false; // 다시 실행하기 중인지 여부 (무한 루프 방지)
         // 기본 상태 초기화
         this.state = {
             leagues: initialState?.leagues || {
@@ -169,8 +226,8 @@ export class AppStateManager {
      */
     setLeagues(leagues) {
         const oldState = { ...this.state.leagues };
-        // 실행 취소 중이 아니면 히스토리에 저장
-        if (!this.isUndoing) {
+        // 실행 취소 중이 아니고 다시 실행하기 중이 아니면 히스토리에 저장
+        if (!this.isUndoing && !this.isRedoing) {
             this.saveToHistory();
         }
         this.state.leagues = { ...leagues };
@@ -182,8 +239,8 @@ export class AppStateManager {
      */
     setTournaments(tournaments) {
         const oldState = { ...this.state.tournaments };
-        // 실행 취소 중이 아니면 히스토리에 저장
-        if (!this.isUndoing) {
+        // 실행 취소 중이 아니고 다시 실행하기 중이 아니면 히스토리에 저장
+        if (!this.isUndoing && !this.isRedoing) {
             this.saveToHistory();
         }
         this.state.tournaments = { ...tournaments };
@@ -195,8 +252,8 @@ export class AppStateManager {
      */
     setPaps(paps) {
         const oldState = { ...this.state.paps };
-        // 실행 취소 중이 아니면 히스토리에 저장
-        if (!this.isUndoing) {
+        // 실행 취소 중이 아니고 다시 실행하기 중이 아니면 히스토리에 저장
+        if (!this.isUndoing && !this.isRedoing) {
             this.saveToHistory();
         }
         this.state.paps = { ...paps };
@@ -208,8 +265,8 @@ export class AppStateManager {
      */
     setProgress(progress) {
         const oldState = { ...this.state.progress };
-        // 실행 취소 중이 아니면 히스토리에 저장
-        if (!this.isUndoing) {
+        // 실행 취소 중이 아니고 다시 실행하기 중이 아니면 히스토리에 저장
+        if (!this.isUndoing && !this.isRedoing) {
             this.saveToHistory();
         }
         this.state.progress = { ...progress };
@@ -224,8 +281,8 @@ export class AppStateManager {
         const oldTournaments = { ...this.state.tournaments };
         const oldPaps = { ...this.state.paps };
         const oldProgress = { ...this.state.progress };
-        // 실행 취소 중이 아니면 히스토리에 저장
-        if (!this.isUndoing) {
+        // 실행 취소 중이 아니고 다시 실행하기 중이 아니면 히스토리에 저장
+        if (!this.isUndoing && !this.isRedoing) {
             this.saveToHistory();
         }
         if (newState.leagues !== undefined) {

@@ -346,10 +346,13 @@ export class PapsManager {
         this.$('#content-wrapper').innerHTML = `
             <div class="paps-toolbar">
                 <h2 style="margin:0;">${cls.name} PAPS 설정</h2>
-                <div class="row">
+                <div class="row" style="gap: 8px;">
                     <span class="paps-chip">학년: ${cls.gradeLevel || '미설정'}</span>
-                        </div>
-                    </div>
+                    <button class="btn primary" id="generate-qr-codes-btn" style="padding: 8px 16px;">
+                        📱 개인 기록 조회 QR 코드 생성
+                    </button>
+                </div>
+            </div>
             ${settingsCardHtml}
             <section class="section-box">
                 <div class="paps-toolbar">
@@ -500,6 +503,17 @@ export class PapsManager {
         const saveSettingsBtn = this.$('#paps-save-settings-btn');
         if (saveSettingsBtn) {
             saveSettingsBtn.addEventListener('click', () => this.savePapsSettings());
+        }
+        // QR 코드 생성 버튼 이벤트 리스너
+        const generateQRCodesBtn = this.$('#generate-qr-codes-btn');
+        if (generateQRCodesBtn) {
+            generateQRCodesBtn.addEventListener('click', async () => {
+                // 유효 기간 입력 모달 표시
+                const days = await this.showExpiresDaysModal();
+                if (days !== null) {
+                    await this.generateClassQRCodes(days);
+                }
+            });
         }
         this.$('#paps-add-student-btn').addEventListener('click', () => {
             this.addPapsStudent(cls);
@@ -2582,6 +2596,464 @@ export class PapsManager {
             formContainer.innerHTML = '';
         }
         // sidebar-list-container는 renderPapsClassList()에서 다시 채우므로 여기서 비우지 않음
+    }
+    /**
+     * 유효 기간 입력 모달을 표시합니다.
+     * @returns Promise<number | null> 입력된 일수 또는 null (취소 시)
+     */
+    async showExpiresDaysModal() {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.id = 'paps-expires-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+            `;
+            modal.innerHTML = `
+                <div style="background: white; padding: 32px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                    <h2 style="margin: 0 0 8px 0; text-align: center; color: #333;">📅 QR 코드 유효 기간 설정</h2>
+                    <p style="margin: 0 0 24px 0; text-align: center; color: #666;">QR 코드가 유효한 기간을 설정하세요</p>
+                    
+                    <form id="expires-form" style="margin-bottom: 16px;">
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">유효 기간 (일)</label>
+                            <input 
+                                type="number" 
+                                id="expires-days-input" 
+                                required 
+                                min="1"
+                                max="3650"
+                                value="365"
+                                style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 16px; box-sizing: border-box;"
+                                placeholder="예: 365"
+                            />
+                            <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                                권장: 365일 (1년)
+                            </div>
+                        </div>
+                        <div id="expires-error" style="color: #dc3545; margin-bottom: 16px; text-align: center; display: none;"></div>
+                        <button 
+                            type="submit" 
+                            style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer;"
+                        >
+                            생성하기
+                        </button>
+                    </form>
+                    <button 
+                        id="close-expires-modal" 
+                        style="width: 100%; padding: 8px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; margin-top: 8px;"
+                    >
+                        취소
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            const form = modal.querySelector('#expires-form');
+            const daysInput = modal.querySelector('#expires-days-input');
+            const errorDiv = modal.querySelector('#expires-error');
+            const closeBtn = modal.querySelector('#close-expires-modal');
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const days = parseInt(daysInput.value);
+                if (isNaN(days) || days < 1 || days > 3650) {
+                    errorDiv.textContent = '1일 이상 3650일 이하로 입력해주세요.';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                document.body.removeChild(modal);
+                resolve(days);
+            });
+            closeBtn.addEventListener('click', () => {
+                document.body.removeChild(modal);
+                resolve(null);
+            });
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                    resolve(null);
+                }
+            });
+        });
+    }
+    /**
+     * 반별 모든 학생의 QR 코드를 생성합니다.
+     * @param expiresInDays 유효 기간 (일 단위, 기본값: 365일)
+     */
+    async generateClassQRCodes(expiresInDays = 365) {
+        const cls = this.papsData.classes.find(c => c.id === this.papsData.activeClassId);
+        if (!cls) {
+            showError('반을 선택해주세요.');
+            return;
+        }
+        if (cls.students.length === 0) {
+            showError('학생이 없습니다.');
+            return;
+        }
+        try {
+            const { createShareManager } = await import('./shareManager.js');
+            const shareManager = createShareManager({
+                firebaseDb: typeof window !== 'undefined' ? window.firebase?.db : undefined,
+                $: (selector) => document.querySelector(selector)
+            });
+            const studentQRCodes = [];
+            // 유효 기간 계산
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+            // 각 학생별로 QR 코드 생성 또는 재사용
+            for (const student of cls.students) {
+                const tr = document.querySelector(`tr[data-sid="${student.id}"]`);
+                // 학생의 등급 계산
+                const grades = {};
+                if (tr) {
+                    const gradeCells = tr.querySelectorAll('.grade-cell');
+                    gradeCells.forEach(cell => {
+                        const dataId = cell.dataset.id;
+                        const grade = cell.textContent?.trim() || '';
+                        if (dataId && grade) {
+                            grades[dataId] = grade;
+                        }
+                    });
+                }
+                // 종합 등급 계산
+                const overallGradeCell = tr?.querySelector('.overall-grade-cell');
+                const overallGrade = overallGradeCell?.textContent?.trim() || '';
+                // 기존 QR 코드 확인
+                let shareId;
+                const existingShare = await shareManager.findExistingPapsStudentShare(cls.id, student.id);
+                if (existingShare && existingShare.shareId) {
+                    // 기존 QR 코드 재사용
+                    shareId = existingShare.shareId;
+                    logger.debug(`기존 QR 코드 재사용: ${student.name} (${shareId})`);
+                }
+                else {
+                    // 새로운 QR 코드 생성
+                    shareId = shareManager.generateShareId(16);
+                    logger.debug(`새 QR 코드 생성: ${student.name} (${shareId})`);
+                }
+                // 공유 데이터 저장 (기존 것이면 업데이트, 새 것이면 생성)
+                await shareManager.saveSharedPapsStudent({
+                    shareId,
+                    classId: cls.id,
+                    className: cls.name,
+                    studentId: student.id,
+                    studentName: student.name,
+                    studentNumber: student.number,
+                    studentGender: student.gender,
+                    gradeLevel: cls.gradeLevel || '',
+                    records: student.records || {},
+                    grades,
+                    overallGrade,
+                    expiresAt
+                });
+                // 공유 링크 생성
+                const shareUrl = shareManager.generatePapsShareUrl(shareId);
+                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
+                studentQRCodes.push({
+                    studentId: student.id,
+                    studentName: student.name,
+                    studentNumber: student.number,
+                    shareId,
+                    shareUrl,
+                    qrCodeUrl
+                });
+            }
+            // QR 코드 출력 모달 표시
+            this.showQRPrintModal(cls.name, studentQRCodes, expiresAt);
+        }
+        catch (error) {
+            logError('QR 코드 생성 실패:', error);
+            showError('QR 코드 생성에 실패했습니다.');
+        }
+    }
+    /**
+     * QR 코드 출력 모달을 표시합니다.
+     * @param className 반 이름
+     * @param studentQRCodes 학생 QR 코드 목록
+     * @param expiresAt 만료일
+     */
+    showQRPrintModal(className, studentQRCodes, expiresAt) {
+        const modal = document.createElement('div');
+        modal.id = 'paps-qr-print-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            padding: 20px;
+            box-sizing: border-box;
+        `;
+        modal.innerHTML = `
+            <div style="background: white; border-radius: 12px; max-width: 1200px; width: 100%; max-height: calc(100vh - 40px); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; overflow: hidden;">
+                <!-- 헤더 영역 (고정) -->
+                <div style="padding: 24px 32px; border-bottom: 1px solid #e0e0e0; flex-shrink: 0;">
+                    <h2 style="margin: 0 0 8px 0; text-align: center; color: #333; font-size: 24px;">📱 QR 코드 생성 완료</h2>
+                    <p style="margin: 0; text-align: center; color: #666; font-size: 16px;">${className} - ${studentQRCodes.length}명</p>
+                </div>
+                
+                <!-- 컨트롤 영역 (고정) -->
+                <div style="padding: 16px 32px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0; flex-shrink: 0;">
+                    <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;">
+                        <div style="font-size: 14px;">
+                            <strong>유효 기간:</strong> ${expiresAt.toLocaleDateString()}까지
+                        </div>
+                        <div style="flex: 1;"></div>
+                        <button id="print-all-btn" class="btn primary" style="padding: 8px 16px; font-size: 14px;">전체 인쇄</button>
+                        <button id="close-qr-modal-btn" class="btn" style="padding: 8px 16px; font-size: 14px;">닫기</button>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px;">인쇄 옵션:</label>
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
+                                <input type="radio" name="print-option" value="6" checked>
+                                <span>A4 한 페이지에 6명</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
+                                <input type="radio" name="print-option" value="12">
+                                <span>A4 한 페이지에 12명</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
+                                <input type="radio" name="print-option" value="20">
+                                <span>A4 한 페이지에 20명</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QR 코드 목록 영역 (스크롤 가능) -->
+                <div id="qr-preview-container" style="flex: 1; overflow-y: auto; padding: 16px 32px; display: grid; gap: 12px;">
+                    ${studentQRCodes.map((item, index) => `
+                        <div class="qr-card" data-student-id="${item.studentId}" style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 12px; background: #fff;">
+                            <div style="flex-shrink: 0;">
+                                <img src="${item.qrCodeUrl}" alt="QR Code" style="width: 100px; height: 100px; border: 1px solid #ddd; border-radius: 4px; display: block;">
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-size: 16px; font-weight: bold; margin-bottom: 4px; color: #333;">${item.studentName}</div>
+                                <div style="color: #666; margin-bottom: 6px; font-size: 14px;">번호: ${item.studentNumber}</div>
+                                <div style="font-size: 11px; color: #999; word-break: break-all; line-height: 1.4;">${item.shareUrl}</div>
+                            </div>
+                            <div style="flex-shrink: 0;">
+                                <button class="print-single-btn" data-index="${index}" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; white-space: nowrap;">개별 인쇄</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        // 인쇄 기능
+        const printAllBtn = modal.querySelector('#print-all-btn');
+        const printSingleBtns = modal.querySelectorAll('.print-single-btn');
+        const closeBtn = modal.querySelector('#close-qr-modal-btn');
+        printAllBtn.addEventListener('click', () => {
+            const selectedOption = modal.querySelector('input[name="print-option"]:checked')?.value || '6';
+            this.printQRCodes(studentQRCodes, className, parseInt(selectedOption));
+        });
+        printSingleBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = parseInt(btn.dataset.index || '0');
+                this.printQRCodes([studentQRCodes[index]], className, 6);
+            });
+        });
+        closeBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+    }
+    /**
+     * QR 코드를 인쇄합니다.
+     * @param studentQRCodes 학생 QR 코드 목록
+     * @param className 반 이름
+     * @param perPage 페이지당 학생 수
+     */
+    printQRCodes(studentQRCodes, className, perPage) {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            showError('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
+            return;
+        }
+        // 그리드 설정
+        const gridCols = perPage === 6 ? 2 : perPage === 12 ? 3 : 4;
+        const gridRows = perPage === 6 ? 3 : perPage === 12 ? 4 : 5;
+        // A4 용지 크기: 210mm x 297mm
+        // 인쇄 여백을 최소화하고 정확한 크기 계산
+        // 여백 5mm 사용 시: 200mm x 287mm
+        let qrSize, nameFontSize, numberFontSize, itemPadding, gapSize, pageWidth, pageHeight;
+        if (perPage === 6) {
+            // 2열 x 3행
+            pageWidth = '200mm';
+            pageHeight = '287mm';
+            qrSize = '70mm';
+            nameFontSize = '13pt';
+            numberFontSize = '10pt';
+            itemPadding = '3mm';
+            gapSize = '2mm';
+        }
+        else if (perPage === 12) {
+            // 3열 x 4행
+            pageWidth = '200mm';
+            pageHeight = '287mm';
+            qrSize = '45mm';
+            nameFontSize = '11pt';
+            numberFontSize = '8pt';
+            itemPadding = '2mm';
+            gapSize = '1.5mm';
+        }
+        else {
+            // 4열 x 5행
+            pageWidth = '200mm';
+            pageHeight = '287mm';
+            qrSize = '32mm';
+            nameFontSize = '9pt';
+            numberFontSize = '7pt';
+            itemPadding = '1.5mm';
+            gapSize = '1mm';
+        }
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>PAPS QR 코드 - ${className}</title>
+                <style>
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    @page {
+                        size: A4;
+                        margin: 8mm;
+                    }
+                    @media print {
+                        html, body {
+                            margin: 0;
+                            padding: 0;
+                            width: 100%;
+                        }
+                        .page {
+                            width: 100%;
+                            min-height: calc(100vh - 16mm);
+                            max-height: calc(100vh - 16mm);
+                            page-break-after: always;
+                            page-break-inside: avoid;
+                            break-inside: avoid;
+                            overflow: hidden;
+                        }
+                        .page:last-child {
+                            page-break-after: auto;
+                        }
+                    }
+                    html, body {
+                        margin: 0;
+                        padding: 0;
+                        font-family: Arial, sans-serif;
+                    }
+                    .page {
+                        width: 194mm;
+                        min-height: 281mm;
+                        max-height: 281mm;
+                        margin: 0 auto;
+                        padding: 3mm;
+                        display: grid;
+                        grid-template-columns: repeat(${gridCols}, 1fr);
+                        grid-template-rows: repeat(${gridRows}, 1fr);
+                        gap: ${gapSize};
+                        box-sizing: border-box;
+                    }
+                    .qr-item {
+                        border: 1px solid #ddd;
+                        border-radius: 3px;
+                        padding: ${itemPadding};
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        text-align: center;
+                        overflow: hidden;
+                        box-sizing: border-box;
+                        min-height: 0;
+                        min-width: 0;
+                    }
+                    .qr-item img {
+                        width: ${qrSize};
+                        height: ${qrSize};
+                        max-width: 100%;
+                        max-height: 100%;
+                        margin-bottom: 1mm;
+                        object-fit: contain;
+                        flex-shrink: 1;
+                    }
+                    .qr-item .name {
+                        font-size: ${nameFontSize};
+                        font-weight: bold;
+                        margin-bottom: 0.5mm;
+                        line-height: 1.1;
+                        word-break: keep-all;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        max-width: 100%;
+                        flex-shrink: 0;
+                    }
+                    .qr-item .number {
+                        font-size: ${numberFontSize};
+                        color: #666;
+                        line-height: 1.1;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        max-width: 100%;
+                        flex-shrink: 0;
+                    }
+                </style>
+            </head>
+            <body>
+        `;
+        // 페이지별로 나누기
+        for (let i = 0; i < studentQRCodes.length; i += perPage) {
+            html += '<div class="page">';
+            const pageItems = studentQRCodes.slice(i, i + perPage);
+            pageItems.forEach(item => {
+                html += `
+                    <div class="qr-item">
+                        <img src="${item.qrCodeUrl}" alt="QR Code">
+                        <div class="name">${item.studentName}</div>
+                        <div class="number">${className} · ${item.studentNumber}번</div>
+                    </div>
+                `;
+            });
+            // 빈 칸 채우기
+            for (let j = pageItems.length; j < perPage; j++) {
+                html += '<div class="qr-item"></div>';
+            }
+            html += '</div>';
+        }
+        html += `
+            </body>
+            </html>
+        `;
+        printWindow.document.write(html);
+        printWindow.document.close();
+        // 인쇄 대화상자 열기
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
     }
 }
 //# sourceMappingURL=papsManager.js.map

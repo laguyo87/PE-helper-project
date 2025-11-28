@@ -64,8 +64,10 @@ export declare class AppStateManager {
     private readonly SAVE_DEBOUNCE_MS_SLOW;
     private lastStateChangeTime;
     private historyStack;
+    private redoStack;
     private readonly MAX_HISTORY_SIZE;
     private isUndoing;
+    private isRedoing;
     /**
      * 현재 상태를 히스토리에 저장
      */
@@ -79,6 +81,15 @@ export declare class AppStateManager {
      * 실행 취소 가능 여부 확인
      */
     canUndo(): boolean;
+    /**
+     * 다시 실행하기 (undo로 되돌린 상태를 다시 복원)
+     * @returns 성공 여부
+     */
+    redo(): boolean;
+    /**
+     * 다시 실행하기 가능 여부 확인
+     */
+    canRedo(): boolean;
     /**
      * 리소스 정리 (메모리 누수 방지)
      * 타이머를 정리합니다.
