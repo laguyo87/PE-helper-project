@@ -36,6 +36,7 @@ export class ErrorFilter {
             'policy would block',
             'message port',
             'content.js',
+            'content_script.js',
             'chrome-extension',
             'firestore.googleapis.com',
             '400',
@@ -306,7 +307,9 @@ export class ErrorFilter {
             // COOP 에러 및 네트워크 에러 확인 (더 포괄적으로)
             if (this.isCOOPError(fullErrorText) ||
                 filename.includes('popup.ts') ||
-                filename.includes('webchannel_connection.ts')) {
+                filename.includes('webchannel_connection.ts') ||
+                filename.includes('content_script.js') ||
+                fullErrorText.includes('content_script.js')) {
                 event.preventDefault();
                 event.stopPropagation();
                 event.stopImmediatePropagation();
