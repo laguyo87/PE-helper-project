@@ -599,7 +599,7 @@ export class ShareManager {
             style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"
           >
             <span>📱</span>
-            <span>앱으로 등록</span>
+            <span>홈화면에 추가</span>
           </button>
           <button 
             id="close-paps-record-modal" 
