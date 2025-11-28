@@ -71,6 +71,13 @@ export interface ShareManagerOptions {
 export class ShareManager {
   private firebaseDb: any;
   private $: (selector: string) => HTMLElement | null;
+  
+  /**
+   * Firebase DB 인스턴스를 가져옵니다.
+   */
+  private getFirebaseDb(): any {
+    return this.firebaseDb || (window as any).firebase?.db || (window as any).firebase;
+  }
 
   /**
    * ShareManager 인스턴스를 생성합니다.
@@ -277,7 +284,53 @@ export class ShareManager {
    */
   public async findExistingPapsStudentShare(classId: number, studentId: number): Promise<SharedPapsStudentData | null> {
     try {
-      const { collection, query, where, getDocs, db } = (window as any).firebase || {};
+      // ShareManager에 전달받은 firebaseDb 사용 또는 window.firebase 사용
+      const firebase = this.firebaseDb || (window as any).firebase;
+      
+      if (!firebase) {
+        console.warn('[ShareManager] Firebase가 아직 초기화되지 않았습니다. 잠시 후 다시 시도합니다.');
+        // Firebase 초기화 대기
+        await new Promise(resolve => {
+          const handler = () => {
+            window.removeEventListener('firebaseReady', handler);
+            resolve(true);
+          };
+          if ((window as any).firebase) {
+            resolve(true);
+          } else {
+            window.addEventListener('firebaseReady', handler, { once: true });
+            setTimeout(() => {
+              window.removeEventListener('firebaseReady', handler);
+              resolve(false);
+            }, 5000);
+          }
+        });
+      }
+
+      // Firebase 초기화 대기 후 사용
+      let firebaseSource = this.firebaseDb || (window as any).firebase;
+      
+      if (!firebaseSource) {
+        // Firebase 초기화 대기
+        await new Promise<void>((resolve) => {
+          if ((window as any).firebase) {
+            resolve();
+            return;
+          }
+          const handler = () => {
+            window.removeEventListener('firebaseReady', handler);
+            resolve();
+          };
+          window.addEventListener('firebaseReady', handler, { once: true });
+          setTimeout(() => {
+            window.removeEventListener('firebaseReady', handler);
+            resolve();
+          }, 5000);
+        });
+        firebaseSource = this.firebaseDb || (window as any).firebase;
+      }
+
+      const { collection, query, where, getDocs, db } = firebaseSource || {};
       
       if (!db || !collection || !query || !where || !getDocs) {
         throw new Error('Firebase가 초기화되지 않았습니다.');

@@ -17,6 +17,12 @@ import { logger, logError } from './logger.js';
  */
 export class ShareManager {
     /**
+     * Firebase DB 인스턴스를 가져옵니다.
+     */
+    getFirebaseDb() {
+        return this.firebaseDb || window.firebase?.db || window.firebase;
+    }
+    /**
      * ShareManager 인스턴스를 생성합니다.
      * @param options ShareManager 옵션
      */
@@ -202,7 +208,50 @@ export class ShareManager {
      */
     async findExistingPapsStudentShare(classId, studentId) {
         try {
-            const { collection, query, where, getDocs, db } = window.firebase || {};
+            // ShareManager에 전달받은 firebaseDb 사용 또는 window.firebase 사용
+            const firebase = this.firebaseDb || window.firebase;
+            if (!firebase) {
+                console.warn('[ShareManager] Firebase가 아직 초기화되지 않았습니다. 잠시 후 다시 시도합니다.');
+                // Firebase 초기화 대기
+                await new Promise(resolve => {
+                    const handler = () => {
+                        window.removeEventListener('firebaseReady', handler);
+                        resolve(true);
+                    };
+                    if (window.firebase) {
+                        resolve(true);
+                    }
+                    else {
+                        window.addEventListener('firebaseReady', handler, { once: true });
+                        setTimeout(() => {
+                            window.removeEventListener('firebaseReady', handler);
+                            resolve(false);
+                        }, 5000);
+                    }
+                });
+            }
+            // Firebase 초기화 대기 후 사용
+            let firebaseSource = this.firebaseDb || window.firebase;
+            if (!firebaseSource) {
+                // Firebase 초기화 대기
+                await new Promise((resolve) => {
+                    if (window.firebase) {
+                        resolve();
+                        return;
+                    }
+                    const handler = () => {
+                        window.removeEventListener('firebaseReady', handler);
+                        resolve();
+                    };
+                    window.addEventListener('firebaseReady', handler, { once: true });
+                    setTimeout(() => {
+                        window.removeEventListener('firebaseReady', handler);
+                        resolve();
+                    }, 5000);
+                });
+                firebaseSource = this.firebaseDb || window.firebase;
+            }
+            const { collection, query, where, getDocs, db } = firebaseSource || {};
             if (!db || !collection || !query || !where || !getDocs) {
                 throw new Error('Firebase가 초기화되지 않았습니다.');
             }

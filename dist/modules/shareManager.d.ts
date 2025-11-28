@@ -58,6 +58,10 @@ export declare class ShareManager {
     private firebaseDb;
     private $;
     /**
+     * Firebase DB 인스턴스를 가져옵니다.
+     */
+    private getFirebaseDb;
+    /**
      * ShareManager 인스턴스를 생성합니다.
      * @param options ShareManager 옵션
      */
