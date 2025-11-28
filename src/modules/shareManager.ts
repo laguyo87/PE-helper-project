@@ -563,7 +563,7 @@ export class ShareManager {
       align-items: flex-start;
       z-index: 10000;
       overflow-y: auto;
-      padding: 20px;
+      padding: 0;
     `;
 
     // PAPS 항목 정의 (체지방 제외 - 신장/체중 행에서만 표시)
@@ -658,21 +658,21 @@ export class ShareManager {
     const lastUpdated = new Date(shareData.lastUpdated);
 
     modal.innerHTML = `
-      <div style="background: white; padding: 24px; border-radius: 12px; max-width: 900px; width: 100%; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); margin: 20px auto;">
+      <div style="background: white; padding: 16px; border-radius: 0; max-width: 100%; width: 100%; min-height: 100vh; box-shadow: none; margin: 0;">
         <!-- 상단: 학년, 반, 이름 및 업데이트 버튼 -->
-        <div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e0e0e0;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <div style="flex: 1;"></div>
+        <div style="text-align: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #e0e0e0;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div style="flex: 0 0 auto; width: 80px;"></div>
             <div style="flex: 1; text-align: center;">
-              <div style="font-size: 14px; color: #666; margin-bottom: 8px;">${shareData.gradeLevel}</div>
-              <div style="font-size: 18px; color: #333; margin-bottom: 4px; font-weight: 600;">${shareData.className}</div>
-              <div style="font-size: 24px; color: #007bff; font-weight: bold;">${shareData.studentName}</div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${shareData.gradeLevel}</div>
+              <div style="font-size: 16px; color: #333; margin-bottom: 4px; font-weight: 600;">${shareData.className}</div>
+              <div style="font-size: 20px; color: #007bff; font-weight: bold;">${shareData.studentName}</div>
             </div>
-            <div style="flex: 1; text-align: right;">
+            <div style="flex: 0 0 auto; width: 80px; text-align: right;">
               ${shareId ? `
                 <button 
                   id="refresh-paps-record-btn" 
-                  style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"
+                  style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"
                 >
                   <span>🔄</span>
                   <span>업데이트</span>
@@ -683,53 +683,55 @@ export class ShareManager {
         </div>
 
         <!-- 기록 테이블 -->
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-          <thead>
-            <tr style="background-color: #007bff; color: white;">
-              <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left;">종목</th>
-              <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">기록</th>
-              <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">등급</th>
-              <th style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">학년 랭킹</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${recordsTable || '<tr><td colspan="4" style="padding: 24px; text-align: center; color: #666;">입력된 기록이 없습니다.</td></tr>'}
-          </tbody>
-        </table>
+        <div style="overflow-x: auto; margin-bottom: 16px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background-color: #007bff; color: white;">
+                <th style="padding: 8px 4px; border: 1px solid #dee2e6; text-align: left; font-size: 12px;">종목</th>
+                <th style="padding: 8px 4px; border: 1px solid #dee2e6; text-align: center; font-size: 12px;">기록</th>
+                <th style="padding: 8px 4px; border: 1px solid #dee2e6; text-align: center; font-size: 12px;">등급</th>
+                <th style="padding: 8px 4px; border: 1px solid #dee2e6; text-align: center; font-size: 12px;">학년 랭킹</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${recordsTable || '<tr><td colspan="4" style="padding: 16px; text-align: center; color: #666;">입력된 기록이 없습니다.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
 
         ${shareData.overallGrade ? `
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 24px;">
-            <div style="font-size: 14px; margin-bottom: 8px; opacity: 0.9;">종합 등급</div>
-            <div style="font-size: 32px; font-weight: bold;">${shareData.overallGrade}</div>
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px; border-radius: 8px; text-align: center; margin-bottom: 16px;">
+            <div style="font-size: 12px; margin-bottom: 6px; opacity: 0.9;">종합 등급</div>
+            <div style="font-size: 28px; font-weight: bold;">${shareData.overallGrade}</div>
           </div>
         ` : ''}
 
         <!-- 운동 처방 박스 -->
-        <div style="background: #f8f9fa; border: 2px solid #007bff; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-          <div style="font-size: 18px; font-weight: bold; color: #007bff; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <div style="background: #f8f9fa; border: 2px solid #007bff; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <div style="font-size: 16px; font-weight: bold; color: #007bff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
             <span>💡</span>
             <span>운동 처방</span>
           </div>
-          <div style="line-height: 1.8; color: #333; white-space: pre-line;">${exercisePrescription}</div>
+          <div style="line-height: 1.6; color: #333; white-space: pre-line; font-size: 14px;">${exercisePrescription}</div>
         </div>
 
-        <div style="background: #e3f2fd; padding: 12px; border-radius: 4px; margin-bottom: 24px; text-align: center;">
-          <small style="color: #666;">
+        <div style="background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 16px; text-align: center;">
+          <small style="color: #666; font-size: 11px;">
             마지막 업데이트: ${lastUpdated.toLocaleString()}
           </small>
         </div>
 
-        <div style="text-align: center; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+        <div style="text-align: center; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
           <button 
             id="install-pwa-btn" 
-            style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"
+            style="padding: 14px 20px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;"
           >
             <span>📱</span>
             <span>홈화면에 추가</span>
           </button>
           <button 
             id="close-paps-record-modal" 
-            style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer;"
+            style="padding: 14px 20px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%;"
           >
             닫기
           </button>
@@ -752,21 +754,25 @@ export class ShareManager {
     
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     
-    // 이미 설치되어 있는지 확인
+    // 이미 설치되어 있는지 확인 (버튼은 항상 표시)
     const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
                         (window.navigator as any).standalone === true;
     
     if (isInstalled) {
       console.log('[PWA] 이미 설치되어 있음');
-      if (installBtn) {
-        installBtn.style.display = 'none';
-      }
+      // 버튼은 표시하되, 클릭 시 안내 메시지 표시
     }
     
     // 설치 버튼 클릭 이벤트
     if (installBtn) {
       installBtn.addEventListener('click', async () => {
         console.log('[PWA] 설치 버튼 클릭');
+        
+        // 이미 설치된 경우 안내
+        if (isInstalled) {
+          alert('이미 홈 화면에 추가되어 있습니다.');
+          return;
+        }
         
         if (deferredPrompt) {
           // 자동 설치 프롬프트 사용 가능 (Chrome, Edge 등)
@@ -778,9 +784,9 @@ export class ShareManager {
             
             if (outcome === 'accepted') {
               console.log('[PWA] 사용자가 설치를 수락했습니다');
-              // 성공 메시지 표시 (선택사항)
+              // 성공 메시지 표시
               if (installBtn) {
-                installBtn.textContent = '✅ 설치 완료';
+                installBtn.innerHTML = '<span>✅</span><span>설치 완료</span>';
                 installBtn.style.background = '#6c757d';
                 installBtn.disabled = true;
               }
