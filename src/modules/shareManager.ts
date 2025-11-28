@@ -382,37 +382,54 @@ export class ShareManager {
    */
   public async handleSharedPapsStudent(shareId: string): Promise<void> {
     try {
-      logger.debug('PAPS 개별 학생 공유 데이터 로딩:', shareId);
+      console.log('[ShareManager] PAPS 개별 학생 공유 데이터 로딩 시작:', shareId);
 
-      const { doc, getDoc, db } = (window as any).firebase || {};
+      // Firebase 초기화 확인
+      const firebase = (window as any).firebase;
+      if (!firebase) {
+        console.error('[ShareManager] Firebase가 초기화되지 않았습니다.');
+        this.showErrorModal('Firebase가 초기화되지 않았습니다. 페이지를 새로고침해주세요.');
+        return;
+      }
+
+      const { doc, getDoc, db } = firebase;
       
       if (!db || !doc || !getDoc) {
+        console.error('[ShareManager] Firebase 객체가 완전하지 않습니다:', { db: !!db, doc: !!doc, getDoc: !!getDoc });
         throw new Error('Firebase가 초기화되지 않았습니다.');
       }
 
+      console.log('[ShareManager] Firebase 객체 확인 완료, 데이터 조회 시작');
       const shareDoc = await getDoc(doc(db, 'sharedPapsStudents', shareId));
       
       if (!shareDoc.exists()) {
-        this.showErrorModal('공유된 PAPS 기록을 찾을 수 없습니다.');
+        console.error('[ShareManager] 공유 데이터를 찾을 수 없습니다:', shareId);
+        this.showErrorModal('공유된 PAPS 기록을 찾을 수 없습니다. QR 코드를 확인해주세요.');
         return;
       }
 
       const shareData = shareDoc.data() as SharedPapsStudentData;
+      console.log('[ShareManager] 공유 데이터 로드 완료:', shareData.studentName);
       
       // 유효 기간 확인
       if (shareData.expiresAt) {
         const expiresAt = new Date(shareData.expiresAt);
         if (new Date() > expiresAt) {
+          console.warn('[ShareManager] QR 코드가 만료되었습니다:', expiresAt);
           this.showErrorModal('이 QR 코드는 만료되었습니다.');
           return;
         }
       }
 
+      console.log('[ShareManager] 학생 기록 표시 시작');
       // 바로 기록 표시 (인증 없이) - shareId 전달하여 업데이트 기능 활성화
-      this.showPapsStudentRecord(shareData, shareId);
-    } catch (error) {
+      await this.showPapsStudentRecord(shareData, shareId);
+      console.log('[ShareManager] 학생 기록 표시 완료');
+    } catch (error: any) {
+      console.error('[ShareManager] PAPS 개별 학생 공유 데이터 로딩 실패:', error);
       logError('PAPS 개별 학생 공유 데이터 로딩 실패:', error);
-      this.showErrorModal('공유된 PAPS 기록을 불러오는데 실패했습니다.');
+      const errorMessage = error?.message || '알 수 없는 오류가 발생했습니다.';
+      this.showErrorModal(`공유된 PAPS 기록을 불러오는데 실패했습니다.\n${errorMessage}`);
     }
   }
 

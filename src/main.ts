@@ -365,6 +365,32 @@ async function handleSharedRanking(shareId: string): Promise<void> {
 // 앱 시작
 // ========================================
 
+/**
+ * Firebase가 준비될 때까지 기다립니다.
+ */
+async function waitForFirebase(timeout: number = 10000): Promise<boolean> {
+  return new Promise((resolve) => {
+    if ((window as any).firebase && (window as any).firebase.db) {
+      resolve(true);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      window.removeEventListener('firebaseReady', handler);
+      console.warn('[main] Firebase 초기화 대기 시간 초과');
+      resolve(false);
+    }, timeout);
+
+    const handler = () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('firebaseReady', handler);
+      resolve(true);
+    };
+
+    window.addEventListener('firebaseReady', handler, { once: true });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const shareId = urlParams.get('share');
@@ -372,16 +398,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   if (papsShareId) {
     // PAPS 개별 학생 공유 링크 처리
-    const context = getAppContext();
-    if (context.shareManager) {
-      await context.shareManager.handleSharedPapsStudent(papsShareId);
-    } else {
+    // Firebase 초기화 대기
+    const firebaseReady = await waitForFirebase();
+    
+    if (!firebaseReady) {
+      console.error('[main] Firebase 초기화 실패 - PAPS 공유 링크 처리 불가');
+      alert('Firebase 초기화에 실패했습니다. 페이지를 새로고침해주세요.');
+      return;
+    }
+
+    try {
       const { createShareManager } = await import('./modules/shareManager.js');
       const sm = createShareManager({
         firebaseDb: typeof window !== 'undefined' ? (window as any).firebase?.db : undefined,
         $: (selector: string) => document.querySelector(selector)
       });
       await sm.handleSharedPapsStudent(papsShareId);
+    } catch (error) {
+      console.error('[main] PAPS 공유 링크 처리 실패:', error);
+      alert('개인 기록을 불러오는데 실패했습니다. QR 코드를 다시 확인해주세요.');
     }
   } else if (shareId) {
     await handleSharedRanking(shareId);
