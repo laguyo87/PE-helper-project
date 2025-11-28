@@ -208,52 +208,16 @@ export class ShareManager {
      */
     async findExistingPapsStudentShare(classId, studentId) {
         try {
-            // ShareManager에 전달받은 firebaseDb 사용 또는 window.firebase 사용
-            const firebase = this.firebaseDb || window.firebase;
-            if (!firebase) {
-                console.warn('[ShareManager] Firebase가 아직 초기화되지 않았습니다. 잠시 후 다시 시도합니다.');
-                // Firebase 초기화 대기
-                await new Promise(resolve => {
-                    const handler = () => {
-                        window.removeEventListener('firebaseReady', handler);
-                        resolve(true);
-                    };
-                    if (window.firebase) {
-                        resolve(true);
-                    }
-                    else {
-                        window.addEventListener('firebaseReady', handler, { once: true });
-                        setTimeout(() => {
-                            window.removeEventListener('firebaseReady', handler);
-                            resolve(false);
-                        }, 5000);
-                    }
-                });
-            }
-            // Firebase 초기화 대기 후 사용
+            // Firebase 초기화 확인 - 없으면 null 반환 (기존 QR 코드가 없으면 새로 생성하면 되므로)
             let firebaseSource = this.firebaseDb || window.firebase;
             if (!firebaseSource) {
-                // Firebase 초기화 대기
-                await new Promise((resolve) => {
-                    if (window.firebase) {
-                        resolve();
-                        return;
-                    }
-                    const handler = () => {
-                        window.removeEventListener('firebaseReady', handler);
-                        resolve();
-                    };
-                    window.addEventListener('firebaseReady', handler, { once: true });
-                    setTimeout(() => {
-                        window.removeEventListener('firebaseReady', handler);
-                        resolve();
-                    }, 5000);
-                });
-                firebaseSource = this.firebaseDb || window.firebase;
+                console.warn('[ShareManager] Firebase가 아직 초기화되지 않았습니다. 기존 QR 코드 검색을 건너뜁니다.');
+                return null;
             }
             const { collection, query, where, getDocs, db } = firebaseSource || {};
             if (!db || !collection || !query || !where || !getDocs) {
-                throw new Error('Firebase가 초기화되지 않았습니다.');
+                console.warn('[ShareManager] Firebase 객체가 완전하지 않습니다. 기존 QR 코드 검색을 건너뜁니다.');
+                return null;
             }
             // classId와 studentId로 기존 공유 데이터 검색
             const q = query(collection(db, 'sharedPapsStudents'), where('classId', '==', classId), where('studentId', '==', studentId));

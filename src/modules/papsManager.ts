@@ -3002,6 +3002,25 @@ export class PapsManager {
         }
 
         try {
+            // Firebase 초기화 대기
+            if (!(window as any).firebase) {
+                await new Promise<void>((resolve) => {
+                    if ((window as any).firebase) {
+                        resolve();
+                        return;
+                    }
+                    const handler = () => {
+                        window.removeEventListener('firebaseReady', handler);
+                        resolve();
+                    };
+                    window.addEventListener('firebaseReady', handler, { once: true });
+                    setTimeout(() => {
+                        window.removeEventListener('firebaseReady', handler);
+                        resolve();
+                    }, 10000); // 최대 10초 대기
+                });
+            }
+
             const { createShareManager } = await import('./shareManager.js');
             const shareManager = createShareManager({
                 firebaseDb: typeof window !== 'undefined' ? (window as any).firebase?.db : undefined,
