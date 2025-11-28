@@ -743,38 +743,132 @@ export class ShareManager {
     let deferredPrompt: any = null;
     const installBtn = modal.querySelector('#install-pwa-btn') as HTMLButtonElement;
     
-    // beforeinstallprompt 이벤트 리스너
+    // beforeinstallprompt 이벤트 리스너 (Chrome, Edge, Samsung Internet 등)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       deferredPrompt = e;
+      console.log('[PWA] 설치 프롬프트 이벤트 수신');
     };
     
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     
-    // 설치 버튼 클릭 이벤트 (항상 표시)
+    // 이미 설치되어 있는지 확인
+    const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
+                        (window.navigator as any).standalone === true;
+    
+    if (isInstalled) {
+      console.log('[PWA] 이미 설치되어 있음');
+      if (installBtn) {
+        installBtn.style.display = 'none';
+      }
+    }
+    
+    // 설치 버튼 클릭 이벤트
     if (installBtn) {
       installBtn.addEventListener('click', async () => {
+        console.log('[PWA] 설치 버튼 클릭');
+        
         if (deferredPrompt) {
-          // 자동 설치 프롬프트 사용 가능
-          deferredPrompt.prompt();
-          const { outcome } = await deferredPrompt.userChoice;
-          console.log(`PWA 설치 결과: ${outcome}`);
-          deferredPrompt = null;
+          // 자동 설치 프롬프트 사용 가능 (Chrome, Edge 등)
+          try {
+            console.log('[PWA] 설치 프롬프트 표시');
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`[PWA] 설치 결과: ${outcome}`);
+            
+            if (outcome === 'accepted') {
+              console.log('[PWA] 사용자가 설치를 수락했습니다');
+              // 성공 메시지 표시 (선택사항)
+              if (installBtn) {
+                installBtn.textContent = '✅ 설치 완료';
+                installBtn.style.background = '#6c757d';
+                installBtn.disabled = true;
+              }
+            } else {
+              console.log('[PWA] 사용자가 설치를 거부했습니다');
+            }
+            
+            deferredPrompt = null;
+          } catch (error) {
+            console.error('[PWA] 설치 프롬프트 오류:', error);
+            // 오류 발생 시 수동 설치 안내로 전환
+            showManualInstallGuide();
+          }
         } else {
           // 수동 설치 안내
-          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-          const isAndroid = /Android/.test(navigator.userAgent);
-          
-          let message = '';
-          if (isIOS) {
-            message = 'iOS에서 설치하려면:\n1. Safari에서 공유 버튼(□↑)을 누르세요\n2. "홈 화면에 추가"를 선택하세요';
-          } else if (isAndroid) {
-            message = 'Android에서 설치하려면:\n1. 브라우저 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가" 또는 "설치"를 선택하세요';
-          } else {
-            message = '브라우저 메뉴에서 "앱 설치" 또는 "홈 화면에 추가"를 선택하세요';
-          }
-          
-          alert(message);
+          showManualInstallGuide();
+        }
+      });
+    }
+    
+    // 수동 설치 안내 함수
+    function showManualInstallGuide() {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isAndroid = /Android/.test(navigator.userAgent);
+      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+      const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
+      const isSamsung = /SamsungBrowser/.test(navigator.userAgent);
+      
+      let message = '';
+      let title = '홈 화면에 추가하기';
+      
+      if (isIOS) {
+        if (isSafari) {
+          message = '📱 iOS Safari에서 설치 방법:\n\n1. 화면 하단의 공유 버튼(□↑)을 누르세요\n2. 스크롤하여 "홈 화면에 추가"를 찾아 누르세요\n3. "추가" 버튼을 눌러 완료하세요';
+        } else {
+          message = '📱 iOS에서 설치하려면 Safari 브라우저를 사용해주세요.\n\n다른 브라우저에서는 Safari로 열어주세요.';
+        }
+      } else if (isAndroid) {
+        if (isChrome) {
+          message = '📱 Android Chrome에서 설치 방법:\n\n1. 브라우저 상단의 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가" 또는 "앱 설치"를 선택하세요\n3. "설치" 또는 "추가"를 눌러 완료하세요';
+        } else if (isSamsung) {
+          message = '📱 Samsung Internet에서 설치 방법:\n\n1. 메뉴 버튼을 누르세요\n2. "홈 화면에 추가"를 선택하세요\n3. "추가"를 눌러 완료하세요';
+        } else {
+          message = '📱 Android에서 설치 방법:\n\n1. 브라우저 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가" 또는 "앱 설치"를 선택하세요';
+        }
+      } else {
+        message = '📱 데스크톱에서 설치 방법:\n\nChrome/Edge: 주소창 오른쪽의 설치 아이콘(⊕)을 클릭하세요\n\n또는 브라우저 메뉴에서 "앱 설치"를 선택하세요';
+      }
+      
+      // 모달로 표시 (alert 대신)
+      const guideModal = document.createElement('div');
+      guideModal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10001;
+      `;
+      
+      guideModal.innerHTML = `
+        <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <h3 style="margin: 0 0 16px 0; color: #333; font-size: 20px;">${title}</h3>
+          <div style="line-height: 1.8; color: #666; white-space: pre-line; margin-bottom: 24px;">${message}</div>
+          <button 
+            id="close-guide-modal" 
+            style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer;"
+          >
+            확인
+          </button>
+        </div>
+      `;
+      
+      document.body.appendChild(guideModal);
+      
+      const closeGuideBtn = guideModal.querySelector('#close-guide-modal') as HTMLElement;
+      closeGuideBtn.addEventListener('click', () => {
+        document.body.removeChild(guideModal);
+      });
+      
+      // 배경 클릭 시 닫기
+      guideModal.addEventListener('click', (e) => {
+        if (e.target === guideModal) {
+          document.body.removeChild(guideModal);
         }
       });
     }
