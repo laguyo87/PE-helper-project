@@ -3061,6 +3061,21 @@ export class PapsManager {
                 const overallGradeCell = tr?.querySelector('.overall-grade-cell');
                 const overallGrade = overallGradeCell?.textContent?.trim() || '';
 
+                // 종목명 수집 (eventSettings에서)
+                const eventNames: Record<string, string> = {};
+                Object.keys(PAPS_ITEMS).forEach(category => {
+                    const item = PAPS_ITEMS[category];
+                    const eventName = cls.eventSettings?.[item.id] || item.options[0];
+                    // 성별에 따라 팔굽혀펴기 종목명 변경
+                    if (eventName === '팔굽혀펴기' && student.gender === '여자') {
+                        eventNames[item.id] = '무릎대고팔굽혀펴기';
+                    } else {
+                        eventNames[item.id] = eventName;
+                    }
+                });
+                // 체지방은 BMI로 고정
+                eventNames['bodyfat'] = 'BMI';
+
                 // 기존 QR 코드 확인
                 let shareId: string;
                 const existingShare = await shareManager.findExistingPapsStudentShare(cls.id, student.id);
@@ -3087,6 +3102,7 @@ export class PapsManager {
                     gradeLevel: cls.gradeLevel || '',
                     records: student.records || {},
                     grades,
+                    eventNames,
                     overallGrade,
                     expiresAt
                 });

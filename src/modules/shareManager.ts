@@ -45,6 +45,7 @@ export interface SharedPapsStudentData {
   gradeLevel: string;
   records: Record<string, number>;
   grades: Record<string, string>;
+  eventNames?: Record<string, string>; // 종목명 (예: {endurance: "왕복오래달리기", flexibility: "앉아윗몸앞으로굽히기"})
   overallGrade: string;
   expiresAt?: Date | string; // 유효 기간 (선택사항)
   createdAt: Date | string;
@@ -574,25 +575,42 @@ export class ShareManager {
       "체지방": { id: "bodyfat", label: "체지방" }
     };
 
-    // 기록 테이블 생성
+    // 기록 테이블 생성 - 모든 종목 표시
     let recordsTable = '';
     Object.keys(PAPS_ITEMS).forEach(category => {
       const item = PAPS_ITEMS[category];
       const record = shareData.records[item.id];
       const grade = shareData.grades[item.id] || '-';
       const ranking = gradeRankings[item.id] || '-';
+      const eventName = shareData.eventNames?.[item.id] || category;
       
-      if (record !== undefined && record !== null && record !== 0) {
-        recordsTable += `
-          <tr>
-            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${category}</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${record}</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(grade)};">${grade}</td>
-            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${ranking}</td>
-          </tr>
-        `;
-      }
+      // 모든 종목 표시 (기록이 없어도 표시)
+      recordsTable += `
+        <tr>
+          <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${record !== undefined && record !== null && record !== 0 ? record : '-'}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(grade)};">${grade}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${ranking}</td>
+        </tr>
+      `;
     });
+
+    // 신장, 체중 추가
+    const height = shareData.records.height;
+    const weight = shareData.records.weight;
+    const bmi = height && weight ? (weight / ((height / 100) ** 2)).toFixed(1) : '-';
+    const bmiGrade = shareData.grades.bodyfat || '-';
+    
+    if (height || weight) {
+      recordsTable += `
+        <tr style="background-color: #f8f9fa;">
+          <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">신장/체중</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${height ? height + 'cm' : '-'} / ${weight ? weight + 'kg' : '-'}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(bmiGrade)};">BMI: ${bmi}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${bmiGrade}</td>
+        </tr>
+      `;
+    }
 
     const lastUpdated = new Date(shareData.lastUpdated);
 
@@ -658,7 +676,14 @@ export class ShareManager {
           </small>
         </div>
 
-        <div style="text-align: center;">
+        <div style="text-align: center; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <button 
+            id="install-pwa-btn" 
+            style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"
+          >
+            <span>📱</span>
+            <span>앱으로 등록</span>
+          </button>
           <button 
             id="close-paps-record-modal" 
             style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer;"
@@ -671,10 +696,68 @@ export class ShareManager {
 
     document.body.appendChild(modal);
 
+    // PWA 설치 기능
+    let deferredPrompt: any = null;
+    const installBtn = modal.querySelector('#install-pwa-btn') as HTMLButtonElement;
+    
+    // beforeinstallprompt 이벤트 리스너
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (installBtn) {
+        installBtn.style.display = 'inline-flex';
+      }
+    };
+    
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    // 이미 설치되어 있는지 확인
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+      if (installBtn) {
+        installBtn.style.display = 'none';
+      }
+    } else {
+      // 설치 가능 여부 확인
+      if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`PWA 설치 결과: ${outcome}`);
+            deferredPrompt = null;
+            if (installBtn) {
+              installBtn.style.display = 'none';
+            }
+          } else {
+            // 수동 설치 안내
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isAndroid = /Android/.test(navigator.userAgent);
+            
+            let message = '';
+            if (isIOS) {
+              message = 'iOS에서 설치하려면:\n1. Safari에서 공유 버튼(□↑)을 누르세요\n2. "홈 화면에 추가"를 선택하세요';
+            } else if (isAndroid) {
+              message = 'Android에서 설치하려면:\n1. 브라우저 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가" 또는 "설치"를 선택하세요';
+            } else {
+              message = '브라우저 메뉴에서 "앱 설치" 또는 "홈 화면에 추가"를 선택하세요';
+            }
+            
+            alert(message);
+          }
+        });
+      }
+    }
+
+    // 모달 닫기 함수
+    const removeModal = () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      if (document.body.contains(modal)) {
+        document.body.removeChild(modal);
+      }
+    };
+
     const closeBtn = modal.querySelector('#close-paps-record-modal') as HTMLElement;
-    closeBtn.addEventListener('click', () => {
-      document.body.removeChild(modal);
-    });
+    closeBtn.addEventListener('click', removeModal);
 
     // 업데이트 버튼 이벤트 리스너
     if (shareId) {
@@ -700,13 +783,13 @@ export class ShareManager {
               const expiresAt = new Date(latestData.expiresAt);
               if (new Date() > expiresAt) {
                 this.showErrorModal('이 QR 코드는 만료되었습니다.');
-                document.body.removeChild(modal);
+                removeModal();
                 return;
               }
             }
 
             // 모달 닫고 새 데이터로 다시 표시
-            document.body.removeChild(modal);
+            removeModal();
             await this.showPapsStudentRecord(latestData, shareId);
           } catch (error) {
             logError('데이터 업데이트 실패:', error);

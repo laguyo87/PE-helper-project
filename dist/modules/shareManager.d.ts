@@ -37,6 +37,7 @@ export interface SharedPapsStudentData {
     gradeLevel: string;
     records: Record<string, number>;
     grades: Record<string, string>;
+    eventNames?: Record<string, string>;
     overallGrade: string;
     expiresAt?: Date | string;
     createdAt: Date | string;
