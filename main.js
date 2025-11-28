@@ -368,8 +368,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         console.log('[main] Firebase 초기화 확인 완료, ShareManager 생성 시작');
         try {
-            const { createShareManager } = await import('./modules/shareManager.js');
-            console.log('[main] ShareManager 모듈 로드 완료');
+            // 이미 import된 createShareManager 사용 (동적 import 대신)
+            console.log('[main] ShareManager 모듈 사용 (이미 로드됨)');
             const sm = createShareManager({
                 firebaseDb: typeof window !== 'undefined' ? window.firebase?.db : undefined,
                 $: (selector) => document.querySelector(selector)
