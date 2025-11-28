@@ -400,16 +400,40 @@ export class ShareManager {
       }
 
       console.log('[ShareManager] Firebase 객체 확인 완료, 데이터 조회 시작');
-      const shareDoc = await getDoc(doc(db, 'sharedPapsStudents', shareId));
+      console.log('[ShareManager] shareId:', shareId);
+      console.log('[ShareManager] db:', db);
+      console.log('[ShareManager] doc 함수:', typeof doc);
+      console.log('[ShareManager] getDoc 함수:', typeof getDoc);
       
-      if (!shareDoc.exists()) {
-        console.error('[ShareManager] 공유 데이터를 찾을 수 없습니다:', shareId);
-        this.showErrorModal('공유된 PAPS 기록을 찾을 수 없습니다. QR 코드를 확인해주세요.');
-        return;
-      }
+      let shareData: SharedPapsStudentData;
+      
+      try {
+        const shareDocRef = doc(db, 'sharedPapsStudents', shareId);
+        console.log('[ShareManager] 문서 참조 생성 완료:', shareDocRef);
+        
+        const shareDoc = await getDoc(shareDocRef);
+        console.log('[ShareManager] 문서 조회 완료, exists:', shareDoc.exists());
+        
+        if (!shareDoc.exists()) {
+          console.error('[ShareManager] 공유 데이터를 찾을 수 없습니다:', shareId);
+          this.showErrorModal('공유된 PAPS 기록을 찾을 수 없습니다.\nQR 코드를 다시 확인해주세요.');
+          return;
+        }
 
-      const shareData = shareDoc.data() as SharedPapsStudentData;
-      console.log('[ShareManager] 공유 데이터 로드 완료:', shareData.studentName);
+        shareData = shareDoc.data() as SharedPapsStudentData;
+        console.log('[ShareManager] 공유 데이터 로드 완료:', shareData.studentName);
+        console.log('[ShareManager] 공유 데이터 내용:', {
+          shareId: shareData.shareId,
+          studentName: shareData.studentName,
+          className: shareData.className,
+          recordsCount: Object.keys(shareData.records || {}).length
+        });
+      } catch (firestoreError: any) {
+        console.error('[ShareManager] Firestore 조회 중 오류:', firestoreError);
+        console.error('[ShareManager] 오류 코드:', firestoreError?.code);
+        console.error('[ShareManager] 오류 메시지:', firestoreError?.message);
+        throw firestoreError;
+      }
       
       // 유효 기간 확인
       if (shareData.expiresAt) {
@@ -427,9 +451,25 @@ export class ShareManager {
       console.log('[ShareManager] 학생 기록 표시 완료');
     } catch (error: any) {
       console.error('[ShareManager] PAPS 개별 학생 공유 데이터 로딩 실패:', error);
+      console.error('[ShareManager] 오류 상세:', {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack
+      });
       logError('PAPS 개별 학생 공유 데이터 로딩 실패:', error);
-      const errorMessage = error?.message || '알 수 없는 오류가 발생했습니다.';
-      this.showErrorModal(`공유된 PAPS 기록을 불러오는데 실패했습니다.\n${errorMessage}`);
+      
+      let errorMessage = '공유된 PAPS 기록을 불러오는데 실패했습니다.';
+      
+      if (error?.code === 'permission-denied') {
+        errorMessage = '데이터 접근 권한이 없습니다. QR 코드를 확인해주세요.';
+      } else if (error?.code === 'not-found') {
+        errorMessage = '공유된 PAPS 기록을 찾을 수 없습니다. QR 코드를 확인해주세요.';
+      } else if (error?.message) {
+        errorMessage = `오류: ${error.message}`;
+      }
+      
+      this.showErrorModal(errorMessage);
     }
   }
 
