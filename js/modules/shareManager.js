@@ -613,67 +613,18 @@ export class ShareManager {
       </div>
     `;
         document.body.appendChild(modal);
-        // PWA 설치 기능
-        let deferredPrompt = null;
+        // 홈 화면에 추가 기능 (현재 학생 기록 URL을 바로가기로 추가)
         const installBtn = modal.querySelector('#install-pwa-btn');
-        // beforeinstallprompt 이벤트 리스너 (Chrome, Edge, Samsung Internet 등)
-        const handleBeforeInstallPrompt = (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            console.log('[PWA] 설치 프롬프트 이벤트 수신');
-        };
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        // 이미 설치되어 있는지 확인 (버튼은 항상 표시)
-        const isInstalled = window.matchMedia('(display-mode: standalone)').matches ||
-            window.navigator.standalone === true;
-        if (isInstalled) {
-            console.log('[PWA] 이미 설치되어 있음');
-            // 버튼은 표시하되, 클릭 시 안내 메시지 표시
-        }
+        // 현재 URL 가져오기 (학생 기록 조회 URL)
+        const currentUrl = window.location.href;
         // 설치 버튼 클릭 이벤트
         if (installBtn) {
-            installBtn.addEventListener('click', async () => {
-                console.log('[PWA] 설치 버튼 클릭');
-                // 이미 설치된 경우 안내
-                if (isInstalled) {
-                    alert('이미 홈 화면에 추가되어 있습니다.');
-                    return;
-                }
-                if (deferredPrompt) {
-                    // 자동 설치 프롬프트 사용 가능 (Chrome, Edge 등)
-                    try {
-                        console.log('[PWA] 설치 프롬프트 표시');
-                        deferredPrompt.prompt();
-                        const { outcome } = await deferredPrompt.userChoice;
-                        console.log(`[PWA] 설치 결과: ${outcome}`);
-                        if (outcome === 'accepted') {
-                            console.log('[PWA] 사용자가 설치를 수락했습니다');
-                            // 성공 메시지 표시
-                            if (installBtn) {
-                                installBtn.innerHTML = '<span>✅</span><span>설치 완료</span>';
-                                installBtn.style.background = '#6c757d';
-                                installBtn.disabled = true;
-                            }
-                        }
-                        else {
-                            console.log('[PWA] 사용자가 설치를 거부했습니다');
-                        }
-                        deferredPrompt = null;
-                    }
-                    catch (error) {
-                        console.error('[PWA] 설치 프롬프트 오류:', error);
-                        // 오류 발생 시 수동 설치 안내로 전환
-                        showManualInstallGuide();
-                    }
-                }
-                else {
-                    // 수동 설치 안내
-                    showManualInstallGuide();
-                }
+            installBtn.addEventListener('click', () => {
+                showHomeScreenAddGuide(currentUrl, shareData.studentName);
             });
         }
-        // 수동 설치 안내 함수
-        function showManualInstallGuide() {
+        // 홈 화면에 추가 안내 함수
+        function showHomeScreenAddGuide(url, studentName) {
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             const isAndroid = /Android/.test(navigator.userAgent);
             const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
@@ -683,27 +634,27 @@ export class ShareManager {
             let title = '홈 화면에 추가하기';
             if (isIOS) {
                 if (isSafari) {
-                    message = '📱 iOS Safari에서 설치 방법:\n\n1. 화면 하단의 공유 버튼(□↑)을 누르세요\n2. 스크롤하여 "홈 화면에 추가"를 찾아 누르세요\n3. "추가" 버튼을 눌러 완료하세요';
+                    message = `📱 ${studentName}님의 기록을 홈 화면에 추가하는 방법:\n\n1. 화면 하단의 공유 버튼(□↑)을 누르세요\n2. 스크롤하여 "홈 화면에 추가"를 찾아 누르세요\n3. "추가" 버튼을 눌러 완료하세요\n\n홈 화면에 추가하면 언제든지 이 기록 화면을 바로 열 수 있습니다.`;
                 }
                 else {
-                    message = '📱 iOS에서 설치하려면 Safari 브라우저를 사용해주세요.\n\n다른 브라우저에서는 Safari로 열어주세요.';
+                    message = `📱 iOS에서 홈 화면에 추가하려면 Safari 브라우저를 사용해주세요.\n\n현재 페이지를 Safari로 열어주세요.`;
                 }
             }
             else if (isAndroid) {
                 if (isChrome) {
-                    message = '📱 Android Chrome에서 설치 방법:\n\n1. 브라우저 상단의 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가" 또는 "앱 설치"를 선택하세요\n3. "설치" 또는 "추가"를 눌러 완료하세요';
+                    message = `📱 ${studentName}님의 기록을 홈 화면에 추가하는 방법:\n\n1. 브라우저 상단의 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가"를 선택하세요\n3. "추가"를 눌러 완료하세요\n\n홈 화면에 추가하면 언제든지 이 기록 화면을 바로 열 수 있습니다.`;
                 }
                 else if (isSamsung) {
-                    message = '📱 Samsung Internet에서 설치 방법:\n\n1. 메뉴 버튼을 누르세요\n2. "홈 화면에 추가"를 선택하세요\n3. "추가"를 눌러 완료하세요';
+                    message = `📱 ${studentName}님의 기록을 홈 화면에 추가하는 방법:\n\n1. 메뉴 버튼을 누르세요\n2. "홈 화면에 추가"를 선택하세요\n3. "추가"를 눌러 완료하세요\n\n홈 화면에 추가하면 언제든지 이 기록 화면을 바로 열 수 있습니다.`;
                 }
                 else {
-                    message = '📱 Android에서 설치 방법:\n\n1. 브라우저 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가" 또는 "앱 설치"를 선택하세요';
+                    message = `📱 ${studentName}님의 기록을 홈 화면에 추가하는 방법:\n\n1. 브라우저 메뉴(⋮)를 누르세요\n2. "홈 화면에 추가"를 선택하세요\n\n홈 화면에 추가하면 언제든지 이 기록 화면을 바로 열 수 있습니다.`;
                 }
             }
             else {
-                message = '📱 데스크톱에서 설치 방법:\n\nChrome/Edge: 주소창 오른쪽의 설치 아이콘(⊕)을 클릭하세요\n\n또는 브라우저 메뉴에서 "앱 설치"를 선택하세요';
+                message = `📱 데스크톱에서 홈 화면에 추가:\n\nChrome/Edge: 주소창 오른쪽의 별표(⭐) 아이콘을 클릭하여 북마크에 추가하세요.\n\n또는 이 페이지를 북마크에 추가하여 빠르게 접근할 수 있습니다.`;
             }
-            // 모달로 표시 (alert 대신)
+            // 모달로 표시
             const guideModal = document.createElement('div');
             guideModal.style.cssText = `
         position: fixed;
@@ -720,7 +671,7 @@ export class ShareManager {
             guideModal.innerHTML = `
         <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <h3 style="margin: 0 0 16px 0; color: #333; font-size: 20px;">${title}</h3>
-          <div style="line-height: 1.8; color: #666; white-space: pre-line; margin-bottom: 24px;">${message}</div>
+          <div style="line-height: 1.8; color: #666; white-space: pre-line; margin-bottom: 24px; font-size: 14px;">${message}</div>
           <button 
             id="close-guide-modal" 
             style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer;"
@@ -743,7 +694,6 @@ export class ShareManager {
         }
         // 모달 닫기 함수
         const removeModal = () => {
-            window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
             if (document.body.contains(modal)) {
                 document.body.removeChild(modal);
             }

@@ -423,7 +423,7 @@ export class PapsManager {
                 <div class="row" style="gap: 8px;">
                     <span class="paps-chip">학년: ${cls.gradeLevel || '미설정'}</span>
                     <button class="btn primary" id="generate-qr-codes-btn" style="padding: 8px 16px;">
-                        📱 개인 기록 조회 QR 코드 생성
+                        📱 개인 기록 조회 QR 생성(공유)
                     </button>
                 </div>
             </div>
