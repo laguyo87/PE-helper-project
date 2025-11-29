@@ -64,6 +64,13 @@ export class ErrorFilter {
             'err_failed',
             'net::err_failed',
             'localhost:8080',
+            'firebasestorage.googleapis.com',
+            'CORS policy',
+            'blocked by CORS',
+            'preflight request',
+            'access control check',
+            'storage/retry-limit-exceeded',
+            'firebasestorage',
         ];
         this.useMutationObserver = options.useMutationObserver !== false;
         this.filterConsole = options.filterConsole !== false;

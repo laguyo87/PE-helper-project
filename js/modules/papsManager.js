@@ -2727,22 +2727,31 @@ export class PapsManager {
                 return null;
             }
             const storageRef = firebase.ref(firebase.storage, `paps_qr_codes/${shareId}.png`);
+            // 타임아웃 설정 (2초 내에 응답 없으면 실패로 간주)
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Firebase Storage 타임아웃')), 2000);
+            });
             try {
-                const url = await firebase.getDownloadURL(storageRef);
+                const url = await Promise.race([
+                    firebase.getDownloadURL(storageRef),
+                    timeoutPromise
+                ]);
                 logger.debug(`Firebase Storage에서 QR 코드 불러오기 성공: ${shareId}`);
                 return url;
             }
             catch (error) {
-                // 파일이 없거나 CORS 에러 등은 조용히 처리 (에러 아님)
-                if (error?.code === 'storage/object-not-found' ||
+                // 타임아웃, 파일이 없거나 CORS 에러 등은 조용히 처리 (에러 아님)
+                if (error?.message === 'Firebase Storage 타임아웃' ||
+                    error?.code === 'storage/object-not-found' ||
                     error?.code === 'storage/retry-limit-exceeded' ||
                     error?.message?.includes('CORS') ||
-                    error?.message?.includes('blocked')) {
+                    error?.message?.includes('blocked') ||
+                    error?.message?.includes('timeout')) {
                     logger.debug(`Firebase Storage에서 QR 코드를 찾을 수 없거나 접근 불가: ${shareId}`);
                     return null;
                 }
                 // 다른 에러는 조용히 처리
-                logger.debug(`Firebase Storage에서 QR 코드 불러오기 실패 (조용히 처리): ${shareId}`, error);
+                logger.debug(`Firebase Storage에서 QR 코드 불러오기 실패 (조용히 처리): ${shareId}`);
                 return null;
             }
         }
