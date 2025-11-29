@@ -63,6 +63,8 @@ export class ErrorFilter {
       'content.js',
       'content_script.js',
       'chrome-extension',
+      'cannot read properties',
+      'reading \'control\'',
       'completion_list.html',
       'pejdijmoenmkgeppbflobdenhhabjlaj',
       'err_file_not_found',
@@ -385,8 +387,12 @@ export class ErrorFilter {
       const message = (event.reason as any)?.message || String(event.reason || '');
       const stack = (event.reason as any)?.stack || '';
       const reasonStr = String(event.reason || '');
+      const fullText = (message + ' ' + stack + ' ' + reasonStr).toLowerCase();
       
-      if (this.isCOOPError(message + ' ' + stack + ' ' + reasonStr)) {
+      // COOP 에러 및 content_script.js 에러 필터링
+      if (this.isCOOPError(fullText) || 
+          fullText.includes('content_script.js') ||
+          fullText.includes('chrome-extension')) {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
