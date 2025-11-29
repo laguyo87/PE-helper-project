@@ -289,14 +289,14 @@ export class ShareManager {
       let firebaseSource = this.firebaseDb || (window as any).firebase;
       
       if (!firebaseSource) {
-        console.warn('[ShareManager] Firebase가 아직 초기화되지 않았습니다. 기존 QR 코드 검색을 건너뜁니다.');
+        logger.debug('[ShareManager] Firebase가 아직 초기화되지 않았습니다. 기존 QR 코드 검색을 건너뜁니다.');
         return null;
       }
 
       const { collection, query, where, getDocs, db } = firebaseSource || {};
       
       if (!db || !collection || !query || !where || !getDocs) {
-        console.warn('[ShareManager] Firebase 객체가 완전하지 않습니다. 기존 QR 코드 검색을 건너뜁니다.');
+        logger.debug('[ShareManager] Firebase 객체가 완전하지 않습니다. 기존 QR 코드 검색을 건너뜁니다.');
         return null;
       }
 
@@ -898,7 +898,7 @@ export class ShareManager {
       const { collection, query, where, getDocs, db } = (window as any).firebase || {};
       
       if (!db || !collection || !query || !where || !getDocs) {
-        console.warn('[학년 랭킹] Firebase가 초기화되지 않았습니다.');
+        logger.debug('[학년 랭킹] Firebase가 초기화되지 않았습니다.');
         return {};
       }
 

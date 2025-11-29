@@ -211,12 +211,12 @@ export class ShareManager {
             // Firebase 초기화 확인 - 없으면 null 반환 (기존 QR 코드가 없으면 새로 생성하면 되므로)
             let firebaseSource = this.firebaseDb || window.firebase;
             if (!firebaseSource) {
-                console.warn('[ShareManager] Firebase가 아직 초기화되지 않았습니다. 기존 QR 코드 검색을 건너뜁니다.');
+                logger.debug('[ShareManager] Firebase가 아직 초기화되지 않았습니다. 기존 QR 코드 검색을 건너뜁니다.');
                 return null;
             }
             const { collection, query, where, getDocs, db } = firebaseSource || {};
             if (!db || !collection || !query || !where || !getDocs) {
-                console.warn('[ShareManager] Firebase 객체가 완전하지 않습니다. 기존 QR 코드 검색을 건너뜁니다.');
+                logger.debug('[ShareManager] Firebase 객체가 완전하지 않습니다. 기존 QR 코드 검색을 건너뜁니다.');
                 return null;
             }
             // classId와 studentId로 기존 공유 데이터 검색
@@ -756,7 +756,7 @@ export class ShareManager {
         try {
             const { collection, query, where, getDocs, db } = window.firebase || {};
             if (!db || !collection || !query || !where || !getDocs) {
-                console.warn('[학년 랭킹] Firebase가 초기화되지 않았습니다.');
+                logger.debug('[학년 랭킹] Firebase가 초기화되지 않았습니다.');
                 return {};
             }
             console.log('[학년 랭킹] 계산 시작:', {
