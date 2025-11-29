@@ -248,8 +248,9 @@ export declare class PapsManager {
     private loadQRCodeFromStorage;
     /**
      * QR 코드를 Firebase Storage에서 불러옵니다.
+     * @deprecated Firebase Storage 사용 중단 - CORS 문제로 인해 비활성화됨
      * @param shareId 공유 ID
-     * @returns QR 코드 URL 또는 null
+     * @returns 항상 null (Firebase Storage 미사용)
      */
     private loadQRCodeFromFirebaseStorage;
     /**
@@ -262,6 +263,7 @@ export declare class PapsManager {
     private saveQRCodeToStorage;
     /**
      * QR 코드를 Firebase Storage에 저장합니다.
+     * @deprecated Firebase Storage 사용 중단 - CORS 문제로 인해 비활성화됨
      * @param shareId 공유 ID
      * @param qrCodeUrl QR 코드 URL
      * @param expiresAt 만료 시간 (선택사항)

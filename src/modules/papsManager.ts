@@ -3024,50 +3024,13 @@ export class PapsManager {
 
     /**
      * QR 코드를 Firebase Storage에서 불러옵니다.
+     * @deprecated Firebase Storage 사용 중단 - CORS 문제로 인해 비활성화됨
      * @param shareId 공유 ID
-     * @returns QR 코드 URL 또는 null
+     * @returns 항상 null (Firebase Storage 미사용)
      */
     private async loadQRCodeFromFirebaseStorage(shareId: string): Promise<string | null> {
-        try {
-            const firebase = (window as any).firebase;
-            if (!firebase || !firebase.storage || !firebase.ref || !firebase.getDownloadURL) {
-                return null;
-            }
-
-            const storageRef = firebase.ref(firebase.storage, `paps_qr_codes/${shareId}.png`);
-            
-            // 타임아웃 설정 (2초 내에 응답 없으면 실패로 간주)
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Firebase Storage 타임아웃')), 2000);
-            });
-
-            try {
-                const url = await Promise.race([
-                    firebase.getDownloadURL(storageRef),
-                    timeoutPromise
-                ]);
-                logger.debug(`Firebase Storage에서 QR 코드 불러오기 성공: ${shareId}`);
-                return url as string;
-            } catch (error: any) {
-                // 타임아웃, 파일이 없거나 CORS 에러 등은 조용히 처리 (에러 아님)
-                if (error?.message === 'Firebase Storage 타임아웃' ||
-                    error?.code === 'storage/object-not-found' || 
-                    error?.code === 'storage/retry-limit-exceeded' ||
-                    error?.message?.includes('CORS') ||
-                    error?.message?.includes('blocked') ||
-                    error?.message?.includes('timeout')) {
-                    logger.debug(`Firebase Storage에서 QR 코드를 찾을 수 없거나 접근 불가: ${shareId}`);
-                    return null;
-                }
-                // 다른 에러는 조용히 처리
-                logger.debug(`Firebase Storage에서 QR 코드 불러오기 실패 (조용히 처리): ${shareId}`);
-                return null;
-            }
-        } catch (error) {
-            // 모든 에러를 조용히 처리
-            logger.debug(`Firebase Storage에서 QR 코드 불러오기 실패 (조용히 처리): ${shareId}`);
-            return null;
-        }
+        // Firebase Storage 사용 중단 - CORS 문제로 인해 비활성화
+        return null;
     }
 
     /**
@@ -3182,6 +3145,7 @@ export class PapsManager {
 
     /**
      * QR 코드를 Firebase Storage에 저장합니다.
+     * @deprecated Firebase Storage 사용 중단 - CORS 문제로 인해 비활성화됨
      * @param shareId 공유 ID
      * @param qrCodeUrl QR 코드 URL
      * @param expiresAt 만료 시간 (선택사항)
@@ -3191,48 +3155,8 @@ export class PapsManager {
         qrCodeUrl: string,
         expiresAt?: Date
     ): Promise<void> {
-        try {
-            const firebase = (window as any).firebase;
-            if (!firebase || !firebase.storage || !firebase.ref || !firebase.uploadBytes) {
-                logger.debug('Firebase Storage가 초기화되지 않았습니다.');
-                return;
-            }
-
-            // QR 코드 이미지 다운로드 (CSP 위반 시 조용히 처리)
-            let blob: Blob;
-            try {
-                const response = await fetch(qrCodeUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                blob = await response.blob();
-            } catch (fetchError: any) {
-                // CSP 위반이나 네트워크 에러는 조용히 처리
-                if (fetchError?.message?.includes('CSP') || 
-                    fetchError?.message?.includes('blocked') ||
-                    fetchError?.message?.includes('Failed to fetch')) {
-                    logger.debug(`QR 코드 이미지 다운로드 실패 (CSP/네트워크): ${shareId}`);
-                    return;
-                }
-                throw fetchError;
-            }
-
-            // Firebase Storage에 업로드
-            const storageRef = firebase.ref(firebase.storage, `paps_qr_codes/${shareId}.png`);
-            await firebase.uploadBytes(storageRef, blob);
-            
-            logger.debug(`Firebase Storage에 QR 코드 저장 완료: ${shareId}`);
-        } catch (error: any) {
-            // CORS 에러나 기타 에러는 조용히 처리
-            if (error?.code === 'storage/retry-limit-exceeded' ||
-                error?.message?.includes('CORS') ||
-                error?.message?.includes('blocked')) {
-                logger.debug(`Firebase Storage QR 코드 저장 실패 (CORS/접근 불가): ${shareId}`);
-            } else {
-                logger.debug(`Firebase Storage QR 코드 저장 실패: ${shareId}`, error);
-            }
-            // 저장 실패해도 계속 진행
-        }
+        // Firebase Storage 사용 중단 - CORS 문제로 인해 비활성화
+        // 아무 작업도 수행하지 않음
     }
 
     /**
@@ -3486,30 +3410,15 @@ export class PapsManager {
                 // 공유 링크 생성
                 const shareUrl = shareManager.generatePapsShareUrl(shareId);
                 
-                // 하이브리드 방식: 로컬 스토리지 → Firebase Storage → API 생성
+                // 로컬 스토리지 → API 생성 방식 (Firebase Storage 제거)
                 let qrCodeUrl = this.loadQRCodeFromStorage(shareId);
                 
                 if (!qrCodeUrl) {
-                    // 로컬에 없으면 Firebase Storage에서 확인
-                    qrCodeUrl = await this.loadQRCodeFromFirebaseStorage(shareId);
-                    
-                    if (qrCodeUrl) {
-                        // Firebase Storage에서 불러온 QR 코드를 로컬에도 저장 (다음번에는 더 빠르게)
-                        this.saveQRCodeToStorage(shareId, qrCodeUrl, shareUrl, expiresAt).catch(error => {
-                            logError('로컬 스토리지 저장 실패:', error);
-                        });
-                    }
-                }
-                
-                if (!qrCodeUrl) {
-                    // 둘 다 없으면 API로 생성
+                    // 로컬에 없으면 API로 생성
                     qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
                     
-                    // 생성된 QR 코드를 로컬 스토리지와 Firebase Storage에 모두 저장 (비동기)
-                    Promise.all([
-                        this.saveQRCodeToStorage(shareId, qrCodeUrl, shareUrl, expiresAt),
-                        this.saveQRCodeToFirebaseStorage(shareId, qrCodeUrl, expiresAt)
-                    ]).catch(error => {
+                    // 생성된 QR 코드를 로컬 스토리지에 저장 (비동기)
+                    this.saveQRCodeToStorage(shareId, qrCodeUrl, shareUrl, expiresAt).catch(error => {
                         logError('QR 코드 저장 실패:', error);
                     });
                 }
@@ -3660,14 +3569,7 @@ export class PapsManager {
                         savedCount++;
                     }
                     
-                    // Firebase Storage에도 저장
-                    let firebaseSavedCount = 0;
-                    for (const item of studentQRCodes) {
-                        await this.saveQRCodeToFirebaseStorage(item.shareId, item.qrCodeUrl, expiresAt);
-                        firebaseSavedCount++;
-                    }
-                    
-                    showSuccess(`${savedCount}개의 QR 코드가 로컬과 Firebase에 저장되었습니다.`);
+                    showSuccess(`${savedCount}개의 QR 코드가 로컬 스토리지에 저장되었습니다.`);
                     saveButton.textContent = '💾 저장 완료';
                     setTimeout(() => {
                         saveButton.textContent = '💾 저장하기';
@@ -3693,19 +3595,9 @@ export class PapsManager {
                     let loadedCount = 0;
                     let updatedCount = 0;
                     
-                    // 하이브리드 방식으로 불러오기
+                    // 로컬 스토리지에서 불러오기
                     for (const item of studentQRCodes) {
-                        let storedQR = this.loadQRCodeFromStorage(item.shareId);
-                        
-                        if (!storedQR) {
-                            // 로컬에 없으면 Firebase Storage에서 확인
-                            storedQR = await this.loadQRCodeFromFirebaseStorage(item.shareId);
-                            
-                            if (storedQR) {
-                                // Firebase Storage에서 불러온 QR 코드를 로컬에도 저장
-                                this.saveQRCodeToStorage(item.shareId, storedQR, item.shareUrl).catch(() => {});
-                            }
-                        }
+                        const storedQR = this.loadQRCodeFromStorage(item.shareId);
                         
                         if (storedQR) {
                             // 저장된 QR 코드로 업데이트
