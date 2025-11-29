@@ -822,6 +822,12 @@ export class PapsManager {
         if (this.currentRankingData) {
             this.updateRankingData(cls);
         }
+        // 기록이 변경되면 해당 학생의 공유 데이터를 Firestore에 자동 업데이트
+        // 비동기로 처리하여 UI 블로킹 방지
+        this.updateStudentShareData(st, cls, tr).catch(error => {
+            logError('학생 공유 데이터 자동 업데이트 실패:', error);
+            // 에러가 발생해도 메인 플로우에는 영향 없음 (조용히 실패)
+        });
     }
     /**
      * PAPS 행 등급을 업데이트합니다.
@@ -2684,6 +2690,98 @@ export class PapsManager {
         });
     }
     /**
+     * 학생의 공유 데이터를 Firestore에 자동 업데이트합니다.
+     * 기록이 변경될 때마다 호출됩니다.
+     * @param student 학생 객체
+     * @param cls 반 객체
+     * @param tr 테이블 행 요소
+     */
+    async updateStudentShareData(student, cls, tr) {
+        try {
+            // Firebase 초기화 확인
+            if (!window.firebase) {
+                // Firebase가 아직 초기화되지 않았으면 건너뜀
+                return;
+            }
+            // ShareManager 인스턴스 생성
+            const { createShareManager } = await import('./shareManager.js');
+            const shareManager = createShareManager({
+                firebaseDb: typeof window !== 'undefined' ? window.firebase?.db : undefined,
+                $: (selector) => document.querySelector(selector)
+            });
+            // 기존 shareId 찾기
+            let shareId;
+            const existingShare = await shareManager.findExistingPapsStudentShare(cls.id, student.id);
+            if (existingShare && existingShare.shareId) {
+                // 기존 QR 코드 재사용
+                shareId = existingShare.shareId;
+            }
+            else {
+                // 기존 QR 코드가 없으면 자동으로 새로 생성
+                shareId = shareManager.generateShareId(16);
+                logger.debug(`새 shareId 자동 생성: ${student.name} (${shareId})`);
+            }
+            // 학생의 등급 정보 수집
+            const grades = {};
+            const gradeCells = tr.querySelectorAll('.grade-cell');
+            gradeCells.forEach(cell => {
+                const dataId = cell.dataset.id;
+                const grade = cell.textContent?.trim() || '';
+                if (dataId && grade) {
+                    grades[dataId] = grade;
+                }
+            });
+            // 종합 등급 계산
+            const overallGradeCell = tr?.querySelector('.overall-grade-cell');
+            const overallGrade = overallGradeCell?.textContent?.trim() || '';
+            // 종목명 수집 (eventSettings에서)
+            const eventNames = {};
+            Object.keys(PAPS_ITEMS).forEach(category => {
+                const item = PAPS_ITEMS[category];
+                const eventName = cls.eventSettings?.[item.id] || item.options[0];
+                // 성별에 따라 팔굽혀펴기 종목명 변경
+                if (eventName === '팔굽혀펴기' && student.gender === '여자') {
+                    eventNames[item.id] = '무릎대고팔굽혀펴기';
+                }
+                else {
+                    eventNames[item.id] = eventName;
+                }
+            });
+            // 체지방은 BMI로 고정
+            eventNames['bodyfat'] = 'BMI';
+            // 유효 기간은 기존 것 유지 (또는 기본값 365일)
+            const expiresAt = existingShare?.expiresAt
+                ? new Date(existingShare.expiresAt)
+                : (() => {
+                    const date = new Date();
+                    date.setDate(date.getDate() + 365);
+                    return date;
+                })();
+            // 공유 데이터 업데이트
+            await shareManager.saveSharedPapsStudent({
+                shareId,
+                classId: cls.id,
+                className: cls.name,
+                studentId: student.id,
+                studentName: student.name,
+                studentNumber: student.number,
+                studentGender: student.gender,
+                gradeLevel: cls.gradeLevel || '',
+                records: student.records || {},
+                grades,
+                eventNames,
+                overallGrade,
+                expiresAt
+            });
+            logger.debug(`학생 공유 데이터 자동 업데이트 완료: ${student.name} (${shareId})`);
+        }
+        catch (error) {
+            // 에러는 상위에서 처리하므로 여기서는 로그만 남김
+            logError('학생 공유 데이터 자동 업데이트 중 오류:', error);
+            throw error;
+        }
+    }
+    /**
      * 반별 모든 학생의 QR 코드를 생성합니다.
      * @param expiresInDays 유효 기간 (일 단위, 기본값: 365일)
      */
@@ -2697,6 +2795,28 @@ export class PapsManager {
             showError('학생이 없습니다.');
             return;
         }
+        // QR 생성 중 오버레이 표시
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.id = 'paps-qr-loading-overlay';
+        loadingOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        `;
+        loadingOverlay.innerHTML = `
+            <div style="background: white; padding: 20px 28px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); text-align: center; font-size: 16px; color: #333; min-width: 240px;">
+                <div style="margin-bottom: 10px; font-weight: 600;">QR을 생성중입니다</div>
+                <div style="font-size: 13px; color: #666;">잠시만 기다려주세요...</div>
+            </div>
+        `;
+        document.body.appendChild(loadingOverlay);
         try {
             // Firebase 초기화 대기
             if (!window.firebase) {
@@ -2806,6 +2926,12 @@ export class PapsManager {
             logError('QR 코드 생성 실패:', error);
             showError('QR 코드 생성에 실패했습니다.');
         }
+        finally {
+            // 로딩 오버레이 제거
+            if (document.body.contains(loadingOverlay)) {
+                document.body.removeChild(loadingOverlay);
+            }
+        }
     }
     /**
      * QR 코드 출력 모달을 표시합니다.
@@ -2853,15 +2979,19 @@ export class PapsManager {
                         <div style="display: flex; gap: 16px; flex-wrap: wrap;">
                             <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
                                 <input type="radio" name="print-option" value="6" checked>
-                                <span>A4 한 페이지에 6명</span>
+                                <span>한 페이지에 6명</span>
                             </label>
                             <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
                                 <input type="radio" name="print-option" value="12">
-                                <span>A4 한 페이지에 12명</span>
+                                <span>한 페이지에 12명</span>
                             </label>
                             <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer;">
+                                <input type="radio" name="print-option" value="16">
+                                <span>한 페이지에 16명</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer%;">
                                 <input type="radio" name="print-option" value="20">
-                                <span>A4 한 페이지에 20명</span>
+                                <span>한 페이지에 20명</span>
                             </label>
                         </div>
                     </div>
@@ -2872,7 +3002,7 @@ export class PapsManager {
                     ${studentQRCodes.map((item, index) => `
                         <div class="qr-card" data-student-id="${item.studentId}" style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 12px; background: #fff;">
                             <div style="flex-shrink: 0;">
-                                <img src="${item.qrCodeUrl}" alt="QR Code" style="width: 100px; height: 100px; border: 1px solid #ddd; border-radius: 4px; display: block;">
+                                <img src="${item.qrCodeUrl}" alt="QR Code" class="qr-preview-image" style="width: 100px; height: 100px; border: 1px solid #ddd; border-radius: 4px; display: block; cursor: pointer;">
                             </div>
                             <div style="flex: 1; min-width: 0;">
                                 <div style="font-size: 16px; font-weight: bold; margin-bottom: 4px; color: #333;">${item.studentName}</div>
@@ -2888,13 +3018,54 @@ export class PapsManager {
             </div>
         `;
         document.body.appendChild(modal);
-        // 인쇄 기능
+        // 인쇄 기능 및 이벤트 바인딩
         const printAllBtn = modal.querySelector('#print-all-btn');
         const printSingleBtns = modal.querySelectorAll('.print-single-btn');
         const closeBtn = modal.querySelector('#close-qr-modal-btn');
+        const qrImages = modal.querySelectorAll('.qr-preview-image');
+        // QR 이미지 클릭 시 확대 표시
+        qrImages.forEach((img) => {
+            img.addEventListener('click', () => {
+                const src = img.src;
+                const overlay = document.createElement('div');
+                overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 11000;
+                `;
+                overlay.innerHTML = `
+                    <div style="position: relative; background: white; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                        <img src="${src}" alt="QR Code" style="width: 320px; height: 320px; display: block;">
+                        <button id="qr-zoom-close-btn" style="position: absolute; top: 4px; right: 4px; background: #333; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-size: 16px; line-height: 1;">×</button>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                const removeOverlay = () => {
+                    if (document.body.contains(overlay)) {
+                        document.body.removeChild(overlay);
+                    }
+                };
+                const closeBtnEl = overlay.querySelector('#qr-zoom-close-btn');
+                if (closeBtnEl) {
+                    closeBtnEl.addEventListener('click', removeOverlay);
+                }
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        removeOverlay();
+                    }
+                });
+            });
+        });
         printAllBtn.addEventListener('click', () => {
             const selectedOption = modal.querySelector('input[name="print-option"]:checked')?.value || '6';
-            this.printQRCodes(studentQRCodes, className, parseInt(selectedOption));
+            this.printQRCodes(studentQRCodes, className, parseInt(selectedOption, 10));
         });
         printSingleBtns.forEach(btn => {
             btn.addEventListener('click', () => {
@@ -2923,17 +3094,23 @@ export class PapsManager {
             showError('팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.');
             return;
         }
-        // 그리드 설정
-        const gridCols = perPage === 6 ? 2 : perPage === 12 ? 3 : 4;
-        const gridRows = perPage === 6 ? 3 : perPage === 12 ? 4 : 5;
-        // A4 용지 크기: 210mm x 297mm
-        // 인쇄 여백을 최소화하고 정확한 크기 계산
-        // 여백 5mm 사용 시: 200mm x 287mm
-        let qrSize, nameFontSize, numberFontSize, itemPadding, gapSize, pageWidth, pageHeight;
+        // 그리드 설정 (6 / 12 / 16 / 20 각각 최적 배치)
+        let gridCols;
+        let gridRows;
+        // A4 용지 크기: 210mm x 297mm, 여백 감안 실제 영역 약 200mm x 287mm
+        let qrSize;
+        let nameFontSize;
+        let numberFontSize;
+        let itemPadding;
+        let gapSize;
+        let pageWidth;
+        let pageHeight;
+        pageWidth = '200mm';
+        pageHeight = '287mm';
         if (perPage === 6) {
-            // 2열 x 3행
-            pageWidth = '200mm';
-            pageHeight = '287mm';
+            // 2열 x 3행 : 이름·번호를 크게, 여유 있게
+            gridCols = 2;
+            gridRows = 3;
             qrSize = '70mm';
             nameFontSize = '13pt';
             numberFontSize = '10pt';
@@ -2941,19 +3118,29 @@ export class PapsManager {
             gapSize = '2mm';
         }
         else if (perPage === 12) {
-            // 3열 x 4행
-            pageWidth = '200mm';
-            pageHeight = '287mm';
+            // 3열 x 4행 : 반 전체를 1~2장에 나누기 좋은 기본값
+            gridCols = 3;
+            gridRows = 4;
             qrSize = '45mm';
             nameFontSize = '11pt';
             numberFontSize = '8pt';
             itemPadding = '2mm';
             gapSize = '1.5mm';
         }
+        else if (perPage === 16) {
+            // 4열 x 4행 : 16명 꽉 차게, 하지만 QR과 글씨가 너무 작지 않게 조정
+            gridCols = 4;
+            gridRows = 4;
+            qrSize = '38mm';
+            nameFontSize = '9.5pt';
+            numberFontSize = '7.5pt';
+            itemPadding = '1.8mm';
+            gapSize = '1.5mm';
+        }
         else {
-            // 4열 x 5행
-            pageWidth = '200mm';
-            pageHeight = '287mm';
+            // 20명 (기본) : 4열 x 5행
+            gridCols = 4;
+            gridRows = 5;
             qrSize = '32mm';
             nameFontSize = '9pt';
             numberFontSize = '7pt';

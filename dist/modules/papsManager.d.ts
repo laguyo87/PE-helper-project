@@ -241,6 +241,14 @@ export declare class PapsManager {
      */
     private showExpiresDaysModal;
     /**
+     * 학생의 공유 데이터를 Firestore에 자동 업데이트합니다.
+     * 기록이 변경될 때마다 호출됩니다.
+     * @param student 학생 객체
+     * @param cls 반 객체
+     * @param tr 테이블 행 요소
+     */
+    private updateStudentShareData;
+    /**
      * 반별 모든 학생의 QR 코드를 생성합니다.
      * @param expiresInDays 유효 기간 (일 단위, 기본값: 365일)
      */
