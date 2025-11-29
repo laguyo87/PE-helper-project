@@ -77,6 +77,7 @@ export class ErrorFilter {
             'access control check',
             'storage/retry-limit-exceeded',
             'firebasestorage',
+            '저장된 QR 코드가 없습니다',
         ];
         this.useMutationObserver = options.useMutationObserver !== false;
         this.filterConsole = options.filterConsole !== false;
