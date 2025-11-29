@@ -465,7 +465,8 @@ export class ShareManager {
                 const rightRecord = shareData.records[`${item.id}_right`];
                 const leftGrade = shareData.grades[`${item.id}_left`] || '-';
                 const rightGrade = shareData.grades[`${item.id}_right`] || '-';
-                const ranking = gradeRankings[item.id] || '-';
+                const leftRanking = gradeRankings[`${item.id}_left`] || '-';
+                const rightRanking = gradeRankings[`${item.id}_right`] || '-';
                 // 왼손/오른손 기록이 있으면 표시
                 if (leftRecord !== undefined && leftRecord !== null && leftRecord !== 0) {
                     recordsTable += `
@@ -473,7 +474,7 @@ export class ShareManager {
               <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName} (왼손)</td>
               <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${leftRecord}</td>
               <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(leftGrade)};">${leftGrade}</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${ranking}</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${leftRanking}</td>
             </tr>
           `;
                 }
@@ -483,7 +484,7 @@ export class ShareManager {
               <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName} (오른손)</td>
               <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${rightRecord}</td>
               <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(rightGrade)};">${rightGrade}</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${ranking}</td>
+              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${rightRanking}</td>
             </tr>
           `;
                 }
@@ -766,31 +767,83 @@ export class ShareManager {
             // 각 종목별로 랭킹 계산
             const categories = ['endurance', 'flexibility', 'strength', 'power', 'bodyfat'];
             categories.forEach(categoryId => {
-                const studentRecord = shareData.records[categoryId];
-                if (studentRecord === undefined || studentRecord === null || studentRecord === 0) {
-                    rankings[categoryId] = '-';
-                    return;
+                // 악력의 경우 왼손/오른손을 별도로 처리
+                if (categoryId === 'strength') {
+                    // 왼손 악력 랭킹 계산
+                    const leftRecord = shareData.records[`${categoryId}_left`];
+                    if (leftRecord !== undefined && leftRecord !== null && leftRecord !== 0) {
+                        const studentsWithLeftRecord = allStudents.filter(s => s.records[`${categoryId}_left`] !== undefined &&
+                            s.records[`${categoryId}_left`] !== null &&
+                            s.records[`${categoryId}_left`] !== 0);
+                        if (studentsWithLeftRecord.length > 0) {
+                            studentsWithLeftRecord.sort((a, b) => {
+                                const recordA = a.records[`${categoryId}_left`] || 0;
+                                const recordB = b.records[`${categoryId}_left`] || 0;
+                                return recordB - recordA; // 악력은 높을수록 좋음
+                            });
+                            const rank = studentsWithLeftRecord.findIndex(s => s.studentId === shareData.studentId) + 1;
+                            const total = studentsWithLeftRecord.length;
+                            rankings[`${categoryId}_left`] = rank > 0 ? `${rank}위 / ${total}명` : '-';
+                        }
+                        else {
+                            rankings[`${categoryId}_left`] = '-';
+                        }
+                    }
+                    else {
+                        rankings[`${categoryId}_left`] = '-';
+                    }
+                    // 오른손 악력 랭킹 계산
+                    const rightRecord = shareData.records[`${categoryId}_right`];
+                    if (rightRecord !== undefined && rightRecord !== null && rightRecord !== 0) {
+                        const studentsWithRightRecord = allStudents.filter(s => s.records[`${categoryId}_right`] !== undefined &&
+                            s.records[`${categoryId}_right`] !== null &&
+                            s.records[`${categoryId}_right`] !== 0);
+                        if (studentsWithRightRecord.length > 0) {
+                            studentsWithRightRecord.sort((a, b) => {
+                                const recordA = a.records[`${categoryId}_right`] || 0;
+                                const recordB = b.records[`${categoryId}_right`] || 0;
+                                return recordB - recordA; // 악력은 높을수록 좋음
+                            });
+                            const rank = studentsWithRightRecord.findIndex(s => s.studentId === shareData.studentId) + 1;
+                            const total = studentsWithRightRecord.length;
+                            rankings[`${categoryId}_right`] = rank > 0 ? `${rank}위 / ${total}명` : '-';
+                        }
+                        else {
+                            rankings[`${categoryId}_right`] = '-';
+                        }
+                    }
+                    else {
+                        rankings[`${categoryId}_right`] = '-';
+                    }
                 }
-                // 해당 종목에 기록이 있는 학생들만 필터링
-                const studentsWithRecord = allStudents.filter(s => s.records[categoryId] !== undefined &&
-                    s.records[categoryId] !== null &&
-                    s.records[categoryId] !== 0);
-                if (studentsWithRecord.length === 0) {
-                    rankings[categoryId] = '-';
-                    return;
+                else {
+                    // 일반 종목 랭킹 계산
+                    const studentRecord = shareData.records[categoryId];
+                    if (studentRecord === undefined || studentRecord === null || studentRecord === 0) {
+                        rankings[categoryId] = '-';
+                        return;
+                    }
+                    // 해당 종목에 기록이 있는 학생들만 필터링
+                    const studentsWithRecord = allStudents.filter(s => s.records[categoryId] !== undefined &&
+                        s.records[categoryId] !== null &&
+                        s.records[categoryId] !== 0);
+                    if (studentsWithRecord.length === 0) {
+                        rankings[categoryId] = '-';
+                        return;
+                    }
+                    // 기록 기준으로 정렬 (종목에 따라 오름차순/내림차순)
+                    // 대부분의 종목은 높을수록 좋지만, 일부는 낮을수록 좋음 (50m 달리기 등)
+                    const isLowerBetter = categoryId === 'power' && shareData.records[categoryId] < 20; // 50m 달리기 등
+                    studentsWithRecord.sort((a, b) => {
+                        const recordA = a.records[categoryId] || 0;
+                        const recordB = b.records[categoryId] || 0;
+                        return isLowerBetter ? recordA - recordB : recordB - recordA;
+                    });
+                    // 현재 학생의 순위 찾기
+                    const rank = studentsWithRecord.findIndex(s => s.studentId === shareData.studentId) + 1;
+                    const total = studentsWithRecord.length;
+                    rankings[categoryId] = rank > 0 ? `${rank}위 / ${total}명` : '-';
                 }
-                // 기록 기준으로 정렬 (종목에 따라 오름차순/내림차순)
-                // 대부분의 종목은 높을수록 좋지만, 일부는 낮을수록 좋음 (50m 달리기 등)
-                const isLowerBetter = categoryId === 'power' && shareData.records[categoryId] < 20; // 50m 달리기 등
-                studentsWithRecord.sort((a, b) => {
-                    const recordA = a.records[categoryId] || 0;
-                    const recordB = b.records[categoryId] || 0;
-                    return isLowerBetter ? recordA - recordB : recordB - recordA;
-                });
-                // 현재 학생의 순위 찾기
-                const rank = studentsWithRecord.findIndex(s => s.studentId === shareData.studentId) + 1;
-                const total = studentsWithRecord.length;
-                rankings[categoryId] = rank > 0 ? `${rank}위 / ${total}명` : '-';
             });
             return rankings;
         }
@@ -805,12 +858,13 @@ export class ShareManager {
      * @returns 운동 처방 텍스트
      */
     generateExercisePrescription(shareData) {
+        const studentName = shareData.studentName;
         const prescriptions = [];
         // 각 종목별 평가 및 처방
         Object.keys(shareData.grades).forEach(categoryId => {
             const grade = shareData.grades[categoryId];
             const record = shareData.records[categoryId];
-            if (!grade || !record)
+            if (!grade || (record === undefined && categoryId !== 'bodyfat'))
                 return;
             const gradeNum = parseInt(grade.replace('등급', '').replace('정상', '2').replace('과체중', '3').replace('비만', '5').replace('마름', '4')) || 3;
             let categoryName = '';
@@ -818,67 +872,76 @@ export class ShareManager {
             switch (categoryId) {
                 case 'endurance':
                     categoryName = '심폐지구력';
+                    const enduranceEvent = shareData.eventNames?.endurance || '심폐지구력';
                     if (gradeNum >= 4) {
-                        prescription = '심폐지구력이 우수합니다. 현재 수준을 유지하기 위해 주 2-3회 유산소 운동을 지속하세요.';
+                        prescription = `${studentName}님의 ${enduranceEvent} 기록이 우수합니다. 현재 수준을 유지하기 위해 주 2-3회 유산소 운동을 지속하세요.\n\n구체적인 운동 방법:\n• 조깅: 주 2회, 20-30분, 중간 강도\n• 자전거 타기: 주 1회, 30-40분\n• 계단 오르기: 주 1-2회, 10-15분\n• 운동 전후 준비운동과 정리운동 필수`;
                     }
                     else if (gradeNum === 3) {
-                        prescription = '심폐지구력이 보통 수준입니다. 주 3-4회 30분 이상의 유산소 운동(조깅, 자전거, 수영 등)을 권장합니다.';
+                        prescription = `${studentName}님의 ${enduranceEvent} 기록이 보통 수준입니다. 주 3-4회 30분 이상의 유산소 운동을 권장합니다.\n\n구체적인 운동 방법:\n• 조깅: 주 3회, 20-30분, 점진적 강도 증가\n• 왕복오래달리기 연습: 주 2회, 5-10분씩\n• 자전거 타기: 주 1-2회, 30분\n• 걷기: 매일 30분 이상, 빠른 걸음\n• 운동 전후 스트레칭 필수`;
                     }
                     else {
-                        prescription = '심폐지구력 향상이 필요합니다. 주 4-5회 20-30분 유산소 운동을 시작하고, 점진적으로 강도와 시간을 늘려가세요.';
+                        prescription = `${studentName}님의 ${enduranceEvent} 기록 향상이 필요합니다. 주 4-5회 20-30분 유산소 운동을 시작하고, 점진적으로 강도와 시간을 늘려가세요.\n\n구체적인 운동 방법:\n• 걷기: 매일 20-30분, 빠른 걸음으로 시작\n• 조깅: 주 3-4회, 10-20분씩, 천천히 시작\n• 왕복오래달리기 연습: 주 2-3회, 3-5분씩\n• 계단 오르기: 주 2-3회, 5-10분\n• 운동 전후 충분한 준비운동과 정리운동 필수`;
                     }
                     break;
                 case 'flexibility':
                     categoryName = '유연성';
+                    const flexibilityEvent = shareData.eventNames?.flexibility || '유연성';
                     if (gradeNum >= 4) {
-                        prescription = '유연성이 우수합니다. 현재 수준 유지를 위해 매일 10-15분 스트레칭을 실시하세요.';
+                        prescription = `${studentName}님의 ${flexibilityEvent} 기록이 우수합니다. 현재 수준 유지를 위해 매일 10-15분 스트레칭을 실시하세요.\n\n구체적인 운동 방법:\n• 아침 기상 후 스트레칭: 5-10분\n• 운동 전 동적 스트레칭: 5분\n• 운동 후 정적 스트레칭: 10-15분\n• 주요 부위: 허리, 다리 뒤쪽, 어깨, 목`;
                     }
                     else if (gradeNum === 3) {
-                        prescription = '유연성이 보통 수준입니다. 매일 15-20분 스트레칭(요가, 필라테스 등)을 통해 유연성을 향상시키세요.';
+                        prescription = `${studentName}님의 ${flexibilityEvent} 기록이 보통 수준입니다. 매일 15-20분 스트레칭을 통해 유연성을 향상시키세요.\n\n구체적인 운동 방법:\n• 앉아윗몸앞으로굽히기 연습: 매일 10회, 각 15-20초 유지\n• 다리 스트레칭: 매일 2세트, 각 30초씩\n• 허리 스트레칭: 매일 2세트, 각 20초씩\n• 요가 기본 동작: 주 2-3회, 15분\n• 운동 전후 반드시 스트레칭 실시`;
                     }
                     else {
-                        prescription = '유연성 향상이 필요합니다. 매일 20-30분 정적 스트레칭을 실시하고, 운동 전후 반드시 준비운동과 정리운동을 하세요.';
+                        prescription = `${studentName}님의 ${flexibilityEvent} 기록 향상이 필요합니다. 매일 20-30분 정적 스트레칭을 실시하고, 운동 전후 반드시 준비운동과 정리운동을 하세요.\n\n구체적인 운동 방법:\n• 앉아윗몸앞으로굽히기 연습: 매일 3세트, 각 20-30초 유지\n• 다리 뒤쪽 스트레칭: 매일 3세트, 각 30초씩\n• 허리 스트레칭: 매일 3세트, 각 30초씩\n• 어깨와 목 스트레칭: 매일 2세트, 각 20초씩\n• 요가 또는 필라테스: 주 3-4회, 20분\n• 운동 전후 충분한 스트레칭 필수 (최소 10분)`;
                     }
                     break;
                 case 'strength':
+                case 'strength_left':
+                case 'strength_right':
                     categoryName = '근력/근지구력';
+                    const strengthEvent = shareData.eventNames?.strength || '근력';
+                    const isLeft = categoryId === 'strength_left';
+                    const isRight = categoryId === 'strength_right';
+                    const handText = isLeft ? ' (왼손)' : isRight ? ' (오른손)' : '';
                     if (gradeNum >= 4) {
-                        prescription = '근력이 우수합니다. 근지구력 향상을 위해 반복 횟수를 늘린 운동을 추가하세요.';
+                        prescription = `${studentName}님의 ${strengthEvent}${handText} 기록이 우수합니다. 근지구력 향상을 위해 반복 횟수를 늘린 운동을 추가하세요.\n\n구체적인 운동 방법:\n• 악력 연습: 주 3-4회, 3세트, 각 10-15회\n• 팔굽혀펴기: 주 3회, 3세트, 각 15-20회\n• 윗몸말아올리기: 주 3회, 3세트, 각 20-30회\n• 스쿼트: 주 3회, 3세트, 각 15-20회\n• 플랭크: 주 3회, 각 30-60초 유지`;
                     }
                     else if (gradeNum === 3) {
-                        prescription = '근력이 보통 수준입니다. 주 3-4회 팔굽혀펴기, 윗몸말아올리기, 스쿼트 등을 10-15회씩 실시하세요.';
+                        prescription = `${studentName}님의 ${strengthEvent}${handText} 기록이 보통 수준입니다. 주 3-4회 근력 운동을 실시하세요.\n\n구체적인 운동 방법:\n• 악력 연습: 주 3-4회, 3세트, 각 8-12회\n• 팔굽혀펴기: 주 3회, 3세트, 각 10-15회\n• 윗몸말아올리기: 주 3회, 3세트, 각 15-20회\n• 스쿼트: 주 3회, 3세트, 각 12-15회\n• 플랭크: 주 3회, 각 20-30초 유지\n• 운동 간 휴식: 세트 간 1-2분`;
                     }
                     else {
-                        prescription = '근력 향상이 필요합니다. 주 4-5회 근력 운동을 시작하고, 점진적으로 횟수와 세트를 늘려가세요.';
+                        prescription = `${studentName}님의 ${strengthEvent}${handText} 기록 향상이 필요합니다. 주 4-5회 근력 운동을 시작하고, 점진적으로 횟수와 세트를 늘려가세요.\n\n구체적인 운동 방법:\n• 악력 연습: 주 4-5회, 2-3세트, 각 5-10회 (점진적 증가)\n• 팔굽혀펴기: 주 4회, 2-3세트, 각 5-10회 (무릎 대고 시작 가능)\n• 윗몸말아올리기: 주 4회, 2-3세트, 각 10-15회\n• 스쿼트: 주 4회, 2-3세트, 각 10-12회\n• 플랭크: 주 4회, 각 15-20초 유지 (점진적 증가)\n• 운동 간 충분한 휴식: 세트 간 2-3분`;
                     }
                     break;
                 case 'power':
                     categoryName = '순발력';
+                    const powerEvent = shareData.eventNames?.power || '순발력';
                     if (gradeNum >= 4) {
-                        prescription = '순발력이 우수합니다. 폭발적인 움직임을 유지하기 위해 플라이오메트릭 운동을 지속하세요.';
+                        prescription = `${studentName}님의 ${powerEvent} 기록이 우수합니다. 폭발적인 움직임을 유지하기 위해 플라이오메트릭 운동을 지속하세요.\n\n구체적인 운동 방법:\n• 제자리멀리뛰기 연습: 주 2-3회, 3세트, 각 5-10회\n• 박스 점프: 주 2회, 3세트, 각 5-8회\n• 짧은 거리 전력 질주: 주 2회, 50m × 3-5회\n• 버피: 주 2회, 2세트, 각 10-15회\n• 운동 전 충분한 준비운동 필수`;
                     }
                     else if (gradeNum === 3) {
-                        prescription = '순발력이 보통 수준입니다. 제자리멀리뛰기, 짧은 거리 전력 질주 등을 주 2-3회 실시하세요.';
+                        prescription = `${studentName}님의 ${powerEvent} 기록이 보통 수준입니다. 폭발적인 움직임 연습을 주 2-3회 실시하세요.\n\n구체적인 운동 방법:\n• 제자리멀리뛰기 연습: 주 3회, 3세트, 각 5-8회\n• 제자리 높이뛰기: 주 2-3회, 3세트, 각 10-15회\n• 짧은 거리 전력 질주: 주 2-3회, 30-50m × 3-5회\n• 버피: 주 2회, 2세트, 각 8-12회\n• 점프 스쿼트: 주 2회, 2세트, 각 10-15회\n• 운동 전 충분한 준비운동 필수`;
                     }
                     else {
-                        prescription = '순발력 향상이 필요합니다. 폭발적인 움직임 연습(점프, 짧은 스프린트)을 주 3-4회 실시하세요.';
+                        prescription = `${studentName}님의 ${powerEvent} 기록 향상이 필요합니다. 폭발적인 움직임 연습을 주 3-4회 실시하세요.\n\n구체적인 운동 방법:\n• 제자리멀리뛰기 연습: 주 3-4회, 3세트, 각 5-8회\n• 제자리 높이뛰기: 주 3회, 3세트, 각 10-15회\n• 짧은 거리 전력 질주: 주 3회, 20-30m × 3-5회\n• 버피: 주 3회, 2세트, 각 5-10회\n• 점프 스쿼트: 주 3회, 2세트, 각 8-12회\n• 운동 전 충분한 준비운동 필수 (최소 10분)`;
                     }
                     break;
                 case 'bodyfat':
                     categoryName = '체지방';
                     if (grade === '정상') {
-                        prescription = '체지방률이 정상 범위입니다. 균형 잡힌 식단과 규칙적인 운동을 유지하세요.';
+                        prescription = `${studentName}님의 BMI가 정상 범위입니다. 균형 잡힌 식단과 규칙적인 운동을 유지하세요.\n\n구체적인 관리 방법:\n• 식단: 하루 3끼 규칙적으로, 과식 금지\n• 유산소 운동: 주 2-3회, 30분 이상\n• 근력 운동: 주 2-3회, 20-30분\n• 수면: 하루 7-8시간 규칙적 수면\n• 물 섭취: 하루 1.5-2L 이상`;
                     }
                     else if (grade === '과체중') {
-                        prescription = '체지방률이 약간 높습니다. 주 4-5회 유산소 운동과 식단 조절을 통해 체중 관리를 하세요.';
+                        prescription = `${studentName}님의 BMI가 약간 높습니다. 주 4-5회 유산소 운동과 식단 조절을 통해 체중 관리를 하세요.\n\n구체적인 관리 방법:\n• 식단 조절: 하루 3끼 규칙적으로, 저칼로리 식단\n• 유산소 운동: 주 4-5회, 40-50분 (조깅, 자전거, 수영)\n• 근력 운동: 주 2-3회, 20-30분\n• 간식 줄이기, 탄수화물 줄이기\n• 물 섭취: 하루 2L 이상\n• 수면: 하루 7-8시간 규칙적 수면`;
                     }
                     else {
-                        prescription = '체지방률 관리가 필요합니다. 전문가 상담 후 식단 조절과 규칙적인 유산소 운동을 병행하세요.';
+                        prescription = `${studentName}님의 BMI 관리가 필요합니다. 전문가 상담 후 식단 조절과 규칙적인 유산소 운동을 병행하세요.\n\n구체적인 관리 방법:\n• 전문가 상담: 영양사 또는 의사 상담 권장\n• 식단 조절: 하루 3끼 규칙적으로, 균형 잡힌 저칼로리 식단\n• 유산소 운동: 주 5회 이상, 50분 이상 (조깅, 자전거, 수영, 걷기)\n• 근력 운동: 주 3회, 30분\n• 간식 완전 금지, 탄수화물 대폭 줄이기\n• 물 섭취: 하루 2-2.5L 이상\n• 수면: 하루 7-8시간 규칙적 수면\n• 꾸준함이 가장 중요합니다`;
                     }
                     break;
             }
             if (prescription) {
-                prescriptions.push(`【${categoryName}】 ${prescription}`);
+                prescriptions.push(`【${categoryName}】\n${prescription}`);
             }
         });
         // 종합 등급에 따른 전체 평가
@@ -886,17 +949,17 @@ export class ShareManager {
             const overallGradeNum = parseInt(shareData.overallGrade.replace('등급', '')) || 3;
             let overallAssessment = '';
             if (overallGradeNum <= 2) {
-                overallAssessment = '\n\n전반적으로 체력이 우수합니다. 현재 운동 습관을 유지하면서 다양한 종목에 도전해보세요.';
+                overallAssessment = `\n\n${studentName}님, 전반적으로 체력이 우수합니다! 현재 운동 습관을 유지하면서 다양한 종목에 도전해보세요. 꾸준한 운동으로 더욱 발전할 수 있습니다.`;
             }
             else if (overallGradeNum === 3) {
-                overallAssessment = '\n\n전반적인 체력이 보통 수준입니다. 약한 종목에 집중하여 균형 잡힌 체력을 기르세요.';
+                overallAssessment = `\n\n${studentName}님, 전반적인 체력이 보통 수준입니다. 약한 종목에 집중하여 균형 잡힌 체력을 기르세요. 위에 제시한 운동 처방을 꾸준히 실천하면 체력 향상에 도움이 됩니다.`;
             }
             else {
-                overallAssessment = '\n\n체력 향상이 필요합니다. 전문가 상담을 받고 단계적으로 운동 강도를 높여가세요. 꾸준함이 가장 중요합니다.';
+                overallAssessment = `\n\n${studentName}님, 체력 향상이 필요합니다. 전문가 상담을 받고 단계적으로 운동 강도를 높여가세요. 위에 제시한 운동 처방을 주 4-5회 이상 꾸준히 실천하시면 체력이 향상될 것입니다. 꾸준함이 가장 중요합니다!`;
             }
             prescriptions.push(overallAssessment);
         }
-        return prescriptions.length > 0 ? prescriptions.join('\n\n') : '기록이 부족하여 운동 처방을 제공할 수 없습니다.';
+        return prescriptions.length > 0 ? prescriptions.join('\n\n') : `${studentName}님, 기록이 부족하여 운동 처방을 제공할 수 없습니다. PAPS 기록을 입력해주세요.`;
     }
     /**
      * 등급에 따른 색상을 반환합니다.
