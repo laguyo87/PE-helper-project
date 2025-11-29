@@ -425,6 +425,9 @@ export class PapsManager {
                     <button class="btn primary" id="generate-qr-codes-btn" style="padding: 8px 16px;">
                         📱 개인 기록 조회 QR 생성(공유)
                     </button>
+                    <select id="load-saved-qr-select" style="padding: 8px 16px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">
+                        <option value="">📂 저장된 QR 불러오기</option>
+                    </select>
                 </div>
             </div>
             ${settingsCardHtml}
@@ -587,6 +590,19 @@ export class PapsManager {
                 const days = await this.showExpiresDaysModal();
                 if (days !== null) {
                     await this.generateClassQRCodes(days);
+                }
+            });
+        }
+
+        // 저장된 QR 불러오기 셀렉트 메뉴
+        const loadSavedQRSelect = this.$('#load-saved-qr-select') as HTMLSelectElement;
+        if (loadSavedQRSelect) {
+            this.populateSavedQRSelect(loadSavedQRSelect);
+            loadSavedQRSelect.addEventListener('change', async () => {
+                const classId = loadSavedQRSelect.value;
+                if (classId) {
+                    await this.loadSavedQRClass(classId);
+                    loadSavedQRSelect.value = ''; // 선택 초기화
                 }
             });
         }
@@ -3563,6 +3579,20 @@ export class PapsManager {
                         savedCount++;
                     }
                     
+                    // 반별 QR 코드 목록도 저장
+                    const cls = this.papsData.classes.find(c => c.id === this.papsData.activeClassId);
+                    if (cls) {
+                        const classStorageKey = `paps_qr_class_${cls.id}`;
+                        const classData = {
+                            classId: cls.id,
+                            className: cls.name,
+                            studentQRCodes: studentQRCodes,
+                            expiresAt: expiresAt.toISOString(),
+                            savedAt: new Date().toISOString()
+                        };
+                        localStorage.setItem(classStorageKey, JSON.stringify(classData));
+                    }
+                    
                     showSuccess(`${savedCount}개의 QR 코드가 로컬 스토리지에 저장되었습니다.`);
                     saveButton.textContent = '💾 저장 완료';
                     setTimeout(() => {
@@ -3850,5 +3880,107 @@ export class PapsManager {
         setTimeout(() => {
             printWindow.print();
         }, 500);
+    }
+
+    /**
+     * 저장된 반 목록을 셀렉트 메뉴에 채웁니다.
+     * @param selectElement 셀렉트 요소
+     */
+    private populateSavedQRSelect(selectElement: HTMLSelectElement): void {
+        // 기존 옵션 제거 (첫 번째 옵션 제외)
+        while (selectElement.options.length > 1) {
+            selectElement.remove(1);
+        }
+
+        // 로컬 스토리지에서 반별 QR 코드 목록 찾기
+        const savedClasses: Array<{ classId: string; className: string; savedAt: string }> = [];
+        
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('paps_qr_class_')) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key) || '{}');
+                    if (data.classId && data.className && data.studentQRCodes) {
+                        // 만료 시간 확인
+                        if (data.expiresAt) {
+                            const expiresAt = new Date(data.expiresAt);
+                            if (new Date() > expiresAt) {
+                                continue; // 만료된 것은 제외
+                            }
+                        }
+                        savedClasses.push({
+                            classId: data.classId,
+                            className: data.className,
+                            savedAt: data.savedAt || ''
+                        });
+                    }
+                } catch (error) {
+                    logger.debug('저장된 QR 코드 목록 파싱 실패:', key, error);
+                }
+            }
+        }
+
+        // 저장 날짜 기준으로 정렬 (최신순)
+        savedClasses.sort((a, b) => {
+            const dateA = a.savedAt ? new Date(a.savedAt).getTime() : 0;
+            const dateB = b.savedAt ? new Date(b.savedAt).getTime() : 0;
+            return dateB - dateA;
+        });
+
+        // 셀렉트 메뉴에 추가
+        savedClasses.forEach(classData => {
+            const option = document.createElement('option');
+            option.value = classData.classId;
+            const savedDate = classData.savedAt ? new Date(classData.savedAt).toLocaleDateString() : '';
+            option.textContent = `${classData.className}${savedDate ? ` (${savedDate})` : ''}`;
+            selectElement.appendChild(option);
+        });
+    }
+
+    /**
+     * 저장된 반의 QR 코드를 불러와서 화면에 표시합니다.
+     * @param classId 반 ID
+     */
+    private async loadSavedQRClass(classId: string): Promise<void> {
+        try {
+            const storageKey = `paps_qr_class_${classId}`;
+            const stored = localStorage.getItem(storageKey);
+            
+            if (!stored) {
+                showError('저장된 QR 코드를 찾을 수 없습니다.');
+                return;
+            }
+
+            const data = JSON.parse(stored);
+            
+            // 만료 시간 확인
+            if (data.expiresAt) {
+                const expiresAt = new Date(data.expiresAt);
+                if (new Date() > expiresAt) {
+                    showError('저장된 QR 코드가 만료되었습니다.');
+                    localStorage.removeItem(storageKey);
+                    // 셀렉트 메뉴 새로고침
+                    const selectElement = this.$('#load-saved-qr-select') as HTMLSelectElement;
+                    if (selectElement) {
+                        this.populateSavedQRSelect(selectElement);
+                    }
+                    return;
+                }
+            }
+
+            const studentQRCodes = data.studentQRCodes || [];
+            if (studentQRCodes.length === 0) {
+                showError('저장된 QR 코드가 없습니다.');
+                return;
+            }
+
+            const expiresAt = data.expiresAt ? new Date(data.expiresAt) : new Date();
+            
+            // QR 코드 화면 표시
+            this.showQRPrintModal(data.className, studentQRCodes, expiresAt);
+        } catch (error) {
+            logError('저장된 QR 코드 불러오기 실패:', error);
+            showError('저장된 QR 코드를 불러오는데 실패했습니다.');
+        }
     }
 }

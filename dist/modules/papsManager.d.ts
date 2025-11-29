@@ -296,5 +296,15 @@ export declare class PapsManager {
      * @param perPage 페이지당 학생 수
      */
     private printQRCodes;
+    /**
+     * 저장된 반 목록을 셀렉트 메뉴에 채웁니다.
+     * @param selectElement 셀렉트 요소
+     */
+    private populateSavedQRSelect;
+    /**
+     * 저장된 반의 QR 코드를 불러와서 화면에 표시합니다.
+     * @param classId 반 ID
+     */
+    private loadSavedQRClass;
 }
 //# sourceMappingURL=papsManager.d.ts.map
