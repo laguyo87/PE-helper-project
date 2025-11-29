@@ -3128,7 +3128,6 @@ export class PapsManager {
                         </div>
                         <div style="flex: 1;"></div>
                         <button id="save-qr-codes-btn" class="btn" style="padding: 8px 16px; font-size: 14px; background: #28a745; color: white;">💾 저장하기</button>
-                        <button id="load-qr-codes-btn" class="btn" style="padding: 8px 16px; font-size: 14px; background: #17a2b8; color: white;">📂 불러오기</button>
                         <button id="print-all-btn" class="btn primary" style="padding: 8px 16px; font-size: 14px;">전체 인쇄</button>
                         <button id="close-qr-modal-btn" class="btn" style="padding: 8px 16px; font-size: 14px;">닫기</button>
                     </div>
@@ -3155,8 +3154,8 @@ export class PapsManager {
                     </div>
                 </div>
 
-                <!-- QR 코드 목록 영역 (스크롤 가능) -->
-                <div id="qr-preview-container" style="flex: 1; overflow-y: auto; padding: 16px 32px; display: grid; gap: 12px;">
+                <!-- QR 코드 목록 영역 (스크롤 가능, 2단 컬럼) -->
+                <div id="qr-preview-container" style="flex: 1; overflow-y: auto; padding: 16px 32px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
                     ${studentQRCodes.map((item, index) => `
                         <div class="qr-card" data-student-id="${item.studentId}" style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 12px; background: #fff;">
                             <div style="flex-shrink: 0;">
@@ -3167,9 +3166,6 @@ export class PapsManager {
                                 <div style="color: #666; margin-bottom: 6px; font-size: 14px;">번호: ${item.studentNumber}</div>
                                 <div style="font-size: 11px; color: #999; word-break: break-all; line-height: 1.4;">${item.shareUrl}</div>
                             </div>
-                            <div style="flex-shrink: 0;">
-                                <button class="print-single-btn" data-index="${index}" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; white-space: nowrap;">개별 인쇄</button>
-                            </div>
                         </div>
                     `).join('')}
                 </div>
@@ -3178,10 +3174,8 @@ export class PapsManager {
         document.body.appendChild(modal);
         // 인쇄 기능 및 이벤트 바인딩
         const printAllBtn = modal.querySelector('#print-all-btn');
-        const printSingleBtns = modal.querySelectorAll('.print-single-btn');
         const closeBtn = modal.querySelector('#close-qr-modal-btn');
         const saveBtn = modal.querySelector('#save-qr-codes-btn');
-        const loadBtn = modal.querySelector('#load-qr-codes-btn');
         const qrImages = modal.querySelectorAll('.qr-preview-image');
         // 저장하기 버튼 이벤트
         if (saveBtn) {
@@ -3207,46 +3201,6 @@ export class PapsManager {
                     showError('QR 코드 저장에 실패했습니다.');
                     saveButton.textContent = '💾 저장하기';
                     saveButton.disabled = false;
-                }
-            });
-        }
-        // 불러오기 버튼 이벤트
-        if (loadBtn) {
-            const loadButton = loadBtn;
-            loadButton.addEventListener('click', async () => {
-                loadButton.disabled = true;
-                loadButton.textContent = '📂 불러오는 중...';
-                try {
-                    let loadedCount = 0;
-                    let updatedCount = 0;
-                    // 로컬 스토리지에서 불러오기
-                    for (const item of studentQRCodes) {
-                        const storedQR = this.loadQRCodeFromStorage(item.shareId);
-                        if (storedQR) {
-                            // 저장된 QR 코드로 업데이트
-                            item.qrCodeUrl = storedQR;
-                            const img = modal.querySelector(`.qr-card[data-student-id="${item.studentId}"] .qr-preview-image`);
-                            if (img) {
-                                img.src = storedQR;
-                                updatedCount++;
-                            }
-                            loadedCount++;
-                        }
-                    }
-                    if (loadedCount > 0) {
-                        showSuccess(`${loadedCount}개의 QR 코드를 불러왔습니다.`);
-                    }
-                    else {
-                        showError('저장된 QR 코드가 없습니다.');
-                    }
-                    loadButton.textContent = '📂 불러오기';
-                    loadButton.disabled = false;
-                }
-                catch (error) {
-                    logError('QR 코드 불러오기 실패:', error);
-                    showError('QR 코드 불러오기에 실패했습니다.');
-                    loadButton.textContent = '📂 불러오기';
-                    loadButton.disabled = false;
                 }
             });
         }
@@ -3293,12 +3247,6 @@ export class PapsManager {
         printAllBtn.addEventListener('click', () => {
             const selectedOption = modal.querySelector('input[name="print-option"]:checked')?.value || '6';
             this.printQRCodes(studentQRCodes, className, parseInt(selectedOption, 10));
-        });
-        printSingleBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const index = parseInt(btn.dataset.index || '0');
-                this.printQRCodes([studentQRCodes[index]], className, 6);
-            });
         });
         closeBtn.addEventListener('click', () => {
             document.body.removeChild(modal);
