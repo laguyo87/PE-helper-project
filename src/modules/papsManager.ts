@@ -2993,6 +2993,152 @@ export class PapsManager {
     }
 
     /**
+     * QR 코드를 로컬 스토리지에서 불러옵니다.
+     * @param shareId 공유 ID
+     * @returns QR 코드 URL 또는 null
+     */
+    private loadQRCodeFromStorage(shareId: string): string | null {
+        try {
+            const storageKey = `paps_qr_${shareId}`;
+            const stored = localStorage.getItem(storageKey);
+            
+            if (!stored) {
+                return null;
+            }
+
+            const data = JSON.parse(stored);
+            const expiresAt = data.expiresAt ? new Date(data.expiresAt) : null;
+            
+            // 만료 시간 확인
+            if (expiresAt && new Date() > expiresAt) {
+                localStorage.removeItem(storageKey);
+                return null;
+            }
+
+            return data.qrCodeUrl || null;
+        } catch (error) {
+            logError('QR 코드 불러오기 실패:', error);
+            return null;
+        }
+    }
+
+    /**
+     * QR 코드를 Firebase Storage에서 불러옵니다.
+     * @param shareId 공유 ID
+     * @returns QR 코드 URL 또는 null
+     */
+    private async loadQRCodeFromFirebaseStorage(shareId: string): Promise<string | null> {
+        try {
+            const firebase = (window as any).firebase;
+            if (!firebase || !firebase.storage || !firebase.ref || !firebase.getDownloadURL) {
+                return null;
+            }
+
+            const storageRef = firebase.ref(firebase.storage, `paps_qr_codes/${shareId}.png`);
+            
+            try {
+                const url = await firebase.getDownloadURL(storageRef);
+                logger.debug(`Firebase Storage에서 QR 코드 불러오기 성공: ${shareId}`);
+                return url;
+            } catch (error: any) {
+                // 파일이 없으면 null 반환 (에러 아님)
+                if (error?.code === 'storage/object-not-found') {
+                    return null;
+                }
+                throw error;
+            }
+        } catch (error) {
+            logError('Firebase Storage에서 QR 코드 불러오기 실패:', error);
+            return null;
+        }
+    }
+
+    /**
+     * QR 코드를 로컬 스토리지에 저장합니다.
+     * @param shareId 공유 ID
+     * @param qrCodeUrl QR 코드 URL
+     * @param shareUrl 공유 URL (검증용)
+     * @param expiresAt 만료 시간 (선택사항, 기본값: 1년)
+     */
+    private async saveQRCodeToStorage(
+        shareId: string,
+        qrCodeUrl: string,
+        shareUrl: string,
+        expiresAt?: Date
+    ): Promise<void> {
+        try {
+            // QR 코드 이미지를 base64로 변환하여 저장
+            const response = await fetch(qrCodeUrl);
+            const blob = await response.blob();
+            
+            // Blob을 base64로 변환
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64String = reader.result as string;
+                    resolve(base64String);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+
+            // 만료 시간 설정 (기본값: 1년)
+            const expirationDate = expiresAt || (() => {
+                const date = new Date();
+                date.setFullYear(date.getFullYear() + 1);
+                return date;
+            })();
+
+            const storageKey = `paps_qr_${shareId}`;
+            const data = {
+                qrCodeUrl: base64, // base64로 저장
+                shareUrl,
+                expiresAt: expirationDate.toISOString(),
+                savedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem(storageKey, JSON.stringify(data));
+            logger.debug(`로컬 스토리지에 QR 코드 저장 완료: ${shareId}`);
+        } catch (error) {
+            logError('로컬 스토리지 QR 코드 저장 실패:', error);
+            // 저장 실패해도 계속 진행
+        }
+    }
+
+    /**
+     * QR 코드를 Firebase Storage에 저장합니다.
+     * @param shareId 공유 ID
+     * @param qrCodeUrl QR 코드 URL
+     * @param expiresAt 만료 시간 (선택사항)
+     */
+    private async saveQRCodeToFirebaseStorage(
+        shareId: string,
+        qrCodeUrl: string,
+        expiresAt?: Date
+    ): Promise<void> {
+        try {
+            const firebase = (window as any).firebase;
+            if (!firebase || !firebase.storage || !firebase.ref || !firebase.uploadBytes) {
+                logger.debug('Firebase Storage가 초기화되지 않았습니다.');
+                return;
+            }
+
+            // QR 코드 이미지 다운로드
+            const response = await fetch(qrCodeUrl);
+            const blob = await response.blob();
+
+            // Firebase Storage에 업로드
+            const storageRef = firebase.ref(firebase.storage, `paps_qr_codes/${shareId}.png`);
+            await firebase.uploadBytes(storageRef, blob);
+            
+            logger.debug(`Firebase Storage에 QR 코드 저장 완료: ${shareId}`);
+        } catch (error) {
+            logError('Firebase Storage QR 코드 저장 실패:', error);
+            // 저장 실패해도 계속 진행
+        }
+    }
+
+    /**
      * 학생의 공유 데이터를 Firestore에 자동 업데이트합니다.
      * 기록이 변경될 때마다 호출됩니다.
      * @param student 학생 객체
@@ -3242,7 +3388,34 @@ export class PapsManager {
 
                 // 공유 링크 생성
                 const shareUrl = shareManager.generatePapsShareUrl(shareId);
-                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
+                
+                // 하이브리드 방식: 로컬 스토리지 → Firebase Storage → API 생성
+                let qrCodeUrl = this.loadQRCodeFromStorage(shareId);
+                
+                if (!qrCodeUrl) {
+                    // 로컬에 없으면 Firebase Storage에서 확인
+                    qrCodeUrl = await this.loadQRCodeFromFirebaseStorage(shareId);
+                    
+                    if (qrCodeUrl) {
+                        // Firebase Storage에서 불러온 QR 코드를 로컬에도 저장 (다음번에는 더 빠르게)
+                        this.saveQRCodeToStorage(shareId, qrCodeUrl, shareUrl, expiresAt).catch(error => {
+                            logError('로컬 스토리지 저장 실패:', error);
+                        });
+                    }
+                }
+                
+                if (!qrCodeUrl) {
+                    // 둘 다 없으면 API로 생성
+                    qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(shareUrl)}`;
+                    
+                    // 생성된 QR 코드를 로컬 스토리지와 Firebase Storage에 모두 저장 (비동기)
+                    Promise.all([
+                        this.saveQRCodeToStorage(shareId, qrCodeUrl, shareUrl, expiresAt),
+                        this.saveQRCodeToFirebaseStorage(shareId, qrCodeUrl, expiresAt)
+                    ]).catch(error => {
+                        logError('QR 코드 저장 실패:', error);
+                    });
+                }
 
                 studentQRCodes.push({
                     studentId: student.id,
@@ -3317,6 +3490,8 @@ export class PapsManager {
                             <strong>유효 기간:</strong> ${expiresAt.toLocaleDateString()}까지
                         </div>
                         <div style="flex: 1;"></div>
+                        <button id="save-qr-codes-btn" class="btn" style="padding: 8px 16px; font-size: 14px; background: #28a745; color: white;">💾 저장하기</button>
+                        <button id="load-qr-codes-btn" class="btn" style="padding: 8px 16px; font-size: 14px; background: #17a2b8; color: white;">📂 불러오기</button>
                         <button id="print-all-btn" class="btn primary" style="padding: 8px 16px; font-size: 14px;">전체 인쇄</button>
                         <button id="close-qr-modal-btn" class="btn" style="padding: 8px 16px; font-size: 14px;">닫기</button>
                     </div>
@@ -3370,7 +3545,99 @@ export class PapsManager {
         const printAllBtn = modal.querySelector('#print-all-btn') as HTMLElement;
         const printSingleBtns = modal.querySelectorAll('.print-single-btn');
         const closeBtn = modal.querySelector('#close-qr-modal-btn') as HTMLElement;
+        const saveBtn = modal.querySelector('#save-qr-codes-btn') as HTMLElement;
+        const loadBtn = modal.querySelector('#load-qr-codes-btn') as HTMLElement;
         const qrImages = modal.querySelectorAll('.qr-preview-image') as NodeListOf<HTMLImageElement>;
+
+        // 저장하기 버튼 이벤트
+        if (saveBtn) {
+            const saveButton = saveBtn as HTMLButtonElement;
+            saveButton.addEventListener('click', async () => {
+                saveButton.disabled = true;
+                saveButton.textContent = '💾 저장 중...';
+                
+                try {
+                    let savedCount = 0;
+                    for (const item of studentQRCodes) {
+                        await this.saveQRCodeToStorage(item.shareId, item.qrCodeUrl, item.shareUrl, expiresAt);
+                        savedCount++;
+                    }
+                    
+                    // Firebase Storage에도 저장
+                    let firebaseSavedCount = 0;
+                    for (const item of studentQRCodes) {
+                        await this.saveQRCodeToFirebaseStorage(item.shareId, item.qrCodeUrl, expiresAt);
+                        firebaseSavedCount++;
+                    }
+                    
+                    showSuccess(`${savedCount}개의 QR 코드가 로컬과 Firebase에 저장되었습니다.`);
+                    saveButton.textContent = '💾 저장 완료';
+                    setTimeout(() => {
+                        saveButton.textContent = '💾 저장하기';
+                        saveButton.disabled = false;
+                    }, 2000);
+                } catch (error) {
+                    logError('QR 코드 저장 실패:', error);
+                    showError('QR 코드 저장에 실패했습니다.');
+                    saveButton.textContent = '💾 저장하기';
+                    saveButton.disabled = false;
+                }
+            });
+        }
+
+        // 불러오기 버튼 이벤트
+        if (loadBtn) {
+            const loadButton = loadBtn as HTMLButtonElement;
+            loadButton.addEventListener('click', async () => {
+                loadButton.disabled = true;
+                loadButton.textContent = '📂 불러오는 중...';
+                
+                try {
+                    let loadedCount = 0;
+                    let updatedCount = 0;
+                    
+                    // 하이브리드 방식으로 불러오기
+                    for (const item of studentQRCodes) {
+                        let storedQR = this.loadQRCodeFromStorage(item.shareId);
+                        
+                        if (!storedQR) {
+                            // 로컬에 없으면 Firebase Storage에서 확인
+                            storedQR = await this.loadQRCodeFromFirebaseStorage(item.shareId);
+                            
+                            if (storedQR) {
+                                // Firebase Storage에서 불러온 QR 코드를 로컬에도 저장
+                                this.saveQRCodeToStorage(item.shareId, storedQR, item.shareUrl).catch(() => {});
+                            }
+                        }
+                        
+                        if (storedQR) {
+                            // 저장된 QR 코드로 업데이트
+                            item.qrCodeUrl = storedQR;
+                            const img = modal.querySelector(`.qr-card[data-student-id="${item.studentId}"] .qr-preview-image`) as HTMLImageElement;
+                            if (img) {
+                                img.src = storedQR;
+                                updatedCount++;
+                            }
+                            loadedCount++;
+                        }
+                    }
+                    
+                    if (loadedCount > 0) {
+                        showSuccess(`${loadedCount}개의 QR 코드를 불러왔습니다.`);
+                    } else {
+                        showError('저장된 QR 코드가 없습니다.');
+                    }
+                    
+                    loadButton.textContent = '📂 불러오기';
+                    loadButton.disabled = false;
+                } catch (error) {
+                    logError('QR 코드 불러오기 실패:', error);
+                    showError('QR 코드 불러오기에 실패했습니다.');
+                    loadButton.textContent = '📂 불러오기';
+                    loadButton.disabled = false;
+                }
+            });
+        }
 
         // QR 이미지 클릭 시 확대 표시
         qrImages.forEach((img) => {

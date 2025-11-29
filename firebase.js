@@ -2,6 +2,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, sendPasswordResetEmail, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, getBytes } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 // ========================================
 // Firebase 설정
@@ -28,6 +29,9 @@ try {
   
   const db = getFirestore(app);
   console.log('Firebase Firestore 초기화 완료');
+  
+  const storage = getStorage(app);
+  console.log('Firebase Storage 초기화 완료');
   
   // Firebase 객체 유효성 검사
   if (!auth || !db) {
@@ -64,7 +68,8 @@ try {
 
   window.firebase = { 
     auth, 
-    db, 
+    db,
+    storage,
     onAuthStateChanged, 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword, 
@@ -77,7 +82,11 @@ try {
     doc, 
     setDoc, 
     getDoc, 
-    sendPasswordResetEmail 
+    sendPasswordResetEmail,
+    ref,
+    uploadBytes,
+    getDownloadURL,
+    getBytes
   };
   
   console.log('window.firebase 객체 설정 완료');

@@ -241,6 +241,33 @@ export declare class PapsManager {
      */
     private showExpiresDaysModal;
     /**
+     * QR 코드를 로컬 스토리지에서 불러옵니다.
+     * @param shareId 공유 ID
+     * @returns QR 코드 URL 또는 null
+     */
+    private loadQRCodeFromStorage;
+    /**
+     * QR 코드를 Firebase Storage에서 불러옵니다.
+     * @param shareId 공유 ID
+     * @returns QR 코드 URL 또는 null
+     */
+    private loadQRCodeFromFirebaseStorage;
+    /**
+     * QR 코드를 로컬 스토리지에 저장합니다.
+     * @param shareId 공유 ID
+     * @param qrCodeUrl QR 코드 URL
+     * @param shareUrl 공유 URL (검증용)
+     * @param expiresAt 만료 시간 (선택사항, 기본값: 1년)
+     */
+    private saveQRCodeToStorage;
+    /**
+     * QR 코드를 Firebase Storage에 저장합니다.
+     * @param shareId 공유 ID
+     * @param qrCodeUrl QR 코드 URL
+     * @param expiresAt 만료 시간 (선택사항)
+     */
+    private saveQRCodeToFirebaseStorage;
+    /**
      * 학생의 공유 데이터를 Firestore에 자동 업데이트합니다.
      * 기록이 변경될 때마다 호출됩니다.
      * @param student 학생 객체
