@@ -3041,14 +3041,21 @@ export class PapsManager {
                 logger.debug(`Firebase Storage에서 QR 코드 불러오기 성공: ${shareId}`);
                 return url;
             } catch (error: any) {
-                // 파일이 없으면 null 반환 (에러 아님)
-                if (error?.code === 'storage/object-not-found') {
+                // 파일이 없거나 CORS 에러 등은 조용히 처리 (에러 아님)
+                if (error?.code === 'storage/object-not-found' || 
+                    error?.code === 'storage/retry-limit-exceeded' ||
+                    error?.message?.includes('CORS') ||
+                    error?.message?.includes('blocked')) {
+                    logger.debug(`Firebase Storage에서 QR 코드를 찾을 수 없거나 접근 불가: ${shareId}`);
                     return null;
                 }
-                throw error;
+                // 다른 에러는 조용히 처리
+                logger.debug(`Firebase Storage에서 QR 코드 불러오기 실패 (조용히 처리): ${shareId}`, error);
+                return null;
             }
         } catch (error) {
-            logError('Firebase Storage에서 QR 코드 불러오기 실패:', error);
+            // 모든 에러를 조용히 처리
+            logger.debug(`Firebase Storage에서 QR 코드 불러오기 실패 (조용히 처리): ${shareId}`);
             return null;
         }
     }
@@ -3068,8 +3075,65 @@ export class PapsManager {
     ): Promise<void> {
         try {
             // QR 코드 이미지를 base64로 변환하여 저장
-            const response = await fetch(qrCodeUrl);
-            const blob = await response.blob();
+            // CSP 위반 시 이미지 태그를 사용하여 우회
+            let blob: Blob;
+            try {
+                const response = await fetch(qrCodeUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                blob = await response.blob();
+            } catch (fetchError: any) {
+                // CSP 위반 시 이미지 태그를 사용하여 우회
+                if (fetchError?.message?.includes('CSP') || 
+                    fetchError?.message?.includes('blocked') ||
+                    fetchError?.message?.includes('Failed to fetch')) {
+                    // 이미지 태그를 사용하여 base64로 변환
+                    const base64 = await new Promise<string>((resolve, reject) => {
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        img.onload = () => {
+                            try {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                const ctx = canvas.getContext('2d');
+                                if (!ctx) {
+                                    reject(new Error('Canvas context를 가져올 수 없습니다.'));
+                                    return;
+                                }
+                                ctx.drawImage(img, 0, 0);
+                                const dataUrl = canvas.toDataURL('image/png');
+                                resolve(dataUrl);
+                            } catch (err) {
+                                reject(err);
+                            }
+                        };
+                        img.onerror = () => reject(new Error('이미지 로드 실패'));
+                        img.src = qrCodeUrl;
+                    });
+                    
+                    // 만료 시간 설정 (기본값: 1년)
+                    const expirationDate = expiresAt || (() => {
+                        const date = new Date();
+                        date.setFullYear(date.getFullYear() + 1);
+                        return date;
+                    })();
+
+                    const storageKey = `paps_qr_${shareId}`;
+                    const data = {
+                        qrCodeUrl: base64, // base64로 저장
+                        shareUrl,
+                        expiresAt: expirationDate.toISOString(),
+                        savedAt: new Date().toISOString()
+                    };
+
+                    localStorage.setItem(storageKey, JSON.stringify(data));
+                    logger.debug(`로컬 스토리지에 QR 코드 저장 완료 (이미지 태그 사용): ${shareId}`);
+                    return;
+                }
+                throw fetchError;
+            }
             
             // Blob을 base64로 변환
             const base64 = await new Promise<string>((resolve, reject) => {
@@ -3100,7 +3164,8 @@ export class PapsManager {
             localStorage.setItem(storageKey, JSON.stringify(data));
             logger.debug(`로컬 스토리지에 QR 코드 저장 완료: ${shareId}`);
         } catch (error) {
-            logError('로컬 스토리지 QR 코드 저장 실패:', error);
+            // 저장 실패해도 조용히 처리 (에러 로그만)
+            logger.debug(`로컬 스토리지 QR 코드 저장 실패: ${shareId}`, error);
             // 저장 실패해도 계속 진행
         }
     }
@@ -3123,17 +3188,39 @@ export class PapsManager {
                 return;
             }
 
-            // QR 코드 이미지 다운로드
-            const response = await fetch(qrCodeUrl);
-            const blob = await response.blob();
+            // QR 코드 이미지 다운로드 (CSP 위반 시 조용히 처리)
+            let blob: Blob;
+            try {
+                const response = await fetch(qrCodeUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                blob = await response.blob();
+            } catch (fetchError: any) {
+                // CSP 위반이나 네트워크 에러는 조용히 처리
+                if (fetchError?.message?.includes('CSP') || 
+                    fetchError?.message?.includes('blocked') ||
+                    fetchError?.message?.includes('Failed to fetch')) {
+                    logger.debug(`QR 코드 이미지 다운로드 실패 (CSP/네트워크): ${shareId}`);
+                    return;
+                }
+                throw fetchError;
+            }
 
             // Firebase Storage에 업로드
             const storageRef = firebase.ref(firebase.storage, `paps_qr_codes/${shareId}.png`);
             await firebase.uploadBytes(storageRef, blob);
             
             logger.debug(`Firebase Storage에 QR 코드 저장 완료: ${shareId}`);
-        } catch (error) {
-            logError('Firebase Storage QR 코드 저장 실패:', error);
+        } catch (error: any) {
+            // CORS 에러나 기타 에러는 조용히 처리
+            if (error?.code === 'storage/retry-limit-exceeded' ||
+                error?.message?.includes('CORS') ||
+                error?.message?.includes('blocked')) {
+                logger.debug(`Firebase Storage QR 코드 저장 실패 (CORS/접근 불가): ${shareId}`);
+            } else {
+                logger.debug(`Firebase Storage QR 코드 저장 실패: ${shareId}`, error);
+            }
             // 저장 실패해도 계속 진행
         }
     }
