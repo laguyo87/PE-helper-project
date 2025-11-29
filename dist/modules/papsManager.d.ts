@@ -297,10 +297,14 @@ export declare class PapsManager {
      */
     private printQRCodes;
     /**
-     * 저장된 반 목록을 셀렉트 메뉴에 채웁니다.
-     * @param selectElement 셀렉트 요소
+     * 저장된 반 목록을 가져옵니다.
+     * @returns 저장된 반 목록
      */
-    private populateSavedQRSelect;
+    private getSavedQRClasses;
+    /**
+     * 저장된 QR 코드 목록을 보여주는 모달을 표시합니다.
+     */
+    private showSavedQRListModal;
     /**
      * 저장된 반의 QR 코드를 불러와서 화면에 표시합니다.
      * @param classId 반 ID

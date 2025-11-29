@@ -351,9 +351,9 @@ export class PapsManager {
                     <button class="btn primary" id="generate-qr-codes-btn" style="padding: 8px 16px;">
                         📱 개인 기록 조회 QR 생성(공유)
                     </button>
-                    <select id="load-saved-qr-select" style="padding: 8px 16px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">
-                        <option value="">📂 저장된 QR 불러오기</option>
-                    </select>
+                    <button class="btn" id="load-saved-qr-btn" style="padding: 8px 16px;">
+                        📂 저장된 QR 불러오기
+                    </button>
                 </div>
             </div>
             ${settingsCardHtml}
@@ -518,16 +518,11 @@ export class PapsManager {
                 }
             });
         }
-        // 저장된 QR 불러오기 셀렉트 메뉴
-        const loadSavedQRSelect = this.$('#load-saved-qr-select');
-        if (loadSavedQRSelect) {
-            this.populateSavedQRSelect(loadSavedQRSelect);
-            loadSavedQRSelect.addEventListener('change', async () => {
-                const classId = loadSavedQRSelect.value;
-                if (classId) {
-                    await this.loadSavedQRClass(classId);
-                    loadSavedQRSelect.value = ''; // 선택 초기화
-                }
+        // 저장된 QR 불러오기 버튼
+        const loadSavedQRBtn = this.$('#load-saved-qr-btn');
+        if (loadSavedQRBtn) {
+            loadSavedQRBtn.addEventListener('click', () => {
+                this.showSavedQRListModal();
             });
         }
         this.$('#paps-add-student-btn').addEventListener('click', () => {
@@ -3480,15 +3475,10 @@ export class PapsManager {
         }, 500);
     }
     /**
-     * 저장된 반 목록을 셀렉트 메뉴에 채웁니다.
-     * @param selectElement 셀렉트 요소
+     * 저장된 반 목록을 가져옵니다.
+     * @returns 저장된 반 목록
      */
-    populateSavedQRSelect(selectElement) {
-        // 기존 옵션 제거 (첫 번째 옵션 제외)
-        while (selectElement.options.length > 1) {
-            selectElement.remove(1);
-        }
-        // 로컬 스토리지에서 반별 QR 코드 목록 찾기
+    getSavedQRClasses() {
         const savedClasses = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -3521,13 +3511,101 @@ export class PapsManager {
             const dateB = b.savedAt ? new Date(b.savedAt).getTime() : 0;
             return dateB - dateA;
         });
-        // 셀렉트 메뉴에 추가
-        savedClasses.forEach(classData => {
-            const option = document.createElement('option');
-            option.value = classData.classId;
+        return savedClasses;
+    }
+    /**
+     * 저장된 QR 코드 목록을 보여주는 모달을 표시합니다.
+     */
+    showSavedQRListModal() {
+        const savedClasses = this.getSavedQRClasses();
+        if (savedClasses.length === 0) {
+            showError('저장된 QR 코드가 없습니다.');
+            return;
+        }
+        // 저장된 반이 하나면 바로 불러오기
+        if (savedClasses.length === 1) {
+            this.loadSavedQRClass(savedClasses[0].classId);
+            return;
+        }
+        // 여러 개면 선택 모달 표시
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
+        modal.innerHTML = `
+            <div style="background: white; border-radius: 12px; max-width: 500px; width: 90%; max-height: 80vh; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); display: flex; flex-direction: column; overflow: hidden;">
+                <div style="padding: 24px; border-bottom: 1px solid #e0e0e0; flex-shrink: 0;">
+                    <h2 style="margin: 0; text-align: center; color: #333; font-size: 20px;">📂 저장된 QR 코드 선택</h2>
+                </div>
+                <div style="flex: 1; overflow-y: auto; padding: 16px;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        ${savedClasses.map(classData => {
             const savedDate = classData.savedAt ? new Date(classData.savedAt).toLocaleDateString() : '';
-            option.textContent = `${classData.className}${savedDate ? ` (${savedDate})` : ''}`;
-            selectElement.appendChild(option);
+            return `
+                                <button class="saved-qr-class-btn" data-class-id="${classData.classId}" style="
+                                    padding: 12px 16px;
+                                    background: #f8f9fa;
+                                    border: 1px solid #ddd;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    text-align: left;
+                                    font-size: 14px;
+                                    transition: all 0.2s;
+                                ">
+                                    <div style="font-weight: bold; color: #333; margin-bottom: 4px;">${classData.className}</div>
+                                    ${savedDate ? `<div style="font-size: 12px; color: #666;">저장일: ${savedDate}</div>` : ''}
+                                </button>
+                            `;
+        }).join('')}
+                    </div>
+                </div>
+                <div style="padding: 16px; border-top: 1px solid #e0e0e0; flex-shrink: 0; text-align: center;">
+                    <button id="close-saved-qr-modal-btn" style="padding: 8px 24px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">닫기</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        // 반 선택 버튼 이벤트
+        const classButtons = modal.querySelectorAll('.saved-qr-class-btn');
+        classButtons.forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const classId = btn.dataset.classId;
+                if (classId) {
+                    document.body.removeChild(modal);
+                    await this.loadSavedQRClass(classId);
+                }
+            });
+            // 호버 효과
+            btn.addEventListener('mouseenter', () => {
+                btn.style.background = '#e9ecef';
+                btn.style.borderColor = '#007bff';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.background = '#f8f9fa';
+                btn.style.borderColor = '#ddd';
+            });
+        });
+        // 닫기 버튼 이벤트
+        const closeBtn = modal.querySelector('#close-saved-qr-modal-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                document.body.removeChild(modal);
+            });
+        }
+        // 배경 클릭 시 모달 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
         });
     }
     /**
@@ -3549,11 +3627,6 @@ export class PapsManager {
                 if (new Date() > expiresAt) {
                     showError('저장된 QR 코드가 만료되었습니다.');
                     localStorage.removeItem(storageKey);
-                    // 셀렉트 메뉴 새로고침
-                    const selectElement = this.$('#load-saved-qr-select');
-                    if (selectElement) {
-                        this.populateSavedQRSelect(selectElement);
-                    }
                     return;
                 }
             }
