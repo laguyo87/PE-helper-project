@@ -3128,6 +3128,7 @@ export class PapsManager {
                 <div style="padding: 24px 32px; border-bottom: 1px solid #e0e0e0; flex-shrink: 0;">
                     <h2 style="margin: 0 0 8px 0; text-align: center; color: #333; font-size: 24px;">📱 QR 코드 생성 완료</h2>
                     <p style="margin: 0; text-align: center; color: #666; font-size: 16px;">${className} - ${studentQRCodes.length}명</p>
+                    <p style="margin: 8px 0 0 0; text-align: center; color: #999; font-size: 13px;">💡 QR을 클릭하면 큰 이미지를 볼 수 있습니다</p>
                 </div>
                 
                 <!-- 컨트롤 영역 (고정) -->
