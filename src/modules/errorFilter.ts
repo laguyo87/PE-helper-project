@@ -387,6 +387,12 @@ export class ErrorFilter {
           filename.includes('webchannel_blob') ||
           filename.includes('content_script.js') ||
           fullErrorText.includes('content_script.js') ||
+          fullErrorText.includes('shouldoffercompletionlistforfield') ||
+          fullErrorText.includes('elementwasfocused') ||
+          fullErrorText.includes('processinputevent') ||
+          fullErrorText.includes('inputeventhandler') ||
+          fullErrorText.includes('focusineventhandler') ||
+          (fullErrorText.includes('cannot read properties') && fullErrorText.includes('control')) ||
           fullErrorText.includes('webchannel_blob') ||
           fullErrorText.includes('quic_protocol_error') ||
           fullErrorText.includes('quic_public_reset') ||
@@ -418,6 +424,12 @@ export class ErrorFilter {
       if (this.isCOOPError(fullText) || 
           fullText.includes('content_script.js') ||
           fullText.includes('chrome-extension') ||
+          fullText.includes('shouldoffercompletionlistforfield') ||
+          fullText.includes('elementwasfocused') ||
+          fullText.includes('processinputevent') ||
+          fullText.includes('inputeventhandler') ||
+          fullText.includes('focusineventhandler') ||
+          (fullText.includes('cannot read properties') && fullText.includes('control')) ||
           fullText.includes('webchannel_blob') ||
           fullText.includes('quic_protocol_error') ||
           fullText.includes('quic_public_reset') ||

@@ -305,6 +305,14 @@
             filename.includes('popup.ts') || 
             filename.includes('webchannel_connection.ts') ||
             filename.includes('webchannel_blob') ||
+            filename.includes('content_script.js') ||
+            fullText.includes('content_script.js') ||
+            fullText.includes('shouldoffercompletionlistforfield') ||
+            fullText.includes('elementwasfocused') ||
+            fullText.includes('processinputevent') ||
+            fullText.includes('inputeventhandler') ||
+            fullText.includes('focusineventhandler') ||
+            (fullText.includes('cannot read properties') && fullText.includes('control')) ||
             fullText.includes('webchannel_blob') ||
             fullText.includes('quic_protocol_error') ||
             fullText.includes('quic_public_reset') ||
@@ -327,6 +335,13 @@
         var fullText = (message + ' ' + stack).toLowerCase();
         
         if (shouldFilterError(fullText) ||
+            fullText.includes('content_script.js') ||
+            fullText.includes('shouldoffercompletionlistforfield') ||
+            fullText.includes('elementwasfocused') ||
+            fullText.includes('processinputevent') ||
+            fullText.includes('inputeventhandler') ||
+            fullText.includes('focusineventhandler') ||
+            (fullText.includes('cannot read properties') && fullText.includes('control')) ||
             fullText.includes('webchannel_blob') ||
             fullText.includes('quic_protocol_error') ||
             fullText.includes('quic_public_reset') ||
