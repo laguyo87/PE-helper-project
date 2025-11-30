@@ -775,17 +775,40 @@ export class ShareManager {
 
     document.body.appendChild(modal);
 
+    // PWA 설치 이벤트 차단 (beforeinstallprompt 이벤트 리스너 추가)
+    const preventPWAInstall = (e: Event) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if ((window as any).deferredPrompt) {
+        (window as any).deferredPrompt = null;
+      }
+      return false;
+    };
+    window.addEventListener('beforeinstallprompt', preventPWAInstall, { capture: true });
+
     // 홈 화면에 추가 기능 (현재 학생 기록 URL을 바로가기로 추가)
     const installBtn = modal.querySelector('#install-pwa-btn') as HTMLButtonElement;
     
-    // 현재 URL 가져오기 (학생 기록 조회 URL)
-    const currentUrl = window.location.href;
+    // 학생 기록 조회 URL 생성 (paps 파라미터 포함)
+    const studentRecordUrl = shareId 
+      ? `${window.location.origin}${window.location.pathname}?paps=${shareId}`
+      : window.location.href;
     
-    // 설치 버튼 클릭 이벤트
+    // 설치 버튼 클릭 이벤트 - PWA 설치 방지 및 바로가기 안내
     if (installBtn) {
-      installBtn.addEventListener('click', () => {
-        showHomeScreenAddGuide(currentUrl, shareData.studentName);
-      });
+      installBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        // PWA 설치 이벤트 차단
+        if ((window as any).deferredPrompt) {
+          (window as any).deferredPrompt = null;
+        }
+        
+        showHomeScreenAddGuide(studentRecordUrl, shareData.studentName);
+        return false;
+      }, { capture: true });
     }
     
     // 홈 화면에 추가 안내 함수
@@ -835,17 +858,50 @@ export class ShareManager {
       guideModal.innerHTML = `
         <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
           <h3 style="margin: 0 0 16px 0; color: #333; font-size: 20px;">${title}</h3>
-          <div style="line-height: 1.8; color: #666; white-space: pre-line; margin-bottom: 24px; font-size: 14px;">${message}</div>
-          <button 
-            id="close-guide-modal" 
-            style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer;"
-          >
-            확인
-          </button>
+          <div style="line-height: 1.8; color: #666; white-space: pre-line; margin-bottom: 16px; font-size: 14px;">${message}</div>
+          <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid #dee2e6;">
+            <div style="font-size: 12px; color: #666; margin-bottom: 6px;">링크 주소:</div>
+            <div style="font-size: 11px; color: #333; word-break: break-all; font-family: monospace;">${url}</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button 
+              id="copy-url-btn" 
+              style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;"
+            >
+              📋 링크 복사
+            </button>
+            <button 
+              id="close-guide-modal" 
+              style="flex: 1; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;"
+            >
+              확인
+            </button>
+          </div>
         </div>
       `;
       
       document.body.appendChild(guideModal);
+      
+      // 링크 복사 버튼
+      const copyUrlBtn = guideModal.querySelector('#copy-url-btn') as HTMLElement;
+      if (copyUrlBtn) {
+        copyUrlBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(url);
+            copyUrlBtn.textContent = '✅ 복사 완료';
+            copyUrlBtn.style.background = '#28a745';
+            setTimeout(() => {
+              copyUrlBtn.textContent = '📋 링크 복사';
+            }, 2000);
+          } catch (error) {
+            console.error('링크 복사 실패:', error);
+            copyUrlBtn.textContent = '❌ 복사 실패';
+            setTimeout(() => {
+              copyUrlBtn.textContent = '📋 링크 복사';
+            }, 2000);
+          }
+        });
+      }
       
       const closeGuideBtn = guideModal.querySelector('#close-guide-modal') as HTMLElement;
       closeGuideBtn.addEventListener('click', () => {
