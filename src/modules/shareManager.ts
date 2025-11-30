@@ -761,8 +761,8 @@ export class ShareManager {
             id="install-pwa-btn" 
             style="padding: 14px 20px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;"
           >
-            <span>📱</span>
-            <span>홈 화면에 바로가기 추가</span>
+            <span>🔗</span>
+            <span>내 기록 보기 URL(주소)</span>
           </button>
           <button 
             id="close-paps-record-modal" 
@@ -792,37 +792,91 @@ export class ShareManager {
     };
     window.addEventListener('beforeinstallprompt', preventPWAInstall, { capture: true });
 
-    // 홈 화면에 추가 기능 (현재 학생 기록 URL을 바로가기로 추가)
+    // 내 기록 보기 URL 표시 기능
     const installBtn = modal.querySelector('#install-pwa-btn') as HTMLButtonElement;
     
-    // 설치 버튼 클릭 이벤트 - Web Share API 사용 또는 안내 메시지
+    // 버튼 클릭 이벤트 - 링크 주소와 복사 버튼만 표시
     if (installBtn) {
-      installBtn.addEventListener('click', async (e) => {
+      installBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
         
-        // Web Share API 사용 시도 (모바일에서 바로가기 추가를 위한 공유 기능)
-        if (navigator.share) {
-          try {
-            await navigator.share({
-              title: `${shareData.studentName}님의 기록`,
-              text: `${shareData.studentName}님의 PAPS 기록 조회`,
-              url: studentRecordUrl
-            });
-            showSuccess('공유가 완료되었습니다!');
-            return;
-          } catch (error: any) {
-            // 사용자가 공유를 취소한 경우 (에러가 아닌 정상 동작)
-            if (error.name !== 'AbortError') {
-              console.error('Web Share API 오류:', error);
+        // 링크 주소 모달 표시
+        const urlModal = document.createElement('div');
+        urlModal.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 10002;
+        `;
+        
+        urlModal.innerHTML = `
+          <div style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <h3 style="margin: 0 0 16px 0; color: #333; font-size: 20px;">내 기록 보기 URL</h3>
+            <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 16px; border: 1px solid #dee2e6;">
+              <div style="font-size: 12px; color: #666; margin-bottom: 6px;">링크 주소:</div>
+              <div style="font-size: 11px; color: #333; word-break: break-all; font-family: monospace;">${studentRecordUrl}</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button 
+                id="copy-url-btn" 
+                style="flex: 1; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;"
+              >
+                📋 링크 복사
+              </button>
+              <button 
+                id="close-url-modal" 
+                style="flex: 1; padding: 12px; background: #6c757d; color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(urlModal);
+        
+        // 링크 복사 버튼
+        const copyUrlBtn = urlModal.querySelector('#copy-url-btn') as HTMLButtonElement;
+        if (copyUrlBtn) {
+          copyUrlBtn.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(studentRecordUrl);
+              copyUrlBtn.textContent = '✅ 복사 완료';
+              copyUrlBtn.style.background = '#28a745';
+              setTimeout(() => {
+                copyUrlBtn.textContent = '📋 링크 복사';
+              }, 2000);
+            } catch (error) {
+              console.error('링크 복사 실패:', error);
+              copyUrlBtn.textContent = '❌ 복사 실패';
+              setTimeout(() => {
+                copyUrlBtn.textContent = '📋 링크 복사';
+              }, 2000);
             }
-            // Web Share API가 실패하면 안내 메시지 표시
-            showHomeScreenAddGuide(studentRecordUrl, shareData.studentName);
-          }
-        } else {
-          // Web Share API가 없으면 안내 메시지 표시
-          showHomeScreenAddGuide(studentRecordUrl, shareData.studentName);
+          });
         }
+        
+        // 닫기 버튼
+        const closeUrlBtn = urlModal.querySelector('#close-url-modal') as HTMLElement;
+        if (closeUrlBtn) {
+          closeUrlBtn.addEventListener('click', () => {
+            document.body.removeChild(urlModal);
+          });
+        }
+        
+        // 배경 클릭 시 닫기
+        urlModal.addEventListener('click', (e) => {
+          if (e.target === urlModal) {
+            document.body.removeChild(urlModal);
+          }
+        });
       });
     }
     
