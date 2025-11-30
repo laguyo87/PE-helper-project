@@ -179,7 +179,7 @@ export function openModal(modalElement: HTMLElement): void {
     // requestAnimationFrame으로 포커스 (애니메이션 고려)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        focusableElements[0].focus();
+      focusableElements[0].focus();
       });
     });
   }
