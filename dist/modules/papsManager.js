@@ -3138,7 +3138,7 @@ export class PapsManager {
                             <strong>유효 기간:</strong> ${expiresAt.toLocaleDateString()}까지
                         </div>
                         <div style="flex: 1;"></div>
-                        <button id="save-qr-codes-btn" class="btn" style="padding: 8px 16px; font-size: 14px; background: #28a745; color: white;">💾 저장하기</button>
+                        <button id="save-qr-codes-btn" class="btn" style="padding: 8px 16px; font-size: 14px; background: #28a745; color: white;">💾 QR 저장하기</button>
                         <button id="print-all-btn" class="btn primary" style="padding: 8px 16px; font-size: 14px;">전체 인쇄</button>
                         <button id="close-qr-modal-btn" class="btn" style="padding: 8px 16px; font-size: 14px;">닫기</button>
                     </div>
@@ -3216,14 +3216,14 @@ export class PapsManager {
                     showSuccess(`${savedCount}개의 QR 코드가 로컬 스토리지에 저장되었습니다.`);
                     saveButton.textContent = '💾 저장 완료';
                     setTimeout(() => {
-                        saveButton.textContent = '💾 저장하기';
+                        saveButton.textContent = '💾 QR 저장하기';
                         saveButton.disabled = false;
                     }, 2000);
                 }
                 catch (error) {
                     logError('QR 코드 저장 실패:', error);
                     showError('QR 코드 저장에 실패했습니다.');
-                    saveButton.textContent = '💾 저장하기';
+                    saveButton.textContent = '💾 QR 저장하기';
                     saveButton.disabled = false;
                 }
             });
