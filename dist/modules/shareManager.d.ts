@@ -149,7 +149,7 @@ export declare class ShareManager {
     /**
      * AI 운동 처방을 생성합니다.
      * @param shareData 공유 데이터
-     * @returns 운동 처방 텍스트
+     * @returns 운동 처방 HTML 텍스트
      */
     private generateExercisePrescription;
     /**

@@ -901,10 +901,11 @@ export class ShareManager {
     /**
      * AI 운동 처방을 생성합니다.
      * @param shareData 공유 데이터
-     * @returns 운동 처방 텍스트
+     * @returns 운동 처방 HTML 텍스트
      */
     generateExercisePrescription(shareData) {
         const studentName = shareData.studentName;
+        const nameStyle = `<strong style="color: #0066cc;">${studentName}</strong>`;
         const prescriptions = [];
         // 각 종목별 평가 및 처방
         Object.keys(shareData.grades).forEach(categoryId => {
@@ -923,13 +924,13 @@ export class ShareManager {
                     const enduranceEvent = shareData.eventNames?.endurance || '심폐지구력';
                     const enduranceRecord = record !== undefined && record !== null && record !== 0 ? record : '-';
                     if (gradeNum >= 4) {
-                        prescription = `${emoji} ${studentName}님의 ${enduranceEvent} 기록은 ${enduranceRecord}이며 ${grade}입니다. 현재 수준을 유지하기 위해 주 2-3회 유산소 운동을 지속하세요.\n\n💪 추천 운동:\n• 조깅: 주 2회, 20-30분, 중간 강도\n• 자전거 타기: 주 1회, 30-40분`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${enduranceEvent}</strong> 기록은 <strong>${enduranceRecord}</strong>이며 <strong>${grade}</strong>입니다. 현재 수준 유지를 위해 <strong>주 2-3회</strong> 유산소 운동을 하세요.\n\n💪 추천: 조깅(주 2회, 20-30분)`;
                     }
                     else if (gradeNum === 3) {
-                        prescription = `${emoji} ${studentName}님의 ${enduranceEvent} 기록은 ${enduranceRecord}이며 ${grade}입니다. 주 3-4회 30분 이상의 유산소 운동을 권장합니다.\n\n💪 추천 운동:\n• 조깅: 주 3회, 20-30분, 점진적 강도 증가\n• 왕복오래달리기 연습: 주 2회, 5-10분씩`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${enduranceEvent}</strong> 기록은 <strong>${enduranceRecord}</strong>이며 <strong>${grade}</strong>입니다. <strong>주 3-4회</strong> 유산소 운동을 권장합니다.\n\n💪 추천: 조깅(주 3회, 20-30분), 왕복오래달리기 연습(주 2회)`;
                     }
                     else {
-                        prescription = `${emoji} ${studentName}님의 ${enduranceEvent} 기록은 ${enduranceRecord}이며 ${grade}입니다. 주 4-5회 20-30분 유산소 운동을 시작하고, 점진적으로 강도와 시간을 늘려가세요.\n\n💪 추천 운동:\n• 걷기: 매일 20-30분, 빠른 걸음으로 시작\n• 조깅: 주 3-4회, 10-20분씩, 천천히 시작`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${enduranceEvent}</strong> 기록은 <strong>${enduranceRecord}</strong>이며 <strong>${grade}</strong>입니다. <strong>주 4-5회</strong> 유산소 운동을 시작하세요.\n\n💪 추천: 걷기(매일 20-30분), 조깅(주 3-4회, 10-20분)`;
                     }
                     break;
                 case 'flexibility':
@@ -938,13 +939,13 @@ export class ShareManager {
                     const flexibilityEvent = shareData.eventNames?.flexibility || '유연성';
                     const flexibilityRecord = record !== undefined && record !== null && record !== 0 ? record : '-';
                     if (gradeNum >= 4) {
-                        prescription = `${emoji} ${studentName}님의 ${flexibilityEvent} 기록은 ${flexibilityRecord}이며 ${grade}입니다. 현재 수준 유지를 위해 매일 10-15분 스트레칭을 실시하세요.\n\n💪 추천 운동:\n• 아침 기상 후 스트레칭: 5-10분\n• 운동 후 정적 스트레칭: 10-15분`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${flexibilityEvent}</strong> 기록은 <strong>${flexibilityRecord}</strong>이며 <strong>${grade}</strong>입니다. 현재 수준 유지를 위해 <strong>매일 10-15분</strong> 스트레칭을 하세요.\n\n💪 추천: 아침 스트레칭(5-10분), 운동 후 스트레칭(10-15분)`;
                     }
                     else if (gradeNum === 3) {
-                        prescription = `${emoji} ${studentName}님의 ${flexibilityEvent} 기록은 ${flexibilityRecord}이며 ${grade}입니다. 매일 15-20분 스트레칭을 통해 유연성을 향상시키세요.\n\n💪 추천 운동:\n• 앉아윗몸앞으로굽히기 연습: 매일 10회, 각 15-20초 유지\n• 다리 스트레칭: 매일 2세트, 각 30초씩`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${flexibilityEvent}</strong> 기록은 <strong>${flexibilityRecord}</strong>이며 <strong>${grade}</strong>입니다. <strong>매일 15-20분</strong> 스트레칭을 하세요.\n\n💪 추천: 앉아윗몸앞으로굽히기 연습(매일 10회, 15-20초 유지), 다리 스트레칭(매일 2세트)`;
                     }
                     else {
-                        prescription = `${emoji} ${studentName}님의 ${flexibilityEvent} 기록은 ${flexibilityRecord}이며 ${grade}입니다. 매일 20-30분 정적 스트레칭을 실시하고, 운동 전후 반드시 준비운동과 정리운동을 하세요.\n\n💪 추천 운동:\n• 앉아윗몸앞으로굽히기 연습: 매일 3세트, 각 20-30초 유지\n• 다리 뒤쪽 스트레칭: 매일 3세트, 각 30초씩`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${flexibilityEvent}</strong> 기록은 <strong>${flexibilityRecord}</strong>이며 <strong>${grade}</strong>입니다. <strong>매일 20-30분</strong> 스트레칭을 하세요.\n\n💪 추천: 앉아윗몸앞으로굽히기 연습(매일 3세트, 20-30초), 다리 뒤쪽 스트레칭(매일 3세트)`;
                     }
                     break;
                 case 'strength':
@@ -961,13 +962,13 @@ export class ShareManager {
                         (isLeft ? shareData.records[`${categoryId}_left`] : isRight ? shareData.records[`${categoryId}_right`] : record) !== 0
                         ? (isLeft ? shareData.records[`${categoryId}_left`] : isRight ? shareData.records[`${categoryId}_right`] : record) : '-';
                     if (gradeNum >= 4) {
-                        prescription = `${emoji} ${studentName}님의 ${strengthEvent}${handText} 기록은 ${strengthRecord}이며 ${grade}입니다. 근지구력 향상을 위해 반복 횟수를 늘린 운동을 추가하세요.\n\n💪 추천 운동:\n• 악력 연습: 주 3-4회, 3세트, 각 10-15회\n• 팔굽혀펴기: 주 3회, 3세트, 각 15-20회`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${strengthEvent}${handText}</strong> 기록은 <strong>${strengthRecord}</strong>이며 <strong>${grade}</strong>입니다. 근지구력 향상을 위해 <strong>주 3-4회</strong> 근력 운동을 하세요.\n\n💪 추천: 악력 연습(주 3-4회, 3세트), 팔굽혀펴기(주 3회, 3세트)`;
                     }
                     else if (gradeNum === 3) {
-                        prescription = `${emoji} ${studentName}님의 ${strengthEvent}${handText} 기록은 ${strengthRecord}이며 ${grade}입니다. 주 3-4회 근력 운동을 실시하세요.\n\n💪 추천 운동:\n• 악력 연습: 주 3-4회, 3세트, 각 8-12회\n• 팔굽혀펴기: 주 3회, 3세트, 각 10-15회`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${strengthEvent}${handText}</strong> 기록은 <strong>${strengthRecord}</strong>이며 <strong>${grade}</strong>입니다. <strong>주 3-4회</strong> 근력 운동을 하세요.\n\n💪 추천: 악력 연습(주 3-4회, 3세트), 팔굽혀펴기(주 3회, 3세트)`;
                     }
                     else {
-                        prescription = `${emoji} ${studentName}님의 ${strengthEvent}${handText} 기록은 ${strengthRecord}이며 ${grade}입니다. 주 4-5회 근력 운동을 시작하고, 점진적으로 횟수와 세트를 늘려가세요.\n\n💪 추천 운동:\n• 악력 연습: 주 4-5회, 2-3세트, 각 5-10회 (점진적 증가)\n• 팔굽혀펴기: 주 4회, 2-3세트, 각 5-10회 (무릎 대고 시작 가능)`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${strengthEvent}${handText}</strong> 기록은 <strong>${strengthRecord}</strong>이며 <strong>${grade}</strong>입니다. <strong>주 4-5회</strong> 근력 운동을 시작하세요.\n\n💪 추천: 악력 연습(주 4-5회, 2-3세트), 팔굽혀펴기(주 4회, 2-3세트, 무릎 대고 시작 가능)`;
                     }
                     break;
                 case 'power':
@@ -976,13 +977,13 @@ export class ShareManager {
                     const powerEvent = shareData.eventNames?.power || '순발력';
                     const powerRecord = record !== undefined && record !== null && record !== 0 ? record : '-';
                     if (gradeNum >= 4) {
-                        prescription = `${emoji} ${studentName}님의 ${powerEvent} 기록은 ${powerRecord}이며 ${grade}입니다. 폭발적인 움직임을 유지하기 위해 플라이오메트릭 운동을 지속하세요.\n\n💪 추천 운동:\n• 제자리멀리뛰기 연습: 주 2-3회, 3세트, 각 5-10회\n• 박스 점프: 주 2회, 3세트, 각 5-8회`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${powerEvent}</strong> 기록은 <strong>${powerRecord}</strong>이며 <strong>${grade}</strong>입니다. 폭발적인 움직임 유지를 위해 <strong>주 2-3회</strong> 순발력 운동을 하세요.\n\n💪 추천: 제자리멀리뛰기 연습(주 2-3회, 3세트), 박스 점프(주 2회, 3세트)`;
                     }
                     else if (gradeNum === 3) {
-                        prescription = `${emoji} ${studentName}님의 ${powerEvent} 기록은 ${powerRecord}이며 ${grade}입니다. 폭발적인 움직임 연습을 주 2-3회 실시하세요.\n\n💪 추천 운동:\n• 제자리멀리뛰기 연습: 주 3회, 3세트, 각 5-8회\n• 제자리 높이뛰기: 주 2-3회, 3세트, 각 10-15회`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${powerEvent}</strong> 기록은 <strong>${powerRecord}</strong>이며 <strong>${grade}</strong>입니다. <strong>주 2-3회</strong> 순발력 운동을 하세요.\n\n💪 추천: 제자리멀리뛰기 연습(주 3회, 3세트), 제자리 높이뛰기(주 2-3회, 3세트)`;
                     }
                     else {
-                        prescription = `${emoji} ${studentName}님의 ${powerEvent} 기록은 ${powerRecord}이며 ${grade}입니다. 폭발적인 움직임 연습을 주 3-4회 실시하세요.\n\n💪 추천 운동:\n• 제자리멀리뛰기 연습: 주 3-4회, 3세트, 각 5-8회\n• 제자리 높이뛰기: 주 3회, 3세트, 각 10-15회`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>${powerEvent}</strong> 기록은 <strong>${powerRecord}</strong>이며 <strong>${grade}</strong>입니다. <strong>주 3-4회</strong> 순발력 운동을 하세요.\n\n💪 추천: 제자리멀리뛰기 연습(주 3-4회, 3세트), 제자리 높이뛰기(주 3회, 3세트)`;
                     }
                     break;
                 case 'bodyfat':
@@ -992,13 +993,13 @@ export class ShareManager {
                     const weight = shareData.records.weight;
                     const bmi = height && weight ? (weight / ((height / 100) ** 2)).toFixed(1) : '-';
                     if (grade === '정상') {
-                        prescription = `${emoji} ${studentName}님의 BMI는 ${bmi}이며 ${grade}입니다. 균형 잡힌 식단과 규칙적인 운동을 유지하세요.\n\n💪 추천 관리:\n• 식단: 하루 3끼 규칙적으로, 과식 금지\n• 유산소 운동: 주 2-3회, 30분 이상`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>BMI</strong>는 <strong>${bmi}</strong>이며 <strong>${grade}</strong>입니다. 균형 잡힌 식단과 <strong>주 2-3회</strong> 운동을 유지하세요.\n\n💪 추천: 하루 3끼 규칙적으로, 유산소 운동(주 2-3회, 30분)`;
                     }
                     else if (grade === '과체중') {
-                        prescription = `${emoji} ${studentName}님의 BMI는 ${bmi}이며 ${grade}입니다. 주 4-5회 유산소 운동과 식단 조절을 통해 체중 관리를 하세요.\n\n💪 추천 관리:\n• 식단 조절: 하루 3끼 규칙적으로, 저칼로리 식단\n• 유산소 운동: 주 4-5회, 40-50분 (조깅, 자전거, 수영)`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>BMI</strong>는 <strong>${bmi}</strong>이며 <strong>${grade}</strong>입니다. <strong>주 4-5회</strong> 유산소 운동과 식단 조절을 하세요.\n\n💪 추천: 저칼로리 식단, 유산소 운동(주 4-5회, 40-50분)`;
                     }
                     else {
-                        prescription = `${emoji} ${studentName}님의 BMI는 ${bmi}이며 ${grade}입니다. 전문가 상담 후 식단 조절과 규칙적인 유산소 운동을 병행하세요.\n\n💪 추천 관리:\n• 전문가 상담: 영양사 또는 의사 상담 권장\n• 유산소 운동: 주 5회 이상, 50분 이상 (조깅, 자전거, 수영, 걷기)`;
+                        prescription = `${emoji} ${nameStyle}님의 <strong>BMI</strong>는 <strong>${bmi}</strong>이며 <strong>${grade}</strong>입니다. 전문가 상담 후 <strong>주 5회 이상</strong> 운동을 하세요.\n\n💪 추천: 영양사/의사 상담, 유산소 운동(주 5회 이상, 50분 이상)`;
                     }
                     break;
             }
@@ -1011,17 +1012,17 @@ export class ShareManager {
             const overallGradeNum = parseInt(shareData.overallGrade.replace('등급', '')) || 3;
             let overallAssessment = '';
             if (overallGradeNum <= 2) {
-                overallAssessment = `\n\n⭐ ${studentName}님, 전반적으로 체력이 우수합니다! 현재 운동 습관을 유지하면서 다양한 종목에 도전해보세요. 꾸준한 운동으로 더욱 발전할 수 있습니다.`;
+                overallAssessment = `\n\n⭐ ${nameStyle}님, 전반적으로 체력이 <strong>우수</strong>합니다! 현재 운동 습관을 유지하세요.`;
             }
             else if (overallGradeNum === 3) {
-                overallAssessment = `\n\n⭐ ${studentName}님, 전반적인 체력이 보통 수준입니다. 약한 종목에 집중하여 균형 잡힌 체력을 기르세요. 위에 제시한 운동 처방을 꾸준히 실천하면 체력 향상에 도움이 됩니다.`;
+                overallAssessment = `\n\n⭐ ${nameStyle}님, 전반적인 체력이 <strong>보통</strong> 수준입니다. 약한 종목에 집중하여 <strong>꾸준히</strong> 운동하세요.`;
             }
             else {
-                overallAssessment = `\n\n⭐ ${studentName}님, 체력 향상이 필요합니다. 전문가 상담을 받고 단계적으로 운동 강도를 높여가세요. 위에 제시한 운동 처방을 주 4-5회 이상 꾸준히 실천하시면 체력이 향상될 것입니다. 꾸준함이 가장 중요합니다!`;
+                overallAssessment = `\n\n⭐ ${nameStyle}님, 체력 향상이 필요합니다. 위에 제시한 운동 처방을 <strong>주 4-5회 이상</strong> <strong>꾸준히</strong> 실천하세요.`;
             }
             prescriptions.push(overallAssessment);
         }
-        return prescriptions.length > 0 ? prescriptions.join('\n\n') : `📝 ${studentName}님, 기록이 부족하여 운동 처방을 제공할 수 없습니다. PAPS 기록을 입력해주세요.`;
+        return prescriptions.length > 0 ? prescriptions.join('\n\n') : `📝 ${nameStyle}님, 기록이 부족하여 운동 처방을 제공할 수 없습니다. PAPS 기록을 입력해주세요.`;
     }
     /**
      * 등급에 따른 색상을 반환합니다.
