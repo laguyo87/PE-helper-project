@@ -535,6 +535,33 @@ export class ShareManager {
         }
         const lastUpdated = new Date(shareData.lastUpdated);
         modal.innerHTML = `
+      <style>
+        @keyframes sparkle {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(1.1); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+        .ai-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 4px 10px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 600;
+          margin-left: 8px;
+          box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+          animation: pulse 2s ease-in-out infinite;
+        }
+        .ai-badge .sparkle {
+          animation: sparkle 1.5s ease-in-out infinite;
+        }
+      </style>
       <div style="background: white; padding: 16px; border-radius: 0; max-width: 100%; width: 100%; min-height: 100vh; box-shadow: none; margin: 0;">
         <!-- 상단: 학년, 반, 이름 및 업데이트 버튼 -->
         <div style="text-align: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #e0e0e0;">
@@ -585,9 +612,13 @@ export class ShareManager {
 
         <!-- 운동 처방 박스 -->
         <div style="background: #f8f9fa; border: 2px solid #007bff; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-          <div style="font-size: 16px; font-weight: bold; color: #007bff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+          <div style="font-size: 16px; font-weight: bold; color: #007bff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <span>💡</span>
             <span>운동 처방</span>
+            <span class="ai-badge">
+              <span class="sparkle">✨</span>
+              <span>AI 조언</span>
+            </span>
           </div>
           <div style="line-height: 1.6; color: #333; white-space: pre-line; font-size: 14px;">${exercisePrescription}</div>
         </div>
