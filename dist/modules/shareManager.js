@@ -802,6 +802,12 @@ export class ShareManager {
             querySnapshot.forEach((doc) => {
                 allStudents.push(doc.data());
             });
+            // 현재 학생이 목록에 없으면 추가 (랭킹 계산에 포함시키기 위해)
+            const currentStudentExists = allStudents.some(s => s.studentId === shareData.studentId);
+            if (!currentStudentExists) {
+                allStudents.push(shareData);
+                console.log('[학년 랭킹] 현재 학생 데이터를 목록에 추가');
+            }
             console.log('[학년 랭킹] 조회된 학생 수:', allStudents.length);
             const rankings = {};
             // 각 종목별로 랭킹 계산
@@ -821,8 +827,12 @@ export class ShareManager {
                                 const recordB = b.records[`${categoryId}_left`] || 0;
                                 return recordB - recordA; // 악력은 높을수록 좋음
                             });
-                            const rank = studentsWithLeftRecord.findIndex(s => s.studentId === shareData.studentId) + 1;
+                            const rankIndex = studentsWithLeftRecord.findIndex(s => s.studentId === shareData.studentId);
+                            const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
                             const total = studentsWithLeftRecord.length;
+                            if (rank === 0) {
+                                console.warn(`[학년 랭킹] ${categoryId}_left: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
+                            }
                             rankings[`${categoryId}_left`] = rank > 0 ? `${rank}위 / ${total}명` : '-';
                         }
                         else {
@@ -844,8 +854,12 @@ export class ShareManager {
                                 const recordB = b.records[`${categoryId}_right`] || 0;
                                 return recordB - recordA; // 악력은 높을수록 좋음
                             });
-                            const rank = studentsWithRightRecord.findIndex(s => s.studentId === shareData.studentId) + 1;
+                            const rankIndex = studentsWithRightRecord.findIndex(s => s.studentId === shareData.studentId);
+                            const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
                             const total = studentsWithRightRecord.length;
+                            if (rank === 0) {
+                                console.warn(`[학년 랭킹] ${categoryId}_right: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
+                            }
                             rankings[`${categoryId}_right`] = rank > 0 ? `${rank}위 / ${total}명` : '-';
                         }
                         else {
@@ -887,8 +901,12 @@ export class ShareManager {
                         return diffA - diffB; // 정상 범위에 가까운 순으로 정렬
                     });
                     // 현재 학생의 순위 찾기
-                    const rank = studentsWithBMI.findIndex(s => s.studentId === shareData.studentId) + 1;
+                    const rankIndex = studentsWithBMI.findIndex(s => s.studentId === shareData.studentId);
+                    const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
                     const total = studentsWithBMI.length;
+                    if (rank === 0) {
+                        console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
+                    }
                     rankings[categoryId] = rank > 0 ? `${rank}위 / ${total}명` : '-';
                 }
                 else {
@@ -915,8 +933,12 @@ export class ShareManager {
                         return isLowerBetter ? recordA - recordB : recordB - recordA;
                     });
                     // 현재 학생의 순위 찾기
-                    const rank = studentsWithRecord.findIndex(s => s.studentId === shareData.studentId) + 1;
+                    const rankIndex = studentsWithRecord.findIndex(s => s.studentId === shareData.studentId);
+                    const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
                     const total = studentsWithRecord.length;
+                    if (rank === 0) {
+                        console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
+                    }
                     rankings[categoryId] = rank > 0 ? `${rank}위 / ${total}명` : '-';
                 }
             });
