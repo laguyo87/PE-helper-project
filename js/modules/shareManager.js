@@ -635,7 +635,7 @@ export class ShareManager {
             style="padding: 14px 20px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;"
           >
             <span>📱</span>
-            <span>홈화면에 추가</span>
+            <span>홈 화면에 바로가기 추가</span>
           </button>
           <button 
             id="close-paps-record-modal" 
