@@ -73,6 +73,15 @@ export class ErrorFilter {
       '400',
       'Failed to load resource',
       'err_quic_protocol_error',
+      'err_quic_protocol_error.quic_public_reset',
+      'quic_protocol_error',
+      'quic_public_reset',
+      'err_aborted',
+      'net::err_aborted',
+      'webchannel_blob',
+      'firestore.*channel',
+      'listen/channel',
+      'write/channel',
       'err_name_not_resolved',
       'err_internet_disconnected',
       'err_network_changed',
@@ -206,8 +215,15 @@ export class ErrorFilter {
       (str.includes('write/channel') && str.includes('400')) ||
       (str.includes('gsessionid') && str.includes('400')) ||
       // 네트워크 에러 패턴
-      (str.includes('net::') && (str.includes('err_quic') || str.includes('err_name') || str.includes('err_internet') || str.includes('err_network') || str.includes('err_connection'))) ||
-      (str.includes('err_quic_protocol_error') || str.includes('err_name_not_resolved') || str.includes('err_internet_disconnected')) ||
+      (str.includes('net::') && (str.includes('err_quic') || str.includes('err_name') || str.includes('err_internet') || str.includes('err_network') || str.includes('err_connection') || str.includes('err_aborted'))) ||
+      (str.includes('err_quic_protocol_error') || str.includes('err_name_not_resolved') || str.includes('err_internet_disconnected') || str.includes('err_aborted')) ||
+      (str.includes('quic_protocol_error') || str.includes('quic_public_reset')) ||
+      // webchannel_blob 관련 에러
+      (str.includes('webchannel_blob') && (str.includes('err_') || str.includes('net::') || str.includes('400'))) ||
+      // Firestore Listen/Write channel 에러
+      (str.includes('listen/channel') || str.includes('write/channel')) ||
+      // 성능 경고 (Violation)
+      (str.includes('[Violation]') && str.includes('handler took')) ||
       // DataManager 타임아웃 에러 (일시적 네트워크 문제)
       (str.includes('Firestore 저장 시간 초과') || str.includes('Firestore 요청 시간 초과') || 
        (str.includes('datamanager') && str.includes('시간 초과'))) ||
@@ -368,8 +384,16 @@ export class ErrorFilter {
       if (this.isCOOPError(fullErrorText) || 
           filename.includes('popup.ts') || 
           filename.includes('webchannel_connection.ts') ||
+          filename.includes('webchannel_blob') ||
           filename.includes('content_script.js') ||
-          fullErrorText.includes('content_script.js')) {
+          fullErrorText.includes('content_script.js') ||
+          fullErrorText.includes('webchannel_blob') ||
+          fullErrorText.includes('quic_protocol_error') ||
+          fullErrorText.includes('quic_public_reset') ||
+          fullErrorText.includes('err_aborted') ||
+          fullErrorText.includes('listen/channel') ||
+          fullErrorText.includes('write/channel') ||
+          fullErrorText.includes('gsessionid')) {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
@@ -393,7 +417,14 @@ export class ErrorFilter {
       // COOP 에러 및 content_script.js 에러 필터링
       if (this.isCOOPError(fullText) || 
           fullText.includes('content_script.js') ||
-          fullText.includes('chrome-extension')) {
+          fullText.includes('chrome-extension') ||
+          fullText.includes('webchannel_blob') ||
+          fullText.includes('quic_protocol_error') ||
+          fullText.includes('quic_public_reset') ||
+          fullText.includes('err_aborted') ||
+          fullText.includes('listen/channel') ||
+          fullText.includes('write/channel') ||
+          fullText.includes('gsessionid')) {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();

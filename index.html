@@ -146,6 +146,14 @@
         'err_file_not_found',
         'net::err_file_not_found',
         'err_quic_protocol_error',
+        'err_quic_protocol_error.quic_public_reset',
+        'quic_protocol_error',
+        'quic_public_reset',
+        'err_aborted',
+        'net::err_aborted',
+        'webchannel_blob',
+        'listen/channel',
+        'write/channel',
         'err_name_not_resolved',
         'err_internet_disconnected',
         'err_network_changed',
@@ -293,7 +301,17 @@
         var filename = event.filename || '';
         var fullText = (message + ' ' + stack + ' ' + filename).toLowerCase();
         
-        if (shouldFilterError(fullText) || filename.includes('popup.ts') || filename.includes('webchannel_connection.ts')) {
+        if (shouldFilterError(fullText) || 
+            filename.includes('popup.ts') || 
+            filename.includes('webchannel_connection.ts') ||
+            filename.includes('webchannel_blob') ||
+            fullText.includes('webchannel_blob') ||
+            fullText.includes('quic_protocol_error') ||
+            fullText.includes('quic_public_reset') ||
+            fullText.includes('err_aborted') ||
+            fullText.includes('listen/channel') ||
+            fullText.includes('write/channel') ||
+            fullText.includes('gsessionid')) {
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
@@ -308,7 +326,14 @@
         var stack = (reason && reason.stack) || '';
         var fullText = (message + ' ' + stack).toLowerCase();
         
-        if (shouldFilterError(fullText)) {
+        if (shouldFilterError(fullText) ||
+            fullText.includes('webchannel_blob') ||
+            fullText.includes('quic_protocol_error') ||
+            fullText.includes('quic_public_reset') ||
+            fullText.includes('err_aborted') ||
+            fullText.includes('listen/channel') ||
+            fullText.includes('write/channel') ||
+            fullText.includes('gsessionid')) {
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
