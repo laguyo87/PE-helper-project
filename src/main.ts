@@ -404,6 +404,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (papsShareId) {
     console.log('[main] PAPS 공유 링크 처리 시작, shareId:', papsShareId);
     
+    // 일반 앱 UI 숨기기 (학생 기록 조회 화면만 표시)
+    const appContainer = document.querySelector('#app') as HTMLElement;
+    const sidebar = document.querySelector('.sidebar') as HTMLElement;
+    const contentWrapper = document.querySelector('#content-wrapper') as HTMLElement;
+    
+    if (appContainer) appContainer.style.display = 'none';
+    if (sidebar) sidebar.style.display = 'none';
+    if (contentWrapper) contentWrapper.style.display = 'none';
+    
+    // body 배경을 흰색으로 설정
+    document.body.style.background = '#ffffff';
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    
     // PAPS 개별 학생 공유 링크 처리
     // Firebase 초기화 대기
     console.log('[main] Firebase 초기화 대기 시작');

@@ -652,18 +652,19 @@ export class ShareManager {
         const studentRecordUrl = shareId
             ? `${window.location.origin}${window.location.pathname}?paps=${shareId}`
             : window.location.href;
-        // beforeinstallprompt 이벤트 캡처 (학생 기록 바로가기용)
-        let deferredPrompt = null;
-        const handleBeforeInstallPrompt = (e) => {
-            // 이 모달이 열려있을 때만 이벤트를 캡처
+        // PWA 설치 이벤트 완전 차단 (체육 수업 도우미 앱 설치 방지)
+        const preventPWAInstall = (e) => {
             e.preventDefault();
-            deferredPrompt = e;
+            e.stopImmediatePropagation();
+            if (window.deferredPrompt) {
+                window.deferredPrompt = null;
+            }
+            return false;
         };
-        // 모달이 열릴 때 beforeinstallprompt 이벤트 리스너 추가
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.addEventListener('beforeinstallprompt', preventPWAInstall, { capture: true });
         // 홈 화면에 추가 기능 (현재 학생 기록 URL을 바로가기로 추가)
         const installBtn = modal.querySelector('#install-pwa-btn');
-        // 설치 버튼 클릭 이벤트 - Web Share API 또는 PWA 설치 프롬프트 사용
+        // 설치 버튼 클릭 이벤트 - Web Share API 사용 또는 안내 메시지
         if (installBtn) {
             installBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
@@ -684,33 +685,12 @@ export class ShareManager {
                         if (error.name !== 'AbortError') {
                             console.error('Web Share API 오류:', error);
                         }
-                        // Web Share API가 실패하면 다음 방법 시도
-                    }
-                }
-                // beforeinstallprompt 이벤트가 있으면 설치 프롬프트 표시
-                if (deferredPrompt) {
-                    try {
-                        // 설치 프롬프트 표시
-                        deferredPrompt.prompt();
-                        const { outcome } = await deferredPrompt.userChoice;
-                        console.log(`User response to the install prompt: ${outcome}`);
-                        deferredPrompt = null;
-                        if (outcome === 'accepted') {
-                            showSuccess('홈 화면에 바로가기가 추가되었습니다!');
-                        }
-                        else {
-                            // 사용자가 거부한 경우 안내 메시지 표시
-                            showHomeScreenAddGuide(studentRecordUrl, shareData.studentName);
-                        }
-                    }
-                    catch (error) {
-                        console.error('PWA 설치 프롬프트 오류:', error);
-                        // 프롬프트가 실패하면 안내 메시지 표시
+                        // Web Share API가 실패하면 안내 메시지 표시
                         showHomeScreenAddGuide(studentRecordUrl, shareData.studentName);
                     }
                 }
                 else {
-                    // beforeinstallprompt 이벤트가 없으면 안내 메시지 표시
+                    // Web Share API가 없으면 안내 메시지 표시
                     showHomeScreenAddGuide(studentRecordUrl, shareData.studentName);
                 }
             });
@@ -820,7 +800,7 @@ export class ShareManager {
         // 모달 닫기 함수
         const removeModal = () => {
             if (document.body.contains(modal)) {
-                window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+                // beforeinstallprompt 이벤트 리스너는 전역으로 등록되어 있으므로 제거하지 않음
                 document.body.removeChild(modal);
             }
         };
