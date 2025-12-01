@@ -1060,6 +1060,9 @@ export class ShareManager {
         studentId: shareData.studentId
       });
 
+      // studentId를 숫자로 변환하여 일관성 유지
+      const currentStudentId = Number(shareData.studentId);
+
       // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 papsClasses 컬렉션에서 모든 클래스 데이터 가져오기
       const classesSnapshot = await getDocs(collection(db, 'papsClasses'));
       const allStudents: Array<{studentId: number, records: Record<string, number>, name: string, gender: string}> = [];
@@ -1070,8 +1073,9 @@ export class ShareManager {
         if (classData.gradeLevel === shareData.gradeLevel && classData.students) {
           classData.students.forEach((student: any) => {
             if (student.gender === shareData.studentGender) {
+              const studentId = student.id || student.studentId;
               allStudents.push({
-                studentId: student.id || student.studentId,
+                studentId: studentId,
                 records: student.records || {},
                 name: student.name || '',
                 gender: student.gender || ''
@@ -1081,7 +1085,30 @@ export class ShareManager {
         }
       });
 
+      // 현재 학생이 목록에 없으면 추가 (랭킹 계산에 포함시키기 위해)
+      // studentId 타입 변환하여 비교 (숫자/문자열 모두 처리)
+      const currentStudentExists = allStudents.some(s => Number(s.studentId) === currentStudentId);
+      if (!currentStudentExists) {
+        allStudents.push({
+          studentId: currentStudentId,
+          records: shareData.records || {},
+          name: shareData.studentName || '',
+          gender: shareData.studentGender || ''
+        });
+        console.log('[학년 랭킹] 현재 학생 데이터를 목록에 추가:', {
+          studentId: currentStudentId,
+          studentName: shareData.studentName
+        });
+      }
+      
+      // 모든 studentId를 숫자로 통일
+      allStudents.forEach(s => {
+        s.studentId = Number(s.studentId);
+      });
+
       console.log('[학년 랭킹] 조회된 학생 수:', allStudents.length);
+      console.log('[학년 랭킹] 현재 학생 ID:', shareData.studentId);
+      console.log('[학년 랭킹] 학생 ID 목록:', allStudents.map(s => s.studentId));
 
       const rankings: Record<string, string> = {};
       
@@ -1110,11 +1137,16 @@ export class ShareManager {
                 return recordB - recordA; // 악력은 높을수록 좋음
               });
 
-              const rankIndex = studentsWithLeftRecord.findIndex(s => s.studentId === shareData.studentId);
+              console.log(`[학년 랭킹] ${categoryId}_left - 학생 ID 목록:`, studentsWithLeftRecord.map(s => s.studentId));
+              console.log(`[학년 랭킹] ${categoryId}_left - 현재 학생 ID:`, currentStudentId);
+              const rankIndex = studentsWithLeftRecord.findIndex(s => Number(s.studentId) === currentStudentId);
               const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
               const total = studentsWithLeftRecord.length;
               if (rank === 0) {
                 console.warn(`[학년 랭킹] ${categoryId}_left: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
+                console.warn(`[학년 랭킹] ${categoryId}_left: 학생 ID 타입 비교 - shareData: ${typeof shareData.studentId}, 목록: ${studentsWithLeftRecord.map(s => typeof s.studentId)}`);
+              } else {
+                console.log(`[학년 랭킹] ${categoryId}_left: 순위 계산 성공 - ${rank}위 / ${total}명`);
               }
               rankings[`${categoryId}_left`] = rank > 0 ? `${rank}위 / ${total}명` : '-';
             } else {
@@ -1143,11 +1175,16 @@ export class ShareManager {
                 return recordB - recordA; // 악력은 높을수록 좋음
               });
 
-              const rankIndex = studentsWithRightRecord.findIndex(s => s.studentId === shareData.studentId);
+              console.log(`[학년 랭킹] ${categoryId}_right - 학생 ID 목록:`, studentsWithRightRecord.map(s => s.studentId));
+              console.log(`[학년 랭킹] ${categoryId}_right - 현재 학생 ID:`, currentStudentId);
+              const rankIndex = studentsWithRightRecord.findIndex(s => Number(s.studentId) === currentStudentId);
               const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
               const total = studentsWithRightRecord.length;
               if (rank === 0) {
                 console.warn(`[학년 랭킹] ${categoryId}_right: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
+                console.warn(`[학년 랭킹] ${categoryId}_right: 학생 ID 타입 비교 - shareData: ${typeof shareData.studentId}, 목록: ${studentsWithRightRecord.map(s => typeof s.studentId)}`);
+              } else {
+                console.log(`[학년 랭킹] ${categoryId}_right: 순위 계산 성공 - ${rank}위 / ${total}명`);
               }
               rankings[`${categoryId}_right`] = rank > 0 ? `${rank}위 / ${total}명` : '-';
             } else {
@@ -1198,11 +1235,16 @@ export class ShareManager {
 
           // 현재 학생의 순위 찾기
           const currentBMI = weight / Math.pow(height / 100, 2);
-          const rankIndex = recordsWithBMI.findIndex(r => r.studentId === shareData.studentId);
+          console.log(`[학년 랭킹] ${categoryId} - 학생 ID 목록:`, recordsWithBMI.map(r => r.studentId));
+          console.log(`[학년 랭킹] ${categoryId} - 현재 학생 ID:`, currentStudentId);
+          const rankIndex = recordsWithBMI.findIndex(r => Number(r.studentId) === currentStudentId);
           const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
           const total = recordsWithBMI.length;
           if (rank === 0) {
             console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
+            console.warn(`[학년 랭킹] ${categoryId}: 학생 ID 타입 비교 - shareData: ${typeof shareData.studentId}, 목록: ${recordsWithBMI.map(r => typeof r.studentId)}`);
+          } else {
+            console.log(`[학년 랭킹] ${categoryId}: 순위 계산 성공 - ${rank}위 / ${total}명`);
           }
           rankings[categoryId] = rank > 0 ? `${rank}위 / ${total}명` : '-';
         } else {
@@ -1234,11 +1276,16 @@ export class ShareManager {
           });
 
           // 현재 학생의 순위 찾기
-          const rankIndex = studentsWithRecord.findIndex(s => s.studentId === shareData.studentId);
+          console.log(`[학년 랭킹] ${categoryId} - 학생 ID 목록:`, studentsWithRecord.map(s => s.studentId));
+          console.log(`[학년 랭킹] ${categoryId} - 현재 학생 ID:`, currentStudentId);
+          const rankIndex = studentsWithRecord.findIndex(s => Number(s.studentId) === currentStudentId);
           const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
           const total = studentsWithRecord.length;
           if (rank === 0) {
             console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
+            console.warn(`[학년 랭킹] ${categoryId}: 학생 ID 타입 비교 - shareData: ${typeof shareData.studentId}, 목록: ${studentsWithRecord.map(s => typeof s.studentId)}`);
+          } else {
+            console.log(`[학년 랭킹] ${categoryId}: 순위 계산 성공 - ${rank}위 / ${total}명`);
           }
           rankings[categoryId] = rank > 0 ? `${rank}위 / ${total}명` : '-';
         }
