@@ -1065,32 +1065,32 @@ export class ShareManager {
         studentId: shareData.studentId
       });
 
-      // 동일 학년, 동일 성별의 모든 학생 데이터 가져오기
-      const q = query(
-        collection(db, 'sharedPapsStudents'),
-        where('gradeLevel', '==', shareData.gradeLevel),
-        where('studentGender', '==', shareData.studentGender)
-      );
-
-      const querySnapshot = await getDocs(q);
-      const allStudents: SharedPapsStudentData[] = [];
+      // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 papsClasses 컬렉션에서 모든 클래스 데이터 가져오기
+      const classesSnapshot = await getDocs(collection(db, 'papsClasses'));
+      const allStudents: Array<{studentId: number, records: Record<string, number>, name: string, gender: string}> = [];
       
-      querySnapshot.forEach((doc: any) => {
-        allStudents.push(doc.data() as SharedPapsStudentData);
+      // 모든 클래스에서 같은 학년, 같은 성별 학생들의 기록 수집
+      classesSnapshot.forEach((doc: any) => {
+        const classData = doc.data();
+        if (classData.gradeLevel === shareData.gradeLevel && classData.students) {
+          classData.students.forEach((student: any) => {
+            if (student.gender === shareData.studentGender) {
+              allStudents.push({
+                studentId: student.id || student.studentId,
+                records: student.records || {},
+                name: student.name || '',
+                gender: student.gender || ''
+              });
+            }
+          });
+        }
       });
-
-      // 현재 학생이 목록에 없으면 추가 (랭킹 계산에 포함시키기 위해)
-      const currentStudentExists = allStudents.some(s => s.studentId === shareData.studentId);
-      if (!currentStudentExists) {
-        allStudents.push(shareData);
-        console.log('[학년 랭킹] 현재 학생 데이터를 목록에 추가');
-      }
 
       console.log('[학년 랭킹] 조회된 학생 수:', allStudents.length);
 
       const rankings: Record<string, string> = {};
       
-      // 각 종목별로 랭킹 계산
+      // 각 종목별로 랭킹 계산 ('우리 학교 PAPS 종목별 랭킹' 로직과 동일)
       const categories = ['endurance', 'flexibility', 'strength', 'power', 'bodyfat'];
       
       categories.forEach(categoryId => {
@@ -1099,13 +1099,16 @@ export class ShareManager {
           // 왼손 악력 랭킹 계산
           const leftRecord = shareData.records[`${categoryId}_left`];
           if (leftRecord !== undefined && leftRecord !== null && leftRecord !== 0) {
-            const studentsWithLeftRecord = allStudents.filter(s => 
-              s.records[`${categoryId}_left`] !== undefined && 
-              s.records[`${categoryId}_left`] !== null && 
-              s.records[`${categoryId}_left`] !== 0
-            );
+            // 해당 종목에 기록이 있는 학생들만 필터링
+            const studentsWithLeftRecord = allStudents.filter(s => {
+              const record = s.records[`${categoryId}_left`];
+              return record !== undefined && record !== null && 
+                     typeof record === 'number' && !isNaN(record) && 
+                     isFinite(record) && record > 0;
+            });
 
             if (studentsWithLeftRecord.length > 0) {
+              // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 내림차순 정렬
               studentsWithLeftRecord.sort((a, b) => {
                 const recordA = a.records[`${categoryId}_left`] || 0;
                 const recordB = b.records[`${categoryId}_left`] || 0;
@@ -1129,13 +1132,16 @@ export class ShareManager {
           // 오른손 악력 랭킹 계산
           const rightRecord = shareData.records[`${categoryId}_right`];
           if (rightRecord !== undefined && rightRecord !== null && rightRecord !== 0) {
-            const studentsWithRightRecord = allStudents.filter(s => 
-              s.records[`${categoryId}_right`] !== undefined && 
-              s.records[`${categoryId}_right`] !== null && 
-              s.records[`${categoryId}_right`] !== 0
-            );
+            // 해당 종목에 기록이 있는 학생들만 필터링
+            const studentsWithRightRecord = allStudents.filter(s => {
+              const record = s.records[`${categoryId}_right`];
+              return record !== undefined && record !== null && 
+                     typeof record === 'number' && !isNaN(record) && 
+                     isFinite(record) && record > 0;
+            });
 
             if (studentsWithRightRecord.length > 0) {
+              // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 내림차순 정렬
               studentsWithRightRecord.sort((a, b) => {
                 const recordA = a.records[`${categoryId}_right`] || 0;
                 const recordB = b.records[`${categoryId}_right`] || 0;
@@ -1156,7 +1162,7 @@ export class ShareManager {
             rankings[`${categoryId}_right`] = '-';
           }
         } else if (categoryId === 'bodyfat') {
-          // BMI 랭킹 계산 (신장과 체중으로 계산)
+          // BMI 랭킹 계산 (신장과 체중으로 계산) - '우리 학교 PAPS 종목별 랭킹' 로직과 동일
           const height = shareData.records.height;
           const weight = shareData.records.weight;
           
@@ -1164,8 +1170,6 @@ export class ShareManager {
             rankings[categoryId] = '-';
             return;
           }
-
-          const currentBMI = weight / ((height / 100) ** 2);
 
           // BMI가 있는 학생들만 필터링
           const studentsWithBMI = allStudents.filter(s => {
@@ -1179,54 +1183,59 @@ export class ShareManager {
             return;
           }
 
-          // BMI 기준으로 정렬 (BMI는 정상 범위에 가까울수록 좋음, 하지만 일단 높은 순으로 정렬)
-          // 실제로는 BMI 등급 기준으로 정렬하는 것이 더 정확하지만, 일단 BMI 값으로 정렬
-          studentsWithBMI.sort((a, b) => {
-            const bmiA = (a.records.weight || 0) / (((a.records.height || 0) / 100) ** 2);
-            const bmiB = (b.records.weight || 0) / (((b.records.height || 0) / 100) ** 2);
-            // BMI는 정상 범위(약 18.5-25)에 가까울수록 좋으므로, 절대값 차이로 정렬
-            const normalBMI = 22; // 정상 BMI 기준값
-            const diffA = Math.abs(bmiA - normalBMI);
-            const diffB = Math.abs(bmiB - normalBMI);
+          // BMI 계산 및 정렬 ('우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 내림차순)
+          const recordsWithBMI = studentsWithBMI.map(s => {
+            const h = s.records.height;
+            const w = s.records.weight;
+            return {
+              studentId: s.studentId,
+              bmi: w / Math.pow(h / 100, 2)
+            };
+          });
+
+          // BMI는 정상 범위에 가까울수록 좋으므로, 절대값 차이로 정렬
+          const normalBMI = 22; // 정상 BMI 기준값
+          recordsWithBMI.sort((a, b) => {
+            const diffA = Math.abs(a.bmi - normalBMI);
+            const diffB = Math.abs(b.bmi - normalBMI);
             return diffA - diffB; // 정상 범위에 가까운 순으로 정렬
           });
 
           // 현재 학생의 순위 찾기
-          const rankIndex = studentsWithBMI.findIndex(s => s.studentId === shareData.studentId);
+          const currentBMI = weight / Math.pow(height / 100, 2);
+          const rankIndex = recordsWithBMI.findIndex(r => r.studentId === shareData.studentId);
           const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
-          const total = studentsWithBMI.length;
+          const total = recordsWithBMI.length;
           if (rank === 0) {
             console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
           }
           rankings[categoryId] = rank > 0 ? `${rank}위 / ${total}명` : '-';
         } else {
-          // 일반 종목 랭킹 계산
+          // 일반 종목 랭킹 계산 ('우리 학교 PAPS 종목별 랭킹' 로직과 동일)
           const studentRecord = shareData.records[categoryId];
           if (studentRecord === undefined || studentRecord === null || studentRecord === 0) {
             rankings[categoryId] = '-';
             return;
           }
 
-          // 해당 종목에 기록이 있는 학생들만 필터링
-          const studentsWithRecord = allStudents.filter(s => 
-            s.records[categoryId] !== undefined && 
-            s.records[categoryId] !== null && 
-            s.records[categoryId] !== 0
-          );
+          // 해당 종목에 기록이 있는 학생들만 필터링 (유효한 숫자인지 더 엄격하게 검증)
+          const studentsWithRecord = allStudents.filter(s => {
+            const record = s.records[categoryId];
+            return record !== undefined && record !== null && 
+                   typeof record === 'number' && !isNaN(record) && 
+                   isFinite(record) && record > 0;
+          });
 
           if (studentsWithRecord.length === 0) {
             rankings[categoryId] = '-';
             return;
           }
 
-          // 기록 기준으로 정렬 (종목에 따라 오름차순/내림차순)
-          // 대부분의 종목은 높을수록 좋지만, 일부는 낮을수록 좋음 (50m 달리기 등)
-          const isLowerBetter = categoryId === 'power' && shareData.records[categoryId] < 20; // 50m 달리기 등
-          
+          // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 내림차순 정렬 (높은 기록이 좋은 경우)
           studentsWithRecord.sort((a, b) => {
             const recordA = a.records[categoryId] || 0;
             const recordB = b.records[categoryId] || 0;
-            return isLowerBetter ? recordA - recordB : recordB - recordA;
+            return recordB - recordA;
           });
 
           // 현재 학생의 순위 찾기
