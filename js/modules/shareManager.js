@@ -460,7 +460,7 @@ export class ShareManager {
         Object.keys(PAPS_ITEMS).forEach(category => {
             const item = PAPS_ITEMS[category];
             const eventName = shareData.eventNames?.[item.id] || category;
-            // 악력 종목 처리 (왼손/오른손)
+            // 악력 종목 처리 (왼손/오른손 중 높은 기록 하나만 표시)
             if (eventName === '악력') {
                 const leftRecord = shareData.records[`${item.id}_left`];
                 const rightRecord = shareData.records[`${item.id}_right`];
@@ -468,39 +468,32 @@ export class ShareManager {
                 const rightGrade = shareData.grades[`${item.id}_right`] || '-';
                 const leftRanking = gradeRankings[`${item.id}_left`] || '-';
                 const rightRanking = gradeRankings[`${item.id}_right`] || '-';
-                // 왼손/오른손 기록이 있으면 표시
-                if (leftRecord !== undefined && leftRecord !== null && leftRecord !== 0) {
-                    recordsTable += `
-            <tr>
-              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName} (왼손)</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${leftRecord}</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(leftGrade)};">${leftGrade}</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${leftRanking}</td>
-            </tr>
-          `;
+                // 왼손과 오른손 중 높은 기록 선택
+                const leftValue = (leftRecord !== undefined && leftRecord !== null && leftRecord !== 0) ? leftRecord : 0;
+                const rightValue = (rightRecord !== undefined && rightRecord !== null && rightRecord !== 0) ? rightRecord : 0;
+                let bestRecord = null;
+                let bestGrade = '-';
+                let bestRanking = '-';
+                if (leftValue > 0 || rightValue > 0) {
+                    if (leftValue >= rightValue) {
+                        bestRecord = leftValue;
+                        bestGrade = leftGrade;
+                        bestRanking = leftRanking;
+                    }
+                    else {
+                        bestRecord = rightValue;
+                        bestGrade = rightGrade;
+                        bestRanking = rightRanking;
+                    }
                 }
-                if (rightRecord !== undefined && rightRecord !== null && rightRecord !== 0) {
-                    recordsTable += `
-            <tr>
-              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName} (오른손)</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${rightRecord}</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(rightGrade)};">${rightGrade}</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${rightRanking}</td>
-            </tr>
-          `;
-                }
-                // 왼손/오른손 모두 없으면 하나의 행으로 표시
-                if ((leftRecord === undefined || leftRecord === null || leftRecord === 0) &&
-                    (rightRecord === undefined || rightRecord === null || rightRecord === 0)) {
-                    recordsTable += `
-            <tr>
-              <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName}</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">-</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold;">-</td>
-              <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">-</td>
-            </tr>
-          `;
-                }
+                recordsTable += `
+          <tr>
+            <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">${eventName}</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${bestRecord !== null ? bestRecord : '-'}</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(bestGrade)};">${bestGrade}</td>
+            <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${bestRanking}</td>
+          </tr>
+        `;
             }
             else {
                 // 일반 종목 처리
