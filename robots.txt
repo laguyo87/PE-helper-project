@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pe-helper-5739e.web.app/sitemap.xml
+
