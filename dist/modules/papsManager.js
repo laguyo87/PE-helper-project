@@ -355,8 +355,8 @@ export class PapsManager {
                     <button class="btn" id="load-saved-qr-btn" style="padding: 8px 16px;">
                         📂 저장된 QR 불러오기
                     </button>
-                </div>
-            </div>
+                        </div>
+                    </div>
             ${settingsCardHtml}
             <section class="section-box">
                 <div class="paps-toolbar">

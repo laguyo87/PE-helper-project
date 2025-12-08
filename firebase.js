@@ -68,7 +68,7 @@ try {
 
   window.firebase = { 
     auth, 
-    db,
+    db, 
     storage,
     onAuthStateChanged, 
     createUserWithEmailAndPassword, 
@@ -81,7 +81,7 @@ try {
     updateProfile,
     doc, 
     setDoc, 
-    getDoc,
+    getDoc, 
     collection,
     getDocs,
     query,

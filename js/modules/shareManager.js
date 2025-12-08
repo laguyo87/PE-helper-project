@@ -1003,13 +1003,13 @@ export class ShareManager {
             }
             const allStudents = [];
             // '우리 학교 PAPS 종목별 랭킹' 로직과 완전히 동일하게 구현
-            // 중복 제거를 위한 Map (studentId -> 학생 정보)
+            // 중요: papsManager.ts의 searchRanking과 동일하게 중복 제거를 하지 않음
+            // 같은 학생이 여러 클래스에 있으면 여러 번 추가됨 (papsManager.ts와 동일)
             // 중요: PAPS 수업 메뉴에서 생성된 클래스만 수집 (userData.paps.classes만 사용)
             // 다른 메뉴(수업 진도 관리, 리그전, 토너먼트)의 클래스는 제외
             let totalUsersChecked = 0;
             let totalClassesChecked = 0;
             let matchingClassesCount = 0;
-            const uniqueStudentsMap = new Map();
             usersSnapshot.forEach((userDoc) => {
                 const userData = userDoc.data();
                 totalUsersChecked++;
@@ -1027,45 +1027,28 @@ export class ShareManager {
                             return;
                         }
                         totalClassesChecked++;
+                        // papsManager.ts의 searchRanking과 동일하게 학년 필터링
                         if (classData.gradeLevel === shareData.gradeLevel && classData.students && Array.isArray(classData.students)) {
                             matchingClassesCount++;
                             const studentsInClass = classData.students.length || 0;
                             let matchingStudentsInClass = 0;
+                            // papsManager.ts의 searchRanking과 동일하게 학생 순회 (중복 제거 없음)
                             classData.students.forEach((student) => {
+                                // papsManager.ts와 동일하게 성별 필터링
                                 if (student && student.gender === shareData.studentGender) {
                                     matchingStudentsInClass++;
                                     const studentId = Number(student.id || student.studentId);
                                     if (isNaN(studentId) || studentId <= 0) {
                                         return;
                                     }
-                                    // 중복 제거: 같은 학생이 여러 클래스에 있을 수 있음
-                                    if (!uniqueStudentsMap.has(studentId)) {
-                                        uniqueStudentsMap.set(studentId, {
-                                            studentId: studentId,
-                                            records: { ...(student.records || {}) },
-                                            name: student.name || '',
-                                            gender: student.gender || ''
-                                        });
-                                    }
-                                    else {
-                                        // 이미 존재하는 경우, 기록을 병합 (더 큰 값으로 업데이트)
-                                        const existing = uniqueStudentsMap.get(studentId);
-                                        const mergedRecords = { ...existing.records };
-                                        Object.keys(student.records || {}).forEach(key => {
-                                            const value = student.records[key];
-                                            if (value !== undefined && value !== null && typeof value === 'number' && !isNaN(value) && isFinite(value) && value > 0) {
-                                                if (!mergedRecords[key] || mergedRecords[key] < value) {
-                                                    mergedRecords[key] = value;
-                                                }
-                                            }
-                                        });
-                                        uniqueStudentsMap.set(studentId, {
-                                            studentId: studentId,
-                                            records: mergedRecords,
-                                            name: student.name || existing.name,
-                                            gender: student.gender || existing.gender
-                                        });
-                                    }
+                                    // papsManager.ts와 동일하게 중복 제거 없이 추가
+                                    // 같은 학생이 여러 클래스에 있으면 여러 번 추가됨
+                                    allStudents.push({
+                                        studentId: studentId,
+                                        records: { ...(student.records || {}) },
+                                        name: student.name || '',
+                                        gender: student.gender || ''
+                                    });
                                 }
                             });
                             console.log(`[학년 랭킹] 매칭된 PAPS 클래스 ${matchingClassesCount}: 총 학생 ${studentsInClass}명, 같은 성별 ${matchingStudentsInClass}명`);
@@ -1073,13 +1056,8 @@ export class ShareManager {
                     });
                 }
             });
-            // 중복 제거된 학생 목록
-            const uniqueStudents = Array.from(uniqueStudentsMap.values());
-            console.log(`[학년 랭킹] 조회 결과: 전체 ${totalUsersChecked}개 사용자, ${totalClassesChecked}개 클래스, 같은 학년 ${matchingClassesCount}개 클래스, 중복 제거된 학생 ${uniqueStudents.length}명`);
-            console.log(`[학년 랭킹] 중복 제거된 학생 ID 목록 (처음 10명):`, uniqueStudents.slice(0, 10).map(s => ({ id: s.studentId, name: s.name })));
-            // allStudents 배열에 중복 제거된 학생 목록 저장
-            allStudents.length = 0;
-            allStudents.push(...uniqueStudents);
+            console.log(`[학년 랭킹] 조회 결과: 전체 ${totalUsersChecked}개 사용자, ${totalClassesChecked}개 클래스, 같은 학년 ${matchingClassesCount}개 클래스, 수집된 학생 ${allStudents.length}명 (중복 제거 없음, papsManager.ts와 동일)`);
+            console.log(`[학년 랭킹] 수집된 학생 ID 목록 (처음 10명):`, allStudents.slice(0, 10).map(s => ({ id: s.studentId, name: s.name })));
             // 전역 변수에 디버깅 정보 저장 (화면 표시용)
             window.__rankingDebugInfo = {
                 classesCount: totalClassesChecked,
@@ -1115,10 +1093,12 @@ export class ShareManager {
                     });
                 }
             }
-            // 현재 학생이 목록에 없으면 추가 (랭킹 계산에 포함시키기 위해)
-            // studentId 타입 변환하여 비교 (숫자/문자열 모두 처리)
+            // 현재 학생이 allStudents에 포함되어 있는지 확인
+            // papsManager.ts는 자신의 클래스만 순회하므로 현재 학생이 포함되지만,
+            // shareManager.ts는 모든 사용자의 클래스를 순회하므로 현재 학생이 포함되지 않을 수 있음
             const currentStudentExists = allStudents.some(s => Number(s.studentId) === currentStudentId);
             if (!currentStudentExists) {
+                // 현재 학생을 allStudents에 추가 (종목별 필터링 시 포함되도록)
                 allStudents.push({
                     studentId: currentStudentId,
                     records: shareData.records || {},
@@ -1130,7 +1110,7 @@ export class ShareManager {
                     studentName: shareData.studentName
                 });
             }
-            // 모든 studentId를 숫자로 통일 (이미 위에서 처리했지만 확실히 하기 위해)
+            // 모든 studentId를 숫자로 통일
             allStudents.forEach(s => {
                 s.studentId = Number(s.studentId);
             });
@@ -1248,35 +1228,20 @@ export class ShareManager {
                         return;
                     }
                     // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 내림차순 정렬 (높은 기록이 좋은 경우)
+                    // papsManager.ts의 searchRanking과 동일하게 정렬
                     studentsWithRecord.sort((a, b) => {
                         const recordA = a.records[categoryId] || 0;
                         const recordB = b.records[categoryId] || 0;
                         return recordB - recordA;
                     });
-                    // 현재 학생이 목록에 있는지 확인
+                    // papsManager.ts의 searchRanking과 동일하게 현재 학생 찾기
                     // 현재 학생도 해당 종목에 기록이 있어야 목록에 포함됨
                     let rankIndex = studentsWithRecord.findIndex(s => {
                         const id = Number(s.studentId);
                         return id === currentStudentId;
                     });
-                    // 현재 학생이 목록에 없고, 기록이 있으면 추가
-                    if (rankIndex === -1 && studentRecord > 0) {
-                        console.log(`[학년 랭킹] ${categoryId}: 현재 학생을 목록에 추가하여 랭킹 계산`);
-                        const currentStudent = {
-                            studentId: currentStudentId,
-                            records: { ...shareData.records },
-                            name: shareData.studentName || '',
-                            gender: shareData.studentGender || ''
-                        };
-                        studentsWithRecord.push(currentStudent);
-                        // 다시 정렬
-                        studentsWithRecord.sort((a, b) => {
-                            const recordA = a.records[categoryId] || 0;
-                            const recordB = b.records[categoryId] || 0;
-                            return recordB - recordA;
-                        });
-                        rankIndex = studentsWithRecord.findIndex(s => Number(s.studentId) === currentStudentId);
-                    }
+                    // papsManager.ts와 동일하게 현재 학생이 목록에 없으면 랭킹 계산 불가
+                    // (현재 학생도 기록이 있어야 목록에 포함되므로)
                     const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
                     const total = studentsWithRecord.length;
                     if (rank === 0) {
