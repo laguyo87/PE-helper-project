@@ -16,6 +16,7 @@
  */
 import { validateData, PapsClassSchema } from './validators.js';
 import { showError, showSuccess } from './errorHandler.js';
+import { showInfoToast } from './toast.js';
 import { setInnerHTMLSafe } from './utils.js';
 import { logger, logError } from './logger.js';
 // PAPS 항목 정의
@@ -3520,7 +3521,7 @@ export class PapsManager {
     showSavedQRListModal() {
         const savedClasses = this.getSavedQRClasses();
         if (savedClasses.length === 0) {
-            showError('저장된 QR 코드가 없습니다.');
+            showInfoToast('저장된 QR 코드가 없습니다. 먼저 QR 코드를 생성하고 저장해주세요.');
             return;
         }
         // 저장된 반이 하나면 바로 불러오기

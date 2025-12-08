@@ -249,6 +249,16 @@
           return true;
         }
         
+        // webchannel_blob과 400 에러 조합
+        if (str.includes('webchannel_blob') && (str.includes('400') || str.includes('bad request'))) {
+          return true;
+        }
+        
+        // Firestore Write channel과 webchannel_blob 조합
+        if (str.includes('webchannel_blob') && (str.includes('write/channel') || str.includes('firestore.googleapis.com'))) {
+          return true;
+        }
+        
         // 조합 패턴 확인
         return (
           (str.includes('policy') && str.includes('would') && str.includes('block')) ||

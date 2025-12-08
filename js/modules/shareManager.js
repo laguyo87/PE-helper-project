@@ -430,6 +430,8 @@ export class ShareManager {
         // 학년 랭킹 계산을 위해 동일 학년/성별 학생들의 데이터 가져오기
         const gradeRankings = await this.calculateGradeRankings(shareData);
         console.log('[학년 랭킹] 표시용 랭킹 데이터:', gradeRankings);
+        console.log('[학년 랭킹] 랭킹 데이터 키 목록:', Object.keys(gradeRankings));
+        console.log('[학년 랭킹] shareData.records 키 목록:', Object.keys(shareData.records || {}));
         // AI 운동 처방 생성
         const exercisePrescription = this.generateExercisePrescription(shareData);
         const modal = document.createElement('div');
@@ -913,11 +915,19 @@ export class ShareManager {
             const classesSnapshot = await getDocs(collection(db, 'papsClasses'));
             const allStudents = [];
             // 모든 클래스에서 같은 학년, 같은 성별 학생들의 기록 수집
+            let totalClassesChecked = 0;
+            let matchingClassesCount = 0;
             classesSnapshot.forEach((doc) => {
                 const classData = doc.data();
+                totalClassesChecked++;
+                console.log(`[학년 랭킹] 클래스 확인 ${totalClassesChecked}: gradeLevel=${classData.gradeLevel}, 비교 대상=${shareData.gradeLevel}, 일치=${classData.gradeLevel === shareData.gradeLevel}`);
                 if (classData.gradeLevel === shareData.gradeLevel && classData.students) {
+                    matchingClassesCount++;
+                    const studentsInClass = classData.students.length || 0;
+                    let matchingStudentsInClass = 0;
                     classData.students.forEach((student) => {
                         if (student.gender === shareData.studentGender) {
+                            matchingStudentsInClass++;
                             const studentId = student.id || student.studentId;
                             allStudents.push({
                                 studentId: studentId,
@@ -927,8 +937,10 @@ export class ShareManager {
                             });
                         }
                     });
+                    console.log(`[학년 랭킹] 매칭된 클래스 ${matchingClassesCount}: 총 학생 ${studentsInClass}명, 같은 성별 ${matchingStudentsInClass}명`);
                 }
             });
+            console.log(`[학년 랭킹] 클래스 조회 결과: 전체 ${totalClassesChecked}개 클래스, 같은 학년 ${matchingClassesCount}개 클래스, 수집된 학생 ${allStudents.length}명`);
             // 현재 학생이 목록에 없으면 추가 (랭킹 계산에 포함시키기 위해)
             // studentId 타입 변환하여 비교 (숫자/문자열 모두 처리)
             const currentStudentExists = allStudents.some(s => Number(s.studentId) === currentStudentId);
@@ -949,8 +961,13 @@ export class ShareManager {
                 s.studentId = Number(s.studentId);
             });
             console.log('[학년 랭킹] 조회된 학생 수:', allStudents.length);
-            console.log('[학년 랭킹] 현재 학생 ID:', shareData.studentId);
-            console.log('[학년 랭킹] 학생 ID 목록:', allStudents.map(s => s.studentId));
+            console.log('[학년 랭킹] 현재 학생 정보:', {
+                studentId: shareData.studentId,
+                studentName: shareData.studentName,
+                gradeLevel: shareData.gradeLevel,
+                studentGender: shareData.studentGender
+            });
+            console.log('[학년 랭킹] 학생 ID 목록:', allStudents.map(s => ({ id: s.studentId, name: s.name })));
             const rankings = {};
             // 각 종목별로 랭킹 계산 ('우리 학교 PAPS 종목별 랭킹' 로직과 동일)
             const categories = ['endurance', 'flexibility', 'strength', 'power', 'bodyfat'];
@@ -1125,6 +1142,10 @@ export class ShareManager {
                 }
             });
             console.log('[학년 랭킹] 계산 완료:', rankings);
+            console.log('[학년 랭킹] 랭킹 항목 수:', Object.keys(rankings).length);
+            Object.keys(rankings).forEach(key => {
+                console.log(`[학년 랭킹] ${key}: ${rankings[key]}`);
+            });
             return rankings;
         }
         catch (error) {

@@ -214,6 +214,10 @@ export class ErrorFilter {
       // Firestore Write channel 에러 (더 구체적으로)
       (str.includes('write/channel') && str.includes('400')) ||
       (str.includes('gsessionid') && str.includes('400')) ||
+      // webchannel_blob과 400 에러 조합
+      (str.includes('webchannel_blob') && (str.includes('400') || str.includes('bad request'))) ||
+      // Firestore Write channel과 webchannel_blob 조합
+      (str.includes('webchannel_blob') && (str.includes('write/channel') || str.includes('firestore.googleapis.com'))) ||
       // 네트워크 에러 패턴
       (str.includes('net::') && (str.includes('err_quic') || str.includes('err_name') || str.includes('err_internet') || str.includes('err_network') || str.includes('err_connection') || str.includes('err_aborted'))) ||
       (str.includes('err_quic_protocol_error') || str.includes('err_name_not_resolved') || str.includes('err_internet_disconnected') || str.includes('err_aborted')) ||
@@ -399,7 +403,9 @@ export class ErrorFilter {
           fullErrorText.includes('err_aborted') ||
           fullErrorText.includes('listen/channel') ||
           fullErrorText.includes('write/channel') ||
-          fullErrorText.includes('gsessionid')) {
+          fullErrorText.includes('gsessionid') ||
+          (fullErrorText.includes('webchannel_blob') && (fullErrorText.includes('400') || fullErrorText.includes('bad request'))) ||
+          (fullErrorText.includes('webchannel_blob') && (fullErrorText.includes('write/channel') || fullErrorText.includes('firestore.googleapis.com')))) {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
@@ -436,7 +442,9 @@ export class ErrorFilter {
           fullText.includes('err_aborted') ||
           fullText.includes('listen/channel') ||
           fullText.includes('write/channel') ||
-          fullText.includes('gsessionid')) {
+          fullText.includes('gsessionid') ||
+          (fullText.includes('webchannel_blob') && (fullText.includes('400') || fullText.includes('bad request'))) ||
+          (fullText.includes('webchannel_blob') && (fullText.includes('write/channel') || fullText.includes('firestore.googleapis.com')))) {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
