@@ -978,10 +978,12 @@ export class ShareManager {
             });
             // studentId를 숫자로 변환하여 일관성 유지
             const currentStudentId = Number(shareData.studentId);
-            // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 users 컬렉션에서 모든 사용자의 paps.classes 데이터 가져오기
-            // 중요: PAPS 수업 메뉴에서 생성된 클래스만 수집 (userData.paps.classes만 사용)
-            console.log('[학년 랭킹] users 컬렉션 조회 시작 (paps.classes 데이터 수집)...');
+            const targetClassId = Number(shareData.classId);
+            // papsManager.ts의 searchRanking과 동일하게 현재 학생이 속한 사용자의 클래스만 사용
+            // shareData.classId를 통해 해당 클래스를 소유한 사용자를 찾음
+            console.log('[학년 랭킹] users 컬렉션 조회 시작 (현재 학생이 속한 사용자의 클래스만 수집)...');
             console.log('[학년 랭킹] shareData.classId:', shareData.classId);
+            console.log('[학년 랭킹] targetClassId:', targetClassId);
             console.log('[학년 랭킹] db 객체:', db);
             console.log('[학년 랭킹] collection 함수:', typeof collection);
             console.log('[학년 랭킹] getDocs 함수:', typeof getDocs);
@@ -1001,62 +1003,85 @@ export class ShareManager {
                 });
                 return {};
             }
+            // 현재 학생이 속한 사용자 찾기 (classId로 매칭)
+            let targetUserData = null;
+            let targetUserId = null;
+            usersSnapshot.forEach((userDoc) => {
+                const userData = userDoc.data();
+                if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes)) {
+                    // classId가 일치하는 클래스를 찾음
+                    const matchingClass = userData.paps.classes.find((classData) => {
+                        return classData && typeof classData === 'object' &&
+                            'id' in classData && Number(classData.id) === targetClassId;
+                    });
+                    if (matchingClass) {
+                        targetUserData = userData;
+                        targetUserId = userDoc.id;
+                        console.log('[학년 랭킹] ✅ 현재 학생이 속한 사용자 찾음:', {
+                            userId: targetUserId,
+                            classId: targetClassId,
+                            className: matchingClass.name
+                        });
+                    }
+                }
+            });
+            if (!targetUserData) {
+                console.error('[학년 랭킹] ❌ 현재 학생이 속한 사용자를 찾을 수 없습니다.', {
+                    classId: targetClassId
+                });
+                return {};
+            }
             const allStudents = [];
-            // '우리 학교 PAPS 종목별 랭킹' 로직과 완전히 동일하게 구현
+            // papsManager.ts의 searchRanking과 완전히 동일하게 구현
+            // 현재 학생이 속한 사용자의 클래스만 사용 (papsManager.ts와 동일)
             // 중요: papsManager.ts의 searchRanking과 동일하게 중복 제거를 하지 않음
             // 같은 학생이 여러 클래스에 있으면 여러 번 추가됨 (papsManager.ts와 동일)
             // 중요: PAPS 수업 메뉴에서 생성된 클래스만 수집 (userData.paps.classes만 사용)
             // 다른 메뉴(수업 진도 관리, 리그전, 토너먼트)의 클래스는 제외
-            let totalUsersChecked = 0;
             let totalClassesChecked = 0;
             let matchingClassesCount = 0;
-            usersSnapshot.forEach((userDoc) => {
-                const userData = userDoc.data();
-                totalUsersChecked++;
-                // PAPS 수업 메뉴에서 생성된 클래스만 수집 (userData.paps.classes)
-                // 다른 메뉴의 클래스(userData.progress.classes, userData.leagues.classes 등)는 제외
-                if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes)) {
-                    userData.paps.classes.forEach((classData) => {
-                        // PAPS 클래스인지 확인 (id, name, gradeLevel, students 필드가 있어야 함)
-                        if (!classData || typeof classData !== 'object') {
-                            return;
-                        }
-                        // PAPS 클래스 구조 확인 (id와 students 필드가 있어야 함)
-                        if (!('id' in classData) || !('students' in classData)) {
-                            console.warn('[학년 랭킹] PAPS 클래스 구조가 아닌 데이터 발견, 건너뜀:', classData);
-                            return;
-                        }
-                        totalClassesChecked++;
-                        // papsManager.ts의 searchRanking과 동일하게 학년 필터링
-                        if (classData.gradeLevel === shareData.gradeLevel && classData.students && Array.isArray(classData.students)) {
-                            matchingClassesCount++;
-                            const studentsInClass = classData.students.length || 0;
-                            let matchingStudentsInClass = 0;
-                            // papsManager.ts의 searchRanking과 동일하게 학생 순회 (중복 제거 없음)
-                            classData.students.forEach((student) => {
-                                // papsManager.ts와 동일하게 성별 필터링
-                                if (student && student.gender === shareData.studentGender) {
-                                    matchingStudentsInClass++;
-                                    const studentId = Number(student.id || student.studentId);
-                                    if (isNaN(studentId) || studentId <= 0) {
-                                        return;
-                                    }
-                                    // papsManager.ts와 동일하게 중복 제거 없이 추가
-                                    // 같은 학생이 여러 클래스에 있으면 여러 번 추가됨
-                                    allStudents.push({
-                                        studentId: studentId,
-                                        records: { ...(student.records || {}) },
-                                        name: student.name || '',
-                                        gender: student.gender || ''
-                                    });
+            // 현재 학생이 속한 사용자의 클래스만 순회 (papsManager.ts와 동일)
+            if (targetUserData.paps && targetUserData.paps.classes && Array.isArray(targetUserData.paps.classes)) {
+                targetUserData.paps.classes.forEach((classData) => {
+                    // PAPS 클래스인지 확인 (id, name, gradeLevel, students 필드가 있어야 함)
+                    if (!classData || typeof classData !== 'object') {
+                        return;
+                    }
+                    // PAPS 클래스 구조 확인 (id와 students 필드가 있어야 함)
+                    if (!('id' in classData) || !('students' in classData)) {
+                        console.warn('[학년 랭킹] PAPS 클래스 구조가 아닌 데이터 발견, 건너뜀:', classData);
+                        return;
+                    }
+                    totalClassesChecked++;
+                    // papsManager.ts의 searchRanking과 동일하게 학년 필터링
+                    if (classData.gradeLevel === shareData.gradeLevel && classData.students && Array.isArray(classData.students)) {
+                        matchingClassesCount++;
+                        const studentsInClass = classData.students.length || 0;
+                        let matchingStudentsInClass = 0;
+                        // papsManager.ts의 searchRanking과 동일하게 학생 순회 (중복 제거 없음)
+                        classData.students.forEach((student) => {
+                            // papsManager.ts와 동일하게 성별 필터링
+                            if (student && student.gender === shareData.studentGender) {
+                                matchingStudentsInClass++;
+                                const studentId = Number(student.id || student.studentId);
+                                if (isNaN(studentId) || studentId <= 0) {
+                                    return;
                                 }
-                            });
-                            console.log(`[학년 랭킹] 매칭된 PAPS 클래스 ${matchingClassesCount}: 총 학생 ${studentsInClass}명, 같은 성별 ${matchingStudentsInClass}명`);
-                        }
-                    });
-                }
-            });
-            console.log(`[학년 랭킹] 조회 결과: 전체 ${totalUsersChecked}개 사용자, ${totalClassesChecked}개 클래스, 같은 학년 ${matchingClassesCount}개 클래스, 수집된 학생 ${allStudents.length}명 (중복 제거 없음, papsManager.ts와 동일)`);
+                                // papsManager.ts와 동일하게 중복 제거 없이 추가
+                                // 같은 학생이 여러 클래스에 있으면 여러 번 추가됨
+                                allStudents.push({
+                                    studentId: studentId,
+                                    records: { ...(student.records || {}) },
+                                    name: student.name || '',
+                                    gender: student.gender || ''
+                                });
+                            }
+                        });
+                        console.log(`[학년 랭킹] 매칭된 PAPS 클래스 ${matchingClassesCount}: 총 학생 ${studentsInClass}명, 같은 성별 ${matchingStudentsInClass}명`);
+                    }
+                });
+            }
+            console.log(`[학년 랭킹] 조회 결과: 사용자 ${targetUserId}, ${totalClassesChecked}개 클래스, 같은 학년 ${matchingClassesCount}개 클래스, 수집된 학생 ${allStudents.length}명 (중복 제거 없음, papsManager.ts와 동일)`);
             console.log(`[학년 랭킹] 수집된 학생 ID 목록 (처음 10명):`, allStudents.slice(0, 10).map(s => ({ id: s.studentId, name: s.name })));
             // 전역 변수에 디버깅 정보 저장 (화면 표시용)
             window.__rankingDebugInfo = {
@@ -1064,7 +1089,8 @@ export class ShareManager {
                 matchingClasses: matchingClassesCount,
                 studentsCount: allStudents.length,
                 gradeLevel: shareData.gradeLevel,
-                studentGender: shareData.studentGender
+                studentGender: shareData.studentGender,
+                userId: targetUserId
             };
             // 디버깅: 수집된 학생이 없으면 경고
             if (allStudents.length === 0) {
@@ -1072,44 +1098,21 @@ export class ShareManager {
                     gradeLevel: shareData.gradeLevel,
                     studentGender: shareData.studentGender,
                     totalClasses: totalClassesChecked,
-                    matchingClasses: matchingClassesCount
+                    matchingClasses: matchingClassesCount,
+                    userId: targetUserId
                 });
-                // 첫 번째 사용자의 데이터 구조 확인
-                if (totalUsersChecked > 0) {
-                    let foundFirst = false;
-                    usersSnapshot.forEach((userDoc) => {
-                        if (foundFirst)
-                            return;
-                        const userData = userDoc.data();
-                        if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes) && userData.paps.classes.length > 0) {
-                            const firstClass = userData.paps.classes[0];
-                            console.log('[학년 랭킹] 첫 번째 클래스 샘플:', {
-                                gradeLevel: firstClass.gradeLevel,
-                                studentsCount: firstClass.students?.length || 0,
-                                firstStudent: firstClass.students?.[0] || null
-                            });
-                            foundFirst = true;
-                        }
+                // 현재 사용자의 데이터 구조 확인
+                if (targetUserData && targetUserData.paps && targetUserData.paps.classes && Array.isArray(targetUserData.paps.classes) && targetUserData.paps.classes.length > 0) {
+                    const firstClass = targetUserData.paps.classes[0];
+                    console.log('[학년 랭킹] 첫 번째 클래스 샘플:', {
+                        gradeLevel: firstClass.gradeLevel,
+                        studentsCount: firstClass.students?.length || 0,
+                        firstStudent: firstClass.students?.[0] || null
                     });
                 }
             }
-            // 현재 학생이 allStudents에 포함되어 있는지 확인
-            // papsManager.ts는 자신의 클래스만 순회하므로 현재 학생이 포함되지만,
-            // shareManager.ts는 모든 사용자의 클래스를 순회하므로 현재 학생이 포함되지 않을 수 있음
-            const currentStudentExists = allStudents.some(s => Number(s.studentId) === currentStudentId);
-            if (!currentStudentExists) {
-                // 현재 학생을 allStudents에 추가 (종목별 필터링 시 포함되도록)
-                allStudents.push({
-                    studentId: currentStudentId,
-                    records: shareData.records || {},
-                    name: shareData.studentName || '',
-                    gender: shareData.studentGender || ''
-                });
-                console.log('[학년 랭킹] 현재 학생 데이터를 목록에 추가:', {
-                    studentId: currentStudentId,
-                    studentName: shareData.studentName
-                });
-            }
+            // papsManager.ts와 동일하게 현재 학생은 이미 allStudents에 포함되어 있음
+            // (현재 학생이 속한 사용자의 클래스를 순회하므로)
             // 모든 studentId를 숫자로 통일
             allStudents.forEach(s => {
                 s.studentId = Number(s.studentId);
