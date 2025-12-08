@@ -162,6 +162,16 @@ export declare class ShareManager {
      * 에러 모달을 표시합니다.
      * @param message 에러 메시지
      */
+    /**
+     * 모바일 디버깅용: 화면에 랭킹 계산 로그를 표시합니다.
+     * @param gradeRankings 랭킹 데이터
+     * @param shareData 공유 데이터
+     */
+    private showDebugLogs;
+    /**
+     * 에러 모달을 표시합니다.
+     * @param message 에러 메시지
+     */
     private showErrorModal;
 }
 /**

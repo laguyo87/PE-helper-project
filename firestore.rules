@@ -4,11 +4,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // 사용자 데이터 규칙
     match /users/{userId} {
-      // 인증된 사용자만 자신의 데이터에 접근 가능
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // 학년 랭킹 계산을 위해 모든 users 문서 읽기 허용 (인증 없이도 읽기 가능)
+      // 가장 먼저 체크하여 인증 없이도 읽기 가능하도록 함
+      allow read: if true;
       
-      // 공유된 데이터 읽기 (share 컬렉션을 통해서만 접근)
-      allow read: if request.auth == null && resource.data.shareId != null;
+      // 인증된 사용자만 자신의 데이터에 쓰기 가능
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
     
     // 공유 순위표 데이터 규칙
@@ -65,6 +66,15 @@ service cloud.firestore {
       
       // 모든 사용자가 쓰기 가능 (인증 불필요, 방문자 통계는 공개 기능)
       allow write: if true;
+    }
+    
+    // PAPS 클래스 데이터 규칙 (학년 랭킹 계산용)
+    match /papsClasses/{classId} {
+      // 모든 사용자가 읽기 가능 (학년 랭킹 계산을 위해 필요)
+      allow read: if true;
+      
+      // 인증된 사용자만 작성 가능
+      allow write: if request.auth != null;
     }
     
     // 기타 모든 문서는 거부

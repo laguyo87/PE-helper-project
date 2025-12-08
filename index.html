@@ -144,6 +144,11 @@
         'content_script.js',
         'cannot read properties',
         'reading \'control\'',
+        'shouldoffercompletionlistforfield',
+        'elementwasfocused',
+        'processinputevent',
+        'focusineventhandler',
+        'inputeventhandler',
         'completion_list.html',
         'pejdijmoenmkgeppbflobdenhhabjlaj',
         'err_file_not_found',
@@ -256,6 +261,17 @@
         
         // Firestore Write channel과 webchannel_blob 조합
         if (str.includes('webchannel_blob') && (str.includes('write/channel') || str.includes('firestore.googleapis.com'))) {
+          return true;
+        }
+        
+        // content_script.js 관련 에러 필터링 (더 강화)
+        if (str.includes('content_script.js') || 
+            str.includes('shouldoffercompletionlistforfield') ||
+            str.includes('elementwasfocused') ||
+            str.includes('processinputevent') ||
+            str.includes('focusineventhandler') ||
+            str.includes('inputeventhandler') ||
+            (str.includes('cannot read properties') && str.includes('control'))) {
           return true;
         }
         

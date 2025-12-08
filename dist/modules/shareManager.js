@@ -374,7 +374,15 @@ export class ShareManager {
             }
             console.log('[ShareManager] 학생 기록 표시 시작');
             // 바로 기록 표시 (인증 없이) - shareId 전달하여 업데이트 기능 활성화
+            console.log('[ShareManager] showPapsStudentRecord 호출 시작');
+            console.log('[ShareManager] shareData:', {
+                studentName: shareData.studentName,
+                gradeLevel: shareData.gradeLevel,
+                studentGender: shareData.studentGender,
+                studentId: shareData.studentId
+            });
             await this.showPapsStudentRecord(shareData, shareId);
+            console.log('[ShareManager] showPapsStudentRecord 호출 완료');
             console.log('[ShareManager] 학생 기록 표시 완료');
         }
         catch (error) {
@@ -428,10 +436,47 @@ export class ShareManager {
      */
     async showPapsStudentRecord(shareData, shareId) {
         // 학년 랭킹 계산을 위해 동일 학년/성별 학생들의 데이터 가져오기
+        console.log('[학년 랭킹] 랭킹 계산 시작 - shareData:', {
+            gradeLevel: shareData.gradeLevel,
+            studentGender: shareData.studentGender,
+            studentId: shareData.studentId,
+            records: shareData.records
+        });
         const gradeRankings = await this.calculateGradeRankings(shareData);
         console.log('[학년 랭킹] 표시용 랭킹 데이터:', gradeRankings);
         console.log('[학년 랭킹] 랭킹 데이터 키 목록:', Object.keys(gradeRankings));
         console.log('[학년 랭킹] shareData.records 키 목록:', Object.keys(shareData.records || {}));
+        // PAPS 항목 정의 (체지방 제외 - 신장/체중 행에서만 표시)
+        const PAPS_ITEMS = {
+            "심폐지구력": { id: "endurance", label: "심폐지구력" },
+            "유연성": { id: "flexibility", label: "유연성" },
+            "근력/근지구력": { id: "strength", label: "근력/근지구력" },
+            "순발력": { id: "power", label: "순발력" }
+        };
+        // 랭킹이 비어있으면 경고
+        if (Object.keys(gradeRankings).length === 0) {
+            console.warn('[학년 랭킹] ⚠️ 랭킹 데이터가 비어있습니다!');
+        }
+        else {
+            // 각 종목별 랭킹 데이터 확인
+            Object.keys(PAPS_ITEMS).forEach(category => {
+                const item = PAPS_ITEMS[category];
+                const eventName = shareData.eventNames?.[item.id] || category;
+                if (eventName === '악력') {
+                    const leftRanking = gradeRankings[`${item.id}_left`] || '-';
+                    const rightRanking = gradeRankings[`${item.id}_right`] || '-';
+                    console.log(`[학년 랭킹] ${eventName} - 왼손: ${leftRanking}, 오른손: ${rightRanking}`);
+                }
+                else {
+                    const ranking = gradeRankings[item.id] || '-';
+                    console.log(`[학년 랭킹] ${eventName} (${item.id}): ${ranking}`);
+                }
+            });
+        }
+        // 모바일 디버깅용: 화면에 로그 표시 (개발 모드에서만)
+        if (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1') || window.location.search.includes('debug=true')) {
+            this.showDebugLogs(gradeRankings, shareData);
+        }
         // AI 운동 처방 생성
         const exercisePrescription = this.generateExercisePrescription(shareData);
         const modal = document.createElement('div');
@@ -450,13 +495,21 @@ export class ShareManager {
       overflow-y: auto;
       padding: 0;
     `;
-        // PAPS 항목 정의 (체지방 제외 - 신장/체중 행에서만 표시)
-        const PAPS_ITEMS = {
-            "심폐지구력": { id: "endurance", label: "심폐지구력" },
-            "유연성": { id: "flexibility", label: "유연성" },
-            "근력/근지구력": { id: "strength", label: "근력/근지구력" },
-            "순발력": { id: "power", label: "순발력" }
-        };
+        // 랭킹 데이터 확인 및 디버깅
+        console.log('[학년 랭킹] 화면 표시 전 랭킹 데이터 확인:', gradeRankings);
+        Object.keys(PAPS_ITEMS).forEach(category => {
+            const item = PAPS_ITEMS[category];
+            const eventName = shareData.eventNames?.[item.id] || category;
+            if (eventName === '악력') {
+                const leftRanking = gradeRankings[`${item.id}_left`] || '-';
+                const rightRanking = gradeRankings[`${item.id}_right`] || '-';
+                console.log(`[학년 랭킹] ${eventName} - 왼손: ${leftRanking}, 오른손: ${rightRanking}`);
+            }
+            else {
+                const ranking = gradeRankings[item.id] || '-';
+                console.log(`[학년 랭킹] ${eventName} (${item.id}): ${ranking}`);
+            }
+        });
         // 기록 테이블 생성 - 모든 종목 표시
         let recordsTable = '';
         Object.keys(PAPS_ITEMS).forEach(category => {
@@ -512,19 +565,18 @@ export class ShareManager {
         `;
             }
         });
-        // 신장, 체중 추가
+        // 신장, 체중 추가 (랭킹 없음)
         const height = shareData.records.height;
         const weight = shareData.records.weight;
         const bmi = height && weight ? (weight / ((height / 100) ** 2)).toFixed(1) : '-';
         const bmiGrade = shareData.grades.bodyfat || '-';
-        const bmiRanking = gradeRankings.bodyfat || '-';
         if (height || weight) {
             recordsTable += `
         <tr style="background-color: #f8f9fa;">
           <td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 600;">신장/체중</td>
           <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${height ? height + 'cm' : '-'} / ${weight ? weight + 'kg' : '-'}</td>
           <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center; font-weight: bold; color: ${this.getGradeColor(bmiGrade)};">BMI: ${bmi}</td>
-          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">${bmiRanking}</td>
+          <td style="padding: 12px; border: 1px solid #dee2e6; text-align: center;">-</td>
         </tr>
       `;
         }
@@ -899,11 +951,26 @@ export class ShareManager {
      */
     async calculateGradeRankings(shareData) {
         try {
-            const { collection, query, where, getDocs, db } = window.firebase || {};
+            const firebase = window.firebase;
+            console.log('[학년 랭킹] Firebase 객체 확인:', {
+                exists: !!firebase,
+                hasDb: !!firebase?.db,
+                hasCollection: !!firebase?.collection,
+                hasGetDocs: !!firebase?.getDocs
+            });
+            const { collection, query, where, getDocs, db } = firebase || {};
             if (!db || !collection || !query || !where || !getDocs) {
+                console.error('[학년 랭킹] ❌ Firebase가 초기화되지 않았습니다.', {
+                    db: !!db,
+                    collection: !!collection,
+                    query: !!query,
+                    where: !!where,
+                    getDocs: !!getDocs
+                });
                 logger.debug('[학년 랭킹] Firebase가 초기화되지 않았습니다.');
                 return {};
             }
+            console.log('[학년 랭킹] ✅ Firebase 초기화 확인 완료');
             console.log('[학년 랭킹] 계산 시작:', {
                 gradeLevel: shareData.gradeLevel,
                 studentGender: shareData.studentGender,
@@ -911,36 +978,98 @@ export class ShareManager {
             });
             // studentId를 숫자로 변환하여 일관성 유지
             const currentStudentId = Number(shareData.studentId);
-            // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 papsClasses 컬렉션에서 모든 클래스 데이터 가져오기
-            const classesSnapshot = await getDocs(collection(db, 'papsClasses'));
+            // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 users 컬렉션에서 모든 사용자의 paps.classes 데이터 가져오기
+            console.log('[학년 랭킹] users 컬렉션 조회 시작 (paps.classes 데이터 수집)...');
+            console.log('[학년 랭킹] db 객체:', db);
+            console.log('[학년 랭킹] collection 함수:', typeof collection);
+            console.log('[학년 랭킹] getDocs 함수:', typeof getDocs);
+            let usersSnapshot;
+            try {
+                const usersRef = collection(db, 'users');
+                console.log('[학년 랭킹] users 컬렉션 참조 생성 완료:', usersRef);
+                usersSnapshot = await getDocs(usersRef);
+                console.log('[학년 랭킹] users 조회 완료, 문서 수:', usersSnapshot.size);
+            }
+            catch (error) {
+                console.error('[학년 랭킹] ❌ users 조회 실패:', error);
+                console.error('[학년 랭킹] 에러 상세:', {
+                    message: error?.message,
+                    code: error?.code,
+                    stack: error?.stack
+                });
+                return {};
+            }
             const allStudents = [];
-            // 모든 클래스에서 같은 학년, 같은 성별 학생들의 기록 수집
+            // 모든 사용자의 paps.classes에서 같은 학년, 같은 성별 학생들의 기록 수집
+            // '우리 학교 PAPS 종목별 랭킹' 로직과 동일
+            let totalUsersChecked = 0;
             let totalClassesChecked = 0;
             let matchingClassesCount = 0;
-            classesSnapshot.forEach((doc) => {
-                const classData = doc.data();
-                totalClassesChecked++;
-                console.log(`[학년 랭킹] 클래스 확인 ${totalClassesChecked}: gradeLevel=${classData.gradeLevel}, 비교 대상=${shareData.gradeLevel}, 일치=${classData.gradeLevel === shareData.gradeLevel}`);
-                if (classData.gradeLevel === shareData.gradeLevel && classData.students) {
-                    matchingClassesCount++;
-                    const studentsInClass = classData.students.length || 0;
-                    let matchingStudentsInClass = 0;
-                    classData.students.forEach((student) => {
-                        if (student.gender === shareData.studentGender) {
-                            matchingStudentsInClass++;
-                            const studentId = student.id || student.studentId;
-                            allStudents.push({
-                                studentId: studentId,
-                                records: student.records || {},
-                                name: student.name || '',
-                                gender: student.gender || ''
+            usersSnapshot.forEach((userDoc) => {
+                const userData = userDoc.data();
+                totalUsersChecked++;
+                // userData.paps.classes가 있는지 확인
+                if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes)) {
+                    userData.paps.classes.forEach((classData) => {
+                        totalClassesChecked++;
+                        console.log(`[학년 랭킹] 클래스 확인 ${totalClassesChecked}: gradeLevel=${classData.gradeLevel}, 비교 대상=${shareData.gradeLevel}, 일치=${classData.gradeLevel === shareData.gradeLevel}`);
+                        if (classData.gradeLevel === shareData.gradeLevel && classData.students) {
+                            matchingClassesCount++;
+                            const studentsInClass = classData.students.length || 0;
+                            let matchingStudentsInClass = 0;
+                            classData.students.forEach((student) => {
+                                if (student.gender === shareData.studentGender) {
+                                    matchingStudentsInClass++;
+                                    const studentId = student.id || student.studentId;
+                                    allStudents.push({
+                                        studentId: studentId,
+                                        records: student.records || {},
+                                        name: student.name || '',
+                                        gender: student.gender || ''
+                                    });
+                                }
                             });
+                            console.log(`[학년 랭킹] 매칭된 클래스 ${matchingClassesCount}: 총 학생 ${studentsInClass}명, 같은 성별 ${matchingStudentsInClass}명`);
                         }
                     });
-                    console.log(`[학년 랭킹] 매칭된 클래스 ${matchingClassesCount}: 총 학생 ${studentsInClass}명, 같은 성별 ${matchingStudentsInClass}명`);
                 }
             });
-            console.log(`[학년 랭킹] 클래스 조회 결과: 전체 ${totalClassesChecked}개 클래스, 같은 학년 ${matchingClassesCount}개 클래스, 수집된 학생 ${allStudents.length}명`);
+            console.log(`[학년 랭킹] 조회 결과: 전체 ${totalUsersChecked}개 사용자, ${totalClassesChecked}개 클래스, 같은 학년 ${matchingClassesCount}개 클래스, 수집된 학생 ${allStudents.length}명`);
+            // 전역 변수에 디버깅 정보 저장 (화면 표시용)
+            window.__rankingDebugInfo = {
+                classesCount: totalClassesChecked,
+                matchingClasses: matchingClassesCount,
+                studentsCount: allStudents.length,
+                gradeLevel: shareData.gradeLevel,
+                studentGender: shareData.studentGender
+            };
+            // 디버깅: 수집된 학생이 없으면 경고
+            if (allStudents.length === 0) {
+                console.warn('[학년 랭킹] ⚠️ 같은 학년/성별 학생을 찾을 수 없습니다!', {
+                    gradeLevel: shareData.gradeLevel,
+                    studentGender: shareData.studentGender,
+                    totalClasses: totalClassesChecked,
+                    matchingClasses: matchingClassesCount
+                });
+                // 첫 번째 사용자의 데이터 구조 확인
+                if (totalUsersChecked > 0) {
+                    let foundFirst = false;
+                    usersSnapshot.forEach((userDoc) => {
+                        if (foundFirst)
+                            return;
+                        const userData = userDoc.data();
+                        if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes) && userData.paps.classes.length > 0) {
+                            const firstClass = userData.paps.classes[0];
+                            console.log('[학년 랭킹] 첫 번째 클래스 샘플:', {
+                                gradeLevel: firstClass.gradeLevel,
+                                studentsCount: firstClass.students?.length || 0,
+                                firstStudent: firstClass.students?.[0] || null
+                            });
+                            foundFirst = true;
+                        }
+                    });
+                }
+            }
             // 현재 학생이 목록에 없으면 추가 (랭킹 계산에 포함시키기 위해)
             // studentId 타입 변환하여 비교 (숫자/문자열 모두 처리)
             const currentStudentExists = allStudents.some(s => Number(s.studentId) === currentStudentId);
@@ -970,7 +1099,8 @@ export class ShareManager {
             console.log('[학년 랭킹] 학생 ID 목록:', allStudents.map(s => ({ id: s.studentId, name: s.name })));
             const rankings = {};
             // 각 종목별로 랭킹 계산 ('우리 학교 PAPS 종목별 랭킹' 로직과 동일)
-            const categories = ['endurance', 'flexibility', 'strength', 'power', 'bodyfat'];
+            // bodyfat(신장/체중)은 랭킹 계산 제외
+            const categories = ['endurance', 'flexibility', 'strength', 'power'];
             categories.forEach(categoryId => {
                 // 악력의 경우 왼손/오른손을 별도로 처리
                 if (categoryId === 'strength') {
@@ -1051,56 +1181,6 @@ export class ShareManager {
                         rankings[`${categoryId}_right`] = '-';
                     }
                 }
-                else if (categoryId === 'bodyfat') {
-                    // BMI 랭킹 계산 (신장과 체중으로 계산) - '우리 학교 PAPS 종목별 랭킹' 로직과 동일
-                    const height = shareData.records.height;
-                    const weight = shareData.records.weight;
-                    if (!height || !weight || height <= 0 || weight <= 0) {
-                        rankings[categoryId] = '-';
-                        return;
-                    }
-                    // BMI가 있는 학생들만 필터링
-                    const studentsWithBMI = allStudents.filter(s => {
-                        const h = s.records.height;
-                        const w = s.records.weight;
-                        return h && w && h > 0 && w > 0;
-                    });
-                    if (studentsWithBMI.length === 0) {
-                        rankings[categoryId] = '-';
-                        return;
-                    }
-                    // BMI 계산 및 정렬 ('우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 내림차순)
-                    const recordsWithBMI = studentsWithBMI.map(s => {
-                        const h = s.records.height;
-                        const w = s.records.weight;
-                        return {
-                            studentId: s.studentId,
-                            bmi: w / Math.pow(h / 100, 2)
-                        };
-                    });
-                    // BMI는 정상 범위에 가까울수록 좋으므로, 절대값 차이로 정렬
-                    const normalBMI = 22; // 정상 BMI 기준값
-                    recordsWithBMI.sort((a, b) => {
-                        const diffA = Math.abs(a.bmi - normalBMI);
-                        const diffB = Math.abs(b.bmi - normalBMI);
-                        return diffA - diffB; // 정상 범위에 가까운 순으로 정렬
-                    });
-                    // 현재 학생의 순위 찾기
-                    const currentBMI = weight / Math.pow(height / 100, 2);
-                    console.log(`[학년 랭킹] ${categoryId} - 학생 ID 목록:`, recordsWithBMI.map(r => r.studentId));
-                    console.log(`[학년 랭킹] ${categoryId} - 현재 학생 ID:`, currentStudentId);
-                    const rankIndex = recordsWithBMI.findIndex(r => Number(r.studentId) === currentStudentId);
-                    const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
-                    const total = recordsWithBMI.length;
-                    if (rank === 0) {
-                        console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
-                        console.warn(`[학년 랭킹] ${categoryId}: 학생 ID 타입 비교 - shareData: ${typeof shareData.studentId}, 목록: ${recordsWithBMI.map(r => typeof r.studentId)}`);
-                    }
-                    else {
-                        console.log(`[학년 랭킹] ${categoryId}: 순위 계산 성공 - ${rank}위 / ${total}명`);
-                    }
-                    rankings[categoryId] = rank > 0 ? `${rank}위 / ${total}명` : '-';
-                }
                 else {
                     // 일반 종목 랭킹 계산 ('우리 학교 PAPS 종목별 랭킹' 로직과 동일)
                     const studentRecord = shareData.records[categoryId];
@@ -1126,19 +1206,44 @@ export class ShareManager {
                         return recordB - recordA;
                     });
                     // 현재 학생의 순위 찾기
-                    console.log(`[학년 랭킹] ${categoryId} - 학생 ID 목록:`, studentsWithRecord.map(s => s.studentId));
-                    console.log(`[학년 랭킹] ${categoryId} - 현재 학생 ID:`, currentStudentId);
-                    const rankIndex = studentsWithRecord.findIndex(s => Number(s.studentId) === currentStudentId);
+                    console.log(`[학년 랭킹] ${categoryId} - 학생 ID 목록:`, studentsWithRecord.map(s => ({ id: s.studentId, name: s.name, record: s.records[categoryId] })));
+                    console.log(`[학년 랭킹] ${categoryId} - 현재 학생 ID:`, currentStudentId, `(타입: ${typeof currentStudentId})`);
+                    console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록:`, studentRecord);
+                    // 현재 학생이 목록에 있는지 확인
+                    let rankIndex = studentsWithRecord.findIndex(s => Number(s.studentId) === currentStudentId);
+                    // 찾지 못했으면 현재 학생을 목록에 추가하고 다시 정렬
+                    if (rankIndex === -1 && studentRecord > 0) {
+                        console.log(`[학년 랭킹] ${categoryId}: 현재 학생을 목록에 추가하여 랭킹 계산`);
+                        studentsWithRecord.push({
+                            studentId: currentStudentId,
+                            records: { ...shareData.records },
+                            name: shareData.studentName || '',
+                            gender: shareData.studentGender || ''
+                        });
+                        // 다시 정렬
+                        studentsWithRecord.sort((a, b) => {
+                            const recordA = a.records[categoryId] || 0;
+                            const recordB = b.records[categoryId] || 0;
+                            return recordB - recordA;
+                        });
+                        rankIndex = studentsWithRecord.findIndex(s => Number(s.studentId) === currentStudentId);
+                    }
                     const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
                     const total = studentsWithRecord.length;
                     if (rank === 0) {
-                        console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
-                        console.warn(`[학년 랭킹] ${categoryId}: 학생 ID 타입 비교 - shareData: ${typeof shareData.studentId}, 목록: ${studentsWithRecord.map(s => typeof s.studentId)}`);
+                        console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음.`, {
+                            studentId: shareData.studentId,
+                            currentStudentId: currentStudentId,
+                            total: total,
+                            studentRecord: studentRecord,
+                            studentIds: studentsWithRecord.map(s => s.studentId)
+                        });
+                        rankings[categoryId] = '-';
                     }
                     else {
                         console.log(`[학년 랭킹] ${categoryId}: 순위 계산 성공 - ${rank}위 / ${total}명`);
+                        rankings[categoryId] = `${rank}위 / ${total}명`;
                     }
-                    rankings[categoryId] = rank > 0 ? `${rank}위 / ${total}명` : '-';
                 }
             });
             console.log('[학년 랭킹] 계산 완료:', rankings);
@@ -1146,10 +1251,29 @@ export class ShareManager {
             Object.keys(rankings).forEach(key => {
                 console.log(`[학년 랭킹] ${key}: ${rankings[key]}`);
             });
+            // 랭킹이 비어있으면 경고
+            if (Object.keys(rankings).length === 0) {
+                console.warn('[학년 랭킹] 랭킹이 비어있습니다. 데이터를 확인해주세요.');
+                console.warn('[학년 랭킹] shareData:', {
+                    gradeLevel: shareData.gradeLevel,
+                    studentGender: shareData.studentGender,
+                    studentId: shareData.studentId,
+                    records: shareData.records
+                });
+            }
             return rankings;
         }
         catch (error) {
             console.error('[학년 랭킹] 계산 실패:', error);
+            console.error('[학년 랭킹] 에러 상세:', {
+                message: error?.message,
+                stack: error?.stack,
+                shareData: {
+                    gradeLevel: shareData.gradeLevel,
+                    studentGender: shareData.studentGender,
+                    studentId: shareData.studentId
+                }
+            });
             logError('학년 랭킹 계산 실패:', error);
             return {};
         }
@@ -1309,6 +1433,75 @@ export class ShareManager {
         if (grade.includes('5등급'))
             return '#dc3545';
         return '#333';
+    }
+    /**
+     * 에러 모달을 표시합니다.
+     * @param message 에러 메시지
+     */
+    /**
+     * 모바일 디버깅용: 화면에 랭킹 계산 로그를 표시합니다.
+     * @param gradeRankings 랭킹 데이터
+     * @param shareData 공유 데이터
+     */
+    showDebugLogs(gradeRankings, shareData) {
+        // 기존 디버그 로그 제거
+        const existingDebug = document.getElementById('debug-ranking-logs');
+        if (existingDebug) {
+            existingDebug.remove();
+        }
+        const debugDiv = document.createElement('div');
+        debugDiv.id = 'debug-ranking-logs';
+        debugDiv.style.cssText = `
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      z-index: 99999;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: monospace;
+    `;
+        const rankingKeys = Object.keys(gradeRankings);
+        const rankingCount = rankingKeys.length;
+        // 디버깅 정보 수집
+        const firebase = window.firebase;
+        const firebaseStatus = firebase ? {
+            hasDb: !!firebase.db,
+            hasCollection: !!firebase.collection,
+            hasGetDocs: !!firebase.getDocs
+        } : { error: 'Firebase 객체 없음' };
+        // 콘솔에서 추가 정보 가져오기 (전역 변수에 저장)
+        const debugInfo = window.__rankingDebugInfo || {};
+        debugDiv.innerHTML = `
+      <div style="margin-bottom: 8px; font-weight: bold; color: #ffd700;">🔍 학년 랭킹 디버그</div>
+      <div style="margin-bottom: 4px;">학년: ${shareData.gradeLevel} | 성별: ${shareData.studentGender} | ID: ${shareData.studentId}</div>
+      <div style="margin-bottom: 4px;">Firebase: ${JSON.stringify(firebaseStatus)}</div>
+      ${debugInfo.classesCount !== undefined ? `<div style="margin-bottom: 4px;">조회된 클래스 수: ${debugInfo.classesCount}</div>` : ''}
+      ${debugInfo.matchingClasses !== undefined ? `<div style="margin-bottom: 4px;">같은 학년 클래스: ${debugInfo.matchingClasses}</div>` : ''}
+      ${debugInfo.studentsCount !== undefined ? `<div style="margin-bottom: 4px;">수집된 학생 수: ${debugInfo.studentsCount}</div>` : ''}
+      <div style="margin-bottom: 4px;">랭킹 항목 수: ${rankingCount}</div>
+      <div style="margin-bottom: 4px;">기록 키: ${Object.keys(shareData.records || {}).join(', ')}</div>
+      ${rankingCount > 0 ? `
+        <div style="margin-top: 8px; border-top: 1px solid #555; padding-top: 8px;">
+          ${rankingKeys.slice(0, 10).map(key => `<div style="margin: 2px 0;">${key}: ${gradeRankings[key]}</div>`).join('')}
+          ${rankingKeys.length > 10 ? `<div>... 외 ${rankingKeys.length - 10}개</div>` : ''}
+        </div>
+      ` : '<div style="color: #ff6b6b; margin-top: 8px; border-top: 1px solid #555; padding-top: 8px;">⚠️ 랭킹 데이터가 비어있습니다!<br/>콘솔 로그를 확인해주세요.</div>'}
+      <button id="close-debug-logs" style="margin-top: 8px; padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 10px;">닫기</button>
+    `;
+        document.body.appendChild(debugDiv);
+        // 닫기 버튼 이벤트
+        const closeBtn = debugDiv.querySelector('#close-debug-logs');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                debugDiv.remove();
+            });
+        }
     }
     /**
      * 에러 모달을 표시합니다.
