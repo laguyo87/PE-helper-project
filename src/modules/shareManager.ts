@@ -1136,7 +1136,9 @@ export class ShareManager {
       const currentStudentId = Number(shareData.studentId);
 
       // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 users 컬렉션에서 모든 사용자의 paps.classes 데이터 가져오기
+      // 중요: PAPS 수업 메뉴에서 생성된 클래스만 수집 (userData.paps.classes만 사용)
       console.log('[학년 랭킹] users 컬렉션 조회 시작 (paps.classes 데이터 수집)...');
+      console.log('[학년 랭킹] shareData.classId:', shareData.classId);
       console.log('[학년 랭킹] db 객체:', db);
       console.log('[학년 랭킹] collection 함수:', typeof collection);
       console.log('[학년 랭킹] getDocs 함수:', typeof getDocs);
@@ -1158,47 +1160,95 @@ export class ShareManager {
       }
       const allStudents: Array<{studentId: number, records: Record<string, number>, name: string, gender: string}> = [];
       
-      // 모든 사용자의 paps.classes에서 같은 학년, 같은 성별 학생들의 기록 수집
-      // '우리 학교 PAPS 종목별 랭킹' 로직과 동일
+      // '우리 학교 PAPS 종목별 랭킹' 로직과 완전히 동일하게 구현
+      // 중복 제거를 위한 Map (studentId -> 학생 정보)
+      // 중요: PAPS 수업 메뉴에서 생성된 클래스만 수집 (userData.paps.classes만 사용)
+      // 다른 메뉴(수업 진도 관리, 리그전, 토너먼트)의 클래스는 제외
       let totalUsersChecked = 0;
       let totalClassesChecked = 0;
       let matchingClassesCount = 0;
+      
+      const uniqueStudentsMap = new Map<number, {studentId: number, records: Record<string, number>, name: string, gender: string}>();
       
       usersSnapshot.forEach((userDoc: any) => {
         const userData = userDoc.data();
         totalUsersChecked++;
         
-        // userData.paps.classes가 있는지 확인
+        // PAPS 수업 메뉴에서 생성된 클래스만 수집 (userData.paps.classes)
+        // 다른 메뉴의 클래스(userData.progress.classes, userData.leagues.classes 등)는 제외
         if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes)) {
           userData.paps.classes.forEach((classData: any) => {
-            totalClassesChecked++;
-            console.log(`[학년 랭킹] 클래스 확인 ${totalClassesChecked}: gradeLevel=${classData.gradeLevel}, 비교 대상=${shareData.gradeLevel}, 일치=${classData.gradeLevel === shareData.gradeLevel}`);
+            // PAPS 클래스인지 확인 (id, name, gradeLevel, students 필드가 있어야 함)
+            if (!classData || typeof classData !== 'object') {
+              return;
+            }
             
-            if (classData.gradeLevel === shareData.gradeLevel && classData.students) {
+            // PAPS 클래스 구조 확인 (id와 students 필드가 있어야 함)
+            if (!('id' in classData) || !('students' in classData)) {
+              console.warn('[학년 랭킹] PAPS 클래스 구조가 아닌 데이터 발견, 건너뜀:', classData);
+              return;
+            }
+            
+            totalClassesChecked++;
+            
+            if (classData.gradeLevel === shareData.gradeLevel && classData.students && Array.isArray(classData.students)) {
               matchingClassesCount++;
               const studentsInClass = classData.students.length || 0;
               let matchingStudentsInClass = 0;
               
               classData.students.forEach((student: any) => {
-                if (student.gender === shareData.studentGender) {
+                if (student && student.gender === shareData.studentGender) {
                   matchingStudentsInClass++;
-                  const studentId = student.id || student.studentId;
-                  allStudents.push({
-                    studentId: studentId,
-                    records: student.records || {},
-                    name: student.name || '',
-                    gender: student.gender || ''
-                  });
+                  const studentId = Number(student.id || student.studentId);
+                  
+                  if (isNaN(studentId) || studentId <= 0) {
+                    return;
+                  }
+                  
+                  // 중복 제거: 같은 학생이 여러 클래스에 있을 수 있음
+                  if (!uniqueStudentsMap.has(studentId)) {
+                    uniqueStudentsMap.set(studentId, {
+                      studentId: studentId,
+                      records: { ...(student.records || {}) },
+                      name: student.name || '',
+                      gender: student.gender || ''
+                    });
+                  } else {
+                    // 이미 존재하는 경우, 기록을 병합 (더 큰 값으로 업데이트)
+                    const existing = uniqueStudentsMap.get(studentId)!;
+                    const mergedRecords = { ...existing.records };
+                    Object.keys(student.records || {}).forEach(key => {
+                      const value = student.records[key];
+                      if (value !== undefined && value !== null && typeof value === 'number' && !isNaN(value) && isFinite(value) && value > 0) {
+                        if (!mergedRecords[key] || mergedRecords[key] < value) {
+                          mergedRecords[key] = value;
+                        }
+                      }
+                    });
+                    uniqueStudentsMap.set(studentId, {
+                      studentId: studentId,
+                      records: mergedRecords,
+                      name: student.name || existing.name,
+                      gender: student.gender || existing.gender
+                    });
+                  }
                 }
               });
               
-              console.log(`[학년 랭킹] 매칭된 클래스 ${matchingClassesCount}: 총 학생 ${studentsInClass}명, 같은 성별 ${matchingStudentsInClass}명`);
+              console.log(`[학년 랭킹] 매칭된 PAPS 클래스 ${matchingClassesCount}: 총 학생 ${studentsInClass}명, 같은 성별 ${matchingStudentsInClass}명`);
             }
           });
         }
       });
       
-      console.log(`[학년 랭킹] 조회 결과: 전체 ${totalUsersChecked}개 사용자, ${totalClassesChecked}개 클래스, 같은 학년 ${matchingClassesCount}개 클래스, 수집된 학생 ${allStudents.length}명`);
+      // 중복 제거된 학생 목록
+      const uniqueStudents = Array.from(uniqueStudentsMap.values());
+      console.log(`[학년 랭킹] 조회 결과: 전체 ${totalUsersChecked}개 사용자, ${totalClassesChecked}개 클래스, 같은 학년 ${matchingClassesCount}개 클래스, 중복 제거된 학생 ${uniqueStudents.length}명`);
+      console.log(`[학년 랭킹] 중복 제거된 학생 ID 목록 (처음 10명):`, uniqueStudents.slice(0, 10).map(s => ({ id: s.studentId, name: s.name })));
+      
+      // allStudents 배열에 중복 제거된 학생 목록 저장
+      allStudents.length = 0;
+      allStudents.push(...uniqueStudents);
       
       // 전역 변수에 디버깅 정보 저장 (화면 표시용)
       (window as any).__rankingDebugInfo = {
@@ -1253,7 +1303,7 @@ export class ShareManager {
         });
       }
       
-      // 모든 studentId를 숫자로 통일
+      // 모든 studentId를 숫자로 통일 (이미 위에서 처리했지만 확실히 하기 위해)
       allStudents.forEach(s => {
         s.studentId = Number(s.studentId);
       });
@@ -1359,13 +1409,17 @@ export class ShareManager {
             return;
           }
 
-          // 해당 종목에 기록이 있는 학생들만 필터링 (유효한 숫자인지 더 엄격하게 검증)
+          // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 해당 종목에 기록이 있는 학생들만 필터링
+          // 유효한 숫자인지 더 엄격하게 검증
           const studentsWithRecord = allStudents.filter(s => {
             const record = s.records[categoryId];
-            return record !== undefined && record !== null && 
-                   typeof record === 'number' && !isNaN(record) && 
-                   isFinite(record) && record > 0;
+            const isValid = record !== undefined && record !== null && 
+                           typeof record === 'number' && !isNaN(record) && 
+                           isFinite(record) && record > 0;
+            return isValid;
           });
+
+          console.log(`[학년 랭킹] ${categoryId} - 기록이 있는 학생 수: ${studentsWithRecord.length}명 (전체 학생: ${allStudents.length}명)`);
 
           if (studentsWithRecord.length === 0) {
             rankings[categoryId] = '-';
@@ -1379,23 +1433,23 @@ export class ShareManager {
             return recordB - recordA;
           });
 
-          // 현재 학생의 순위 찾기
-          console.log(`[학년 랭킹] ${categoryId} - 학생 ID 목록:`, studentsWithRecord.map(s => ({ id: s.studentId, name: s.name, record: s.records[categoryId] })));
-          console.log(`[학년 랭킹] ${categoryId} - 현재 학생 ID:`, currentStudentId, `(타입: ${typeof currentStudentId})`);
-          console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록:`, studentRecord);
-          
           // 현재 학생이 목록에 있는지 확인
-          let rankIndex = studentsWithRecord.findIndex(s => Number(s.studentId) === currentStudentId);
+          // 현재 학생도 해당 종목에 기록이 있어야 목록에 포함됨
+          let rankIndex = studentsWithRecord.findIndex(s => {
+            const id = Number(s.studentId);
+            return id === currentStudentId;
+          });
           
-          // 찾지 못했으면 현재 학생을 목록에 추가하고 다시 정렬
+          // 현재 학생이 목록에 없고, 기록이 있으면 추가
           if (rankIndex === -1 && studentRecord > 0) {
             console.log(`[학년 랭킹] ${categoryId}: 현재 학생을 목록에 추가하여 랭킹 계산`);
-            studentsWithRecord.push({
+            const currentStudent = {
               studentId: currentStudentId,
               records: { ...shareData.records },
               name: shareData.studentName || '',
               gender: shareData.studentGender || ''
-            });
+            };
+            studentsWithRecord.push(currentStudent);
             // 다시 정렬
             studentsWithRecord.sort((a, b) => {
               const recordA = a.records[categoryId] || 0;
@@ -1414,11 +1468,12 @@ export class ShareManager {
               currentStudentId: currentStudentId,
               total: total,
               studentRecord: studentRecord,
-              studentIds: studentsWithRecord.map(s => s.studentId)
+              studentIds: studentsWithRecord.map(s => ({ id: s.studentId, name: s.name, record: s.records[categoryId] })).slice(0, 10)
             });
             rankings[categoryId] = '-';
           } else {
             console.log(`[학년 랭킹] ${categoryId}: 순위 계산 성공 - ${rank}위 / ${total}명`);
+            console.log(`[학년 랭킹] ${categoryId} - 상위 5명:`, studentsWithRecord.slice(0, 5).map(s => ({ name: s.name, record: s.records[categoryId] })));
             rankings[categoryId] = `${rank}위 / ${total}명`;
           }
         }
