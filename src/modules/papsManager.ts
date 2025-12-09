@@ -1240,10 +1240,27 @@ export class PapsManager {
             Object.keys(PAPS_ITEMS).forEach(category => {
                 const item = PAPS_ITEMS[category];
                 const eventName = cls.eventSettings?.[item.id] || item.options[0];
-                const option = document.createElement('option');
-                option.value = item.id;
-                option.textContent = eventName;
-                eventSelect.appendChild(option);
+                
+                // 악력 종목은 왼손/오른손으로 분리
+                if (item.id === 'strength' && eventName === '악력') {
+                    // 악력(왼손) 옵션 추가
+                    const leftOption = document.createElement('option');
+                    leftOption.value = 'strength_left';
+                    leftOption.textContent = '악력(왼손)';
+                    eventSelect.appendChild(leftOption);
+                    
+                    // 악력(오른손) 옵션 추가
+                    const rightOption = document.createElement('option');
+                    rightOption.value = 'strength_right';
+                    rightOption.textContent = '악력(오른손)';
+                    eventSelect.appendChild(rightOption);
+                } else {
+                    // 일반 종목 옵션 추가
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.textContent = eventName;
+                    eventSelect.appendChild(option);
+                }
             });
         }
         
