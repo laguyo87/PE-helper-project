@@ -1475,6 +1475,11 @@ export class ShareManager {
           // papsManager.ts의 searchRanking과 동일하게 내림차순 정렬 (높은 기록이 좋은 경우)
           recordsWithNames.sort((a, b) => b.record - a.record);
           
+          // 디버깅: 현재 학생의 기록과 수집된 기록 확인
+          console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록:`, studentRecord);
+          console.log(`[학년 랭킹] ${categoryId} - 수집된 기록 목록 (처음 10개):`, recordsWithNames.slice(0, 10).map(r => r.record));
+          console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록이 목록에 있는지:`, recordsWithNames.some(r => r.record === studentRecord));
+          
           // papsManager.ts와 동일하게 findRankForRecord 사용
           const rank = studentRecord > 0 ? findRankForRecord(recordsWithNames, studentRecord) : 0;
           const total = recordsWithNames.length;
@@ -1485,7 +1490,11 @@ export class ShareManager {
               currentStudentId: currentStudentId,
               total: total,
               studentRecord: studentRecord,
-              records: recordsWithNames.slice(0, 10)
+              studentRecordType: typeof studentRecord,
+              records: recordsWithNames.slice(0, 10),
+              recordTypes: recordsWithNames.slice(0, 10).map(r => typeof r.record),
+              exactMatch: recordsWithNames.find(r => r.record === studentRecord),
+              allRecords: recordsWithNames.map(r => r.record)
             });
             rankings[categoryId] = '-';
           } else {
