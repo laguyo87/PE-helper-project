@@ -1370,30 +1370,37 @@ export class ShareManager {
               });
             }
 
-            // 현재 학생이 목록에 있는지 확인 (studentId로 정확히 매칭)
-            const currentStudentInList = recordsWithNames.some(r => {
+            // 현재 학생이 목록에 있는지 확인하고, 실제 기록 가져오기 (studentId로 정확히 매칭)
+            const currentStudentInList = recordsWithNames.find(r => {
               if (r.studentId !== undefined) {
                 return r.studentId === currentStudentId;
               }
-              // studentId가 없는 경우 이름과 기록으로 매칭 (하위 호환성)
-              return r.name === shareData.studentName && r.record === leftRecord;
+              // studentId가 없는 경우 이름으로 매칭 (하위 호환성)
+              return r.name === shareData.studentName;
             });
 
-            // 현재 학생의 기록이 목록에 없고, 기록이 있으면 추가
-            if (leftRecord > 0 && !currentStudentInList) {
+            // 현재 학생의 실제 기록 (클래스 데이터에 있으면 그것을 사용, 없으면 shareData 사용)
+            let actualLeftRecord = leftRecord;
+            if (currentStudentInList) {
+              // 클래스 데이터에 현재 학생이 있으면 그 기록을 사용
+              actualLeftRecord = currentStudentInList.record;
+              console.log(`[학년 랭킹] ${categoryId}_left: 현재 학생이 목록에 있음, 클래스 데이터의 기록 사용 - ${actualLeftRecord} (shareData: ${leftRecord})`);
+            } else if (leftRecord > 0) {
+              // 현재 학생이 목록에 없고, 기록이 있으면 추가
               recordsWithNames.push({
                 record: leftRecord, 
                 name: shareData.studentName || '',
                 studentId: currentStudentId
               });
               console.log(`[학년 랭킹] ${categoryId}_left: 현재 학생 기록을 목록에 추가 - ${leftRecord}`);
+              actualLeftRecord = leftRecord;
             }
             
             if (recordsWithNames.length > 0) {
               // findRankForRecord를 위해 {record, name} 형태로 변환
               const recordsForRanking = recordsWithNames.map(r => ({record: r.record, name: r.name}));
               recordsForRanking.sort((a, b) => b.record - a.record);
-              const rank = leftRecord > 0 ? findRankForRecord(recordsForRanking, leftRecord) : 0;
+              const rank = actualLeftRecord > 0 ? findRankForRecord(recordsForRanking, actualLeftRecord) : 0;
               const total = recordsForRanking.length;
               
               if (rank === 0) {
@@ -1443,30 +1450,37 @@ export class ShareManager {
               });
             }
 
-            // 현재 학생이 목록에 있는지 확인 (studentId로 정확히 매칭)
-            const currentStudentInList = recordsWithNames.some(r => {
+            // 현재 학생이 목록에 있는지 확인하고, 실제 기록 가져오기 (studentId로 정확히 매칭)
+            const currentStudentInList = recordsWithNames.find(r => {
               if (r.studentId !== undefined) {
                 return r.studentId === currentStudentId;
               }
-              // studentId가 없는 경우 이름과 기록으로 매칭 (하위 호환성)
-              return r.name === shareData.studentName && r.record === rightRecord;
+              // studentId가 없는 경우 이름으로 매칭 (하위 호환성)
+              return r.name === shareData.studentName;
             });
 
-            // 현재 학생의 기록이 목록에 없고, 기록이 있으면 추가
-            if (rightRecord > 0 && !currentStudentInList) {
+            // 현재 학생의 실제 기록 (클래스 데이터에 있으면 그것을 사용, 없으면 shareData 사용)
+            let actualRightRecord = rightRecord;
+            if (currentStudentInList) {
+              // 클래스 데이터에 현재 학생이 있으면 그 기록을 사용
+              actualRightRecord = currentStudentInList.record;
+              console.log(`[학년 랭킹] ${categoryId}_right: 현재 학생이 목록에 있음, 클래스 데이터의 기록 사용 - ${actualRightRecord} (shareData: ${rightRecord})`);
+            } else if (rightRecord > 0) {
+              // 현재 학생이 목록에 없고, 기록이 있으면 추가
               recordsWithNames.push({
                 record: rightRecord, 
                 name: shareData.studentName || '',
                 studentId: currentStudentId
               });
               console.log(`[학년 랭킹] ${categoryId}_right: 현재 학생 기록을 목록에 추가 - ${rightRecord}`);
+              actualRightRecord = rightRecord;
             }
             
             if (recordsWithNames.length > 0) {
               // findRankForRecord를 위해 {record, name} 형태로 변환
               const recordsForRanking = recordsWithNames.map(r => ({record: r.record, name: r.name}));
               recordsForRanking.sort((a, b) => b.record - a.record);
-              const rank = rightRecord > 0 ? findRankForRecord(recordsForRanking, rightRecord) : 0;
+              const rank = actualRightRecord > 0 ? findRankForRecord(recordsForRanking, actualRightRecord) : 0;
               const total = recordsForRanking.length;
               
               if (rank === 0) {
@@ -1532,23 +1546,30 @@ export class ShareManager {
             return;
           }
 
-          // 현재 학생이 목록에 있는지 확인 (studentId로 정확히 매칭)
-          const currentStudentInList = recordsWithNames.some(r => {
+          // 현재 학생이 목록에 있는지 확인하고, 실제 기록 가져오기 (studentId로 정확히 매칭)
+          const currentStudentInList = recordsWithNames.find(r => {
             if (r.studentId !== undefined) {
               return r.studentId === currentStudentId;
             }
-            // studentId가 없는 경우 이름과 기록으로 매칭 (하위 호환성)
-            return r.name === shareData.studentName && r.record === studentRecord;
+            // studentId가 없는 경우 이름으로 매칭 (하위 호환성)
+            return r.name === shareData.studentName;
           });
           
-          // 현재 학생의 기록이 목록에 없고, 기록이 있으면 추가
-          if (studentRecord > 0 && !currentStudentInList) {
+          // 현재 학생의 실제 기록 (클래스 데이터에 있으면 그것을 사용, 없으면 shareData 사용)
+          let actualStudentRecord = studentRecord;
+          if (currentStudentInList) {
+            // 클래스 데이터에 현재 학생이 있으면 그 기록을 사용
+            actualStudentRecord = currentStudentInList.record;
+            console.log(`[학년 랭킹] ${categoryId}: 현재 학생이 목록에 있음, 클래스 데이터의 기록 사용 - ${actualStudentRecord} (shareData: ${studentRecord})`);
+          } else if (studentRecord > 0) {
+            // 현재 학생이 목록에 없고, 기록이 있으면 추가
             recordsWithNames.push({
               record: studentRecord, 
               name: shareData.studentName || '',
               studentId: currentStudentId
             });
             console.log(`[학년 랭킹] ${categoryId}: 현재 학생 기록을 목록에 추가 - ${studentRecord}`);
+            actualStudentRecord = studentRecord;
           }
           
           // papsManager.ts의 searchRanking과 동일하게 내림차순 정렬 (높은 기록이 좋은 경우)
@@ -1557,13 +1578,13 @@ export class ShareManager {
           recordsForRanking.sort((a, b) => b.record - a.record);
           
           // 디버깅: 현재 학생의 기록과 수집된 기록 확인
-          console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록:`, studentRecord);
+          console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록 (shareData):`, studentRecord);
+          console.log(`[학년 랭킹] ${categoryId} - 실제 사용할 기록:`, actualStudentRecord);
           console.log(`[학년 랭킹] ${categoryId} - 수집된 기록 목록 (처음 10개):`, recordsForRanking.slice(0, 10).map(r => r.record));
-          console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록이 목록에 있는지:`, recordsForRanking.some(r => r.record === studentRecord));
-          console.log(`[학년 랭킹] ${categoryId} - 현재 학생이 목록에 포함되어 있는지:`, currentStudentInList);
+          console.log(`[학년 랭킹] ${categoryId} - 실제 기록이 목록에 있는지:`, recordsForRanking.some(r => r.record === actualStudentRecord));
           
           // papsManager.ts와 동일하게 findRankForRecord 사용
-          const rank = studentRecord > 0 ? findRankForRecord(recordsForRanking, studentRecord) : 0;
+          const rank = actualStudentRecord > 0 ? findRankForRecord(recordsForRanking, actualStudentRecord) : 0;
           const total = recordsForRanking.length;
           
           if (rank === 0) {
