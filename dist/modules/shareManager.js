@@ -1179,6 +1179,11 @@ export class ShareManager {
                                 }
                             });
                         }
+                        // 현재 학생의 기록이 목록에 없고, 기록이 있으면 추가
+                        if (leftRecord > 0 && !recordsWithNames.some(r => r.record === leftRecord && r.name === shareData.studentName)) {
+                            recordsWithNames.push({ record: leftRecord, name: shareData.studentName || '' });
+                            console.log(`[학년 랭킹] ${categoryId}_left: 현재 학생 기록을 목록에 추가 - ${leftRecord}`);
+                        }
                         if (recordsWithNames.length > 0) {
                             recordsWithNames.sort((a, b) => b.record - a.record);
                             const rank = leftRecord > 0 ? findRankForRecord(recordsWithNames, leftRecord) : 0;
@@ -1222,6 +1227,11 @@ export class ShareManager {
                                     });
                                 }
                             });
+                        }
+                        // 현재 학생의 기록이 목록에 없고, 기록이 있으면 추가
+                        if (rightRecord > 0 && !recordsWithNames.some(r => r.record === rightRecord && r.name === shareData.studentName)) {
+                            recordsWithNames.push({ record: rightRecord, name: shareData.studentName || '' });
+                            console.log(`[학년 랭킹] ${categoryId}_right: 현재 학생 기록을 목록에 추가 - ${rightRecord}`);
                         }
                         if (recordsWithNames.length > 0) {
                             recordsWithNames.sort((a, b) => b.record - a.record);
@@ -1281,6 +1291,17 @@ export class ShareManager {
                     if (recordsWithNames.length === 0) {
                         rankings[categoryId] = '-';
                         return;
+                    }
+                    // 현재 학생의 기록이 목록에 없으면 추가 (papsManager.ts는 학생 이름으로 찾지만, shareManager는 studentId로 찾으므로)
+                    const currentStudentInList = recordsWithNames.some(r => {
+                        // 현재 학생을 찾기 위해 studentId로 매칭해야 하지만, recordsWithNames에는 studentId가 없음
+                        // 따라서 현재 학생의 기록이 목록에 없으면 추가
+                        return false; // 항상 false로 처리하여 아래에서 추가
+                    });
+                    // 현재 학생의 기록이 목록에 없고, 기록이 있으면 추가
+                    if (studentRecord > 0 && !recordsWithNames.some(r => r.record === studentRecord && r.name === shareData.studentName)) {
+                        recordsWithNames.push({ record: studentRecord, name: shareData.studentName || '' });
+                        console.log(`[학년 랭킹] ${categoryId}: 현재 학생 기록을 목록에 추가 - ${studentRecord}`);
                     }
                     // papsManager.ts의 searchRanking과 동일하게 내림차순 정렬 (높은 기록이 좋은 경우)
                     recordsWithNames.sort((a, b) => b.record - a.record);
