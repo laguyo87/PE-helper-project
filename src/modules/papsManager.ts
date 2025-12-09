@@ -1241,6 +1241,11 @@ export class PapsManager {
                 const item = PAPS_ITEMS[category];
                 const eventName = cls.eventSettings?.[item.id] || item.options[0];
                 
+                // BMI(체지방) 종목은 랭킹에서 제외
+                if (item.id === 'bodyfat') {
+                    return;
+                }
+                
                 // 악력 종목은 왼손/오른손으로 분리
                 if (item.id === 'strength' && eventName === '악력') {
                     // 악력(왼손) 옵션 추가
