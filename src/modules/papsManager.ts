@@ -3328,9 +3328,18 @@ export class PapsManager {
             z-index: 9999;
         `;
         loadingOverlay.innerHTML = `
+            <style>
+                @keyframes blink {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.3; }
+                }
+                .qr-loading-text {
+                    animation: blink 1.5s ease-in-out infinite;
+                }
+            </style>
             <div style="background: white; padding: 20px 28px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); text-align: center; font-size: 16px; color: #333; min-width: 240px;">
                 <div style="margin-bottom: 10px; font-weight: 600;">QR을 생성중입니다</div>
-                <div style="font-size: 13px; color: #666;">잠시만 기다려주세요...</div>
+                <div class="qr-loading-text" style="font-size: 13px; color: #666;">잠시만 기다려주세요...</div>
             </div>
         `;
         document.body.appendChild(loadingOverlay);
