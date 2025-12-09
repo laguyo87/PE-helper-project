@@ -1661,7 +1661,34 @@ export class ShareManager {
           }
 
           console.log(`[학년 랭킹] ${categoryId} - 기록이 있는 학생 수: ${recordsWithNames.length}명`);
-          console.log(`[학년 랭킹] ${categoryId} - 수집된 학생 목록:`, recordsWithNames.map(r => ({name: r.name, record: r.record})));
+          console.log(`[학년 랭킹] ${categoryId} - 수집된 학생 목록 (처음 20개):`, recordsWithNames.slice(0, 20).map(r => ({name: r.name, record: r.record})));
+          
+          // 디버깅: 클래스별로 몇 명이 수집되었는지 확인
+          if (targetUserData.paps && targetUserData.paps.classes && Array.isArray(targetUserData.paps.classes)) {
+            let totalChecked = 0;
+            targetUserData.paps.classes.forEach((classData: any) => {
+              if (classData && classData.gradeLevel === shareData.gradeLevel && classData.students) {
+                const classStudentsWithRecord = classData.students.filter((student: any) => {
+                  totalChecked++;
+                  if (student && student.gender === shareData.studentGender) {
+                    const record = student.records?.[categoryId];
+                    const isValidRecord = record !== undefined && record !== null && 
+                        typeof record === 'number' && !isNaN(record) && 
+                        isFinite(record);
+                    if (isValidRecord) {
+                      const isRecordValid = categoryId === 'flexibility' 
+                        ? record !== 0 
+                        : record > 0;
+                      return isRecordValid;
+                    }
+                  }
+                  return false;
+                });
+                console.log(`[학년 랭킹] ${categoryId} - 클래스 ${classData.name || classData.id}: 총 ${classData.students.filter((s: any) => s && s.gender === shareData.studentGender).length}명 중 ${classStudentsWithRecord.length}명이 기록 보유`);
+              }
+            });
+            console.log(`[학년 랭킹] ${categoryId} - 전체 확인한 학생 수: ${totalChecked}명`);
+          }
 
           if (recordsWithNames.length === 0) {
             rankings[categoryId] = '-';
