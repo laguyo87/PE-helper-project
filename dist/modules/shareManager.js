@@ -999,30 +999,52 @@ export class ShareManager {
                 });
                 return {};
             }
-            // 현재 학생이 속한 사용자 찾기 (classId로 매칭)
+            // 현재 로그인한 사용자 확인 (papsManager.ts의 searchRanking과 동일하게 현재 로그인한 사용자의 클래스 사용)
             let targetUserData = null;
             let targetUserId = null;
-            usersSnapshot.forEach((userDoc) => {
-                const userData = userDoc.data();
-                if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes)) {
-                    // classId가 일치하는 클래스를 찾음
-                    const matchingClass = userData.paps.classes.find((classData) => {
-                        return classData && typeof classData === 'object' &&
-                            'id' in classData && Number(classData.id) === targetClassId;
+            // 현재 로그인한 사용자 ID 가져오기
+            const currentUser = firebase.auth?.currentUser;
+            if (currentUser) {
+                console.log('[학년 랭킹] 현재 로그인한 사용자:', currentUser.uid);
+                const currentUserDoc = usersSnapshot.docs.find((doc) => doc.id === currentUser.uid);
+                if (currentUserDoc) {
+                    targetUserData = currentUserDoc.data();
+                    targetUserId = currentUserDoc.id;
+                    console.log('[학년 랭킹] ✅ 현재 로그인한 사용자 데이터 찾음:', {
+                        userId: targetUserId,
+                        classesCount: targetUserData?.paps?.classes?.length || 0
                     });
-                    if (matchingClass) {
-                        targetUserData = userData;
-                        targetUserId = userDoc.id;
-                        console.log('[학년 랭킹] ✅ 현재 학생이 속한 사용자 찾음:', {
-                            userId: targetUserId,
-                            classId: targetClassId,
-                            className: matchingClass.name
-                        });
-                    }
                 }
-            });
+                else {
+                    console.warn('[학년 랭킹] ⚠️ 현재 로그인한 사용자의 데이터를 찾을 수 없습니다.');
+                }
+            }
+            else {
+                // 로그인하지 않은 경우, 현재 학생이 속한 사용자 찾기 (classId로 매칭)
+                console.log('[학년 랭킹] 로그인하지 않음, 현재 학생이 속한 사용자 찾기...');
+                usersSnapshot.forEach((userDoc) => {
+                    const userData = userDoc.data();
+                    if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes)) {
+                        // classId가 일치하는 클래스를 찾음
+                        const matchingClass = userData.paps.classes.find((classData) => {
+                            return classData && typeof classData === 'object' &&
+                                'id' in classData && Number(classData.id) === targetClassId;
+                        });
+                        if (matchingClass) {
+                            targetUserData = userData;
+                            targetUserId = userDoc.id;
+                            console.log('[학년 랭킹] ✅ 현재 학생이 속한 사용자 찾음:', {
+                                userId: targetUserId,
+                                classId: targetClassId,
+                                className: matchingClass.name
+                            });
+                        }
+                    }
+                });
+            }
             if (!targetUserData) {
-                console.error('[학년 랭킹] ❌ 현재 학생이 속한 사용자를 찾을 수 없습니다.', {
+                console.error('[학년 랭킹] ❌ 사용자 데이터를 찾을 수 없습니다.', {
+                    isLoggedIn: !!currentUser,
                     classId: targetClassId
                 });
                 return {};
