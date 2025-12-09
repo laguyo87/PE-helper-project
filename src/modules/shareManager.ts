@@ -1666,28 +1666,43 @@ export class ShareManager {
           // 디버깅: 클래스별로 몇 명이 수집되었는지 확인
           if (targetUserData.paps && targetUserData.paps.classes && Array.isArray(targetUserData.paps.classes)) {
             let totalChecked = 0;
+            let totalWithGender = 0;
+            let totalWithRecord = 0;
+            let totalWithInvalidRecord = 0;
             targetUserData.paps.classes.forEach((classData: any) => {
               if (classData && classData.gradeLevel === shareData.gradeLevel && classData.students) {
+                const classStudentsWithGender = classData.students.filter((s: any) => s && s.gender === shareData.studentGender);
+                totalWithGender += classStudentsWithGender.length;
+                
                 const classStudentsWithRecord = classData.students.filter((student: any) => {
                   totalChecked++;
                   if (student && student.gender === shareData.studentGender) {
                     const record = student.records?.[categoryId];
-                    const isValidRecord = record !== undefined && record !== null && 
-                        typeof record === 'number' && !isNaN(record) && 
-                        isFinite(record);
-                    if (isValidRecord) {
-                      const isRecordValid = categoryId === 'flexibility' 
-                        ? record !== 0 
-                        : record > 0;
-                      return isRecordValid;
+                    if (record !== undefined && record !== null) {
+                      const isValidRecord = typeof record === 'number' && !isNaN(record) && isFinite(record);
+                      if (isValidRecord) {
+                        const isRecordValid = categoryId === 'flexibility' 
+                          ? record !== 0 
+                          : record > 0;
+                        if (isRecordValid) {
+                          totalWithRecord++;
+                          return true;
+                        } else {
+                          totalWithInvalidRecord++;
+                          console.log(`[학년 랭킹] ${categoryId} - ${student.name}: 기록 ${record} (유효하지 않음)`);
+                        }
+                      } else {
+                        totalWithInvalidRecord++;
+                        console.log(`[학년 랭킹] ${categoryId} - ${student.name}: 기록 ${record} (타입: ${typeof record})`);
+                      }
                     }
                   }
                   return false;
                 });
-                console.log(`[학년 랭킹] ${categoryId} - 클래스 ${classData.name || classData.id}: 총 ${classData.students.filter((s: any) => s && s.gender === shareData.studentGender).length}명 중 ${classStudentsWithRecord.length}명이 기록 보유`);
+                console.log(`[학년 랭킹] ${categoryId} - 클래스 ${classData.name || classData.id}: 총 ${classStudentsWithGender.length}명 중 ${classStudentsWithRecord.length}명이 기록 보유`);
               }
             });
-            console.log(`[학년 랭킹] ${categoryId} - 전체 확인한 학생 수: ${totalChecked}명`);
+            console.log(`[학년 랭킹] ${categoryId} - 전체 통계: 같은 성별 ${totalWithGender}명, 기록 보유 ${totalWithRecord}명, 유효하지 않은 기록 ${totalWithInvalidRecord}명`);
           }
 
           if (recordsWithNames.length === 0) {
