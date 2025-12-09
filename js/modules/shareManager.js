@@ -1397,17 +1397,18 @@ export class ShareManager {
                             currentStudentId: currentStudentId,
                             total: total,
                             studentRecord: studentRecord,
+                            actualStudentRecord: actualStudentRecord,
                             studentRecordType: typeof studentRecord,
-                            records: recordsWithNames.slice(0, 10),
-                            recordTypes: recordsWithNames.slice(0, 10).map(r => typeof r.record),
-                            exactMatch: recordsWithNames.find(r => r.record === studentRecord),
-                            allRecords: recordsWithNames.map(r => r.record)
+                            records: recordsForRanking.slice(0, 10),
+                            recordTypes: recordsForRanking.slice(0, 10).map(r => typeof r.record),
+                            exactMatch: recordsForRanking.find(r => r.record === actualStudentRecord),
+                            allRecords: recordsForRanking.map(r => r.record)
                         });
                         rankings[categoryId] = '-';
                     }
                     else {
                         console.log(`[학년 랭킹] ${categoryId}: 순위 계산 성공 - ${rank}위 / ${total}명`);
-                        console.log(`[학년 랭킹] ${categoryId} - 상위 5명:`, recordsWithNames.slice(0, 5));
+                        console.log(`[학년 랭킹] ${categoryId} - 상위 5명:`, recordsForRanking.slice(0, 5));
                         rankings[categoryId] = `${rank}위 / ${total}명`;
                     }
                 }
