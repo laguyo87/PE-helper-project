@@ -1306,6 +1306,28 @@ export class ShareManager {
 
       const rankings: Record<string, string> = {};
       
+      // papsManager.ts의 calculateRanks와 findRankForRecord 함수와 동일한 로직
+      const calculateRanks = (sortedRecords: {record: number, name: string}[]): number[] => {
+        const ranks: number[] = [];
+        for (let i = 0; i < sortedRecords.length; i++) {
+          // 첫 번째 항목이거나 이전 기록과 다른 경우 새로운 순위 시작
+          if (i === 0 || sortedRecords[i].record !== sortedRecords[i - 1].record) {
+            // 현재 위치가 순위 (1부터 시작)
+            ranks.push(i + 1);
+          } else {
+            // 이전 기록과 같은 경우 이전 순위와 동일
+            ranks.push(ranks[i - 1]);
+          }
+        }
+        return ranks;
+      };
+      
+      const findRankForRecord = (sortedRecords: {record: number, name: string}[], targetRecord: number): number => {
+        const ranks = calculateRanks(sortedRecords);
+        const index = sortedRecords.findIndex(item => item.record === targetRecord);
+        return index >= 0 ? ranks[index] : 0;
+      };
+      
       // 각 종목별로 랭킹 계산 ('우리 학교 PAPS 종목별 랭킹' 로직과 동일)
       // bodyfat(신장/체중)은 랭킹 계산 제외
       const categories = ['endurance', 'flexibility', 'strength', 'power'];
@@ -1325,18 +1347,23 @@ export class ShareManager {
             });
 
             if (studentsWithLeftRecord.length > 0) {
+              // papsManager.ts와 동일하게 {record, name} 형태로 변환
+              const recordsWithNames = studentsWithLeftRecord.map(s => ({
+                record: s.records[`${categoryId}_left`] || 0,
+                name: s.name
+              }));
+              
               // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 내림차순 정렬
-              studentsWithLeftRecord.sort((a, b) => {
-                const recordA = a.records[`${categoryId}_left`] || 0;
-                const recordB = b.records[`${categoryId}_left`] || 0;
-                return recordB - recordA; // 악력은 높을수록 좋음
-              });
-
-              console.log(`[학년 랭킹] ${categoryId}_left - 학생 ID 목록:`, studentsWithLeftRecord.map(s => s.studentId));
-              console.log(`[학년 랭킹] ${categoryId}_left - 현재 학생 ID:`, currentStudentId);
-              const rankIndex = studentsWithLeftRecord.findIndex(s => Number(s.studentId) === currentStudentId);
-              const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
-              const total = studentsWithLeftRecord.length;
+              recordsWithNames.sort((a, b) => b.record - a.record);
+              
+              // 현재 학생의 기록 찾기
+              const currentStudent = studentsWithLeftRecord.find(s => Number(s.studentId) === currentStudentId);
+              const currentRecord = currentStudent ? (currentStudent.records[`${categoryId}_left`] || 0) : 0;
+              
+              // papsManager.ts와 동일하게 findRankForRecord 사용
+              const rank = currentRecord > 0 ? findRankForRecord(recordsWithNames, currentRecord) : 0;
+              const total = recordsWithNames.length;
+              
               if (rank === 0) {
                 console.warn(`[학년 랭킹] ${categoryId}_left: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
                 console.warn(`[학년 랭킹] ${categoryId}_left: 학생 ID 타입 비교 - shareData: ${typeof shareData.studentId}, 목록: ${studentsWithLeftRecord.map(s => typeof s.studentId)}`);
@@ -1363,18 +1390,23 @@ export class ShareManager {
             });
 
             if (studentsWithRightRecord.length > 0) {
+              // papsManager.ts와 동일하게 {record, name} 형태로 변환
+              const recordsWithNames = studentsWithRightRecord.map(s => ({
+                record: s.records[`${categoryId}_right`] || 0,
+                name: s.name
+              }));
+              
               // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 내림차순 정렬
-              studentsWithRightRecord.sort((a, b) => {
-                const recordA = a.records[`${categoryId}_right`] || 0;
-                const recordB = b.records[`${categoryId}_right`] || 0;
-                return recordB - recordA; // 악력은 높을수록 좋음
-              });
-
-              console.log(`[학년 랭킹] ${categoryId}_right - 학생 ID 목록:`, studentsWithRightRecord.map(s => s.studentId));
-              console.log(`[학년 랭킹] ${categoryId}_right - 현재 학생 ID:`, currentStudentId);
-              const rankIndex = studentsWithRightRecord.findIndex(s => Number(s.studentId) === currentStudentId);
-              const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
-              const total = studentsWithRightRecord.length;
+              recordsWithNames.sort((a, b) => b.record - a.record);
+              
+              // 현재 학생의 기록 찾기
+              const currentStudent = studentsWithRightRecord.find(s => Number(s.studentId) === currentStudentId);
+              const currentRecord = currentStudent ? (currentStudent.records[`${categoryId}_right`] || 0) : 0;
+              
+              // papsManager.ts와 동일하게 findRankForRecord 사용
+              const rank = currentRecord > 0 ? findRankForRecord(recordsWithNames, currentRecord) : 0;
+              const total = recordsWithNames.length;
+              
               if (rank === 0) {
                 console.warn(`[학년 랭킹] ${categoryId}_right: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
                 console.warn(`[학년 랭킹] ${categoryId}_right: 학생 ID 타입 비교 - shareData: ${typeof shareData.studentId}, 목록: ${studentsWithRightRecord.map(s => typeof s.studentId)}`);
@@ -1413,25 +1445,19 @@ export class ShareManager {
             return;
           }
 
+          // papsManager.ts와 동일하게 {record, name} 형태로 변환
+          const recordsWithNames = studentsWithRecord.map(s => ({
+            record: s.records[categoryId] || 0,
+            name: s.name
+          }));
+          
           // '우리 학교 PAPS 종목별 랭킹' 로직과 동일하게 내림차순 정렬 (높은 기록이 좋은 경우)
           // papsManager.ts의 searchRanking과 동일하게 정렬
-          studentsWithRecord.sort((a, b) => {
-            const recordA = a.records[categoryId] || 0;
-            const recordB = b.records[categoryId] || 0;
-            return recordB - recordA;
-          });
-
-          // papsManager.ts의 searchRanking과 동일하게 현재 학생 찾기
-          // 현재 학생도 해당 종목에 기록이 있어야 목록에 포함됨
-          let rankIndex = studentsWithRecord.findIndex(s => {
-            const id = Number(s.studentId);
-            return id === currentStudentId;
-          });
+          recordsWithNames.sort((a, b) => b.record - a.record);
           
-          // papsManager.ts와 동일하게 현재 학생이 목록에 없으면 랭킹 계산 불가
-          // (현재 학생도 기록이 있어야 목록에 포함되므로)
-          const rank = rankIndex >= 0 ? rankIndex + 1 : 0;
-          const total = studentsWithRecord.length;
+          // papsManager.ts와 동일하게 findRankForRecord 사용
+          const rank = studentRecord > 0 ? findRankForRecord(recordsWithNames, studentRecord) : 0;
+          const total = recordsWithNames.length;
           
           if (rank === 0) {
             console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음.`, {
@@ -1444,7 +1470,7 @@ export class ShareManager {
             rankings[categoryId] = '-';
           } else {
             console.log(`[학년 랭킹] ${categoryId}: 순위 계산 성공 - ${rank}위 / ${total}명`);
-            console.log(`[학년 랭킹] ${categoryId} - 상위 5명:`, studentsWithRecord.slice(0, 5).map(s => ({ name: s.name, record: s.records[categoryId] })));
+            console.log(`[학년 랭킹] ${categoryId} - 상위 5명:`, recordsWithNames.slice(0, 5).map(s => ({ name: s.name, record: s.record })));
             rankings[categoryId] = `${rank}위 / ${total}명`;
           }
         }
