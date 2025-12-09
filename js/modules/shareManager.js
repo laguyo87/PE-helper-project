@@ -1253,7 +1253,7 @@ export class ShareManager {
                                                 const record = student.records?.[`${categoryId}_right`];
                                                 if (record !== undefined && record !== null &&
                                                     typeof record === 'number' && !isNaN(record) &&
-                                                    isFinite(record) && record !== 0) {
+                                                    isFinite(record) && record > 0) {
                                                     const studentId = Number(student.id || student.studentId);
                                                     recordsWithNames.push({
                                                         record,
@@ -1332,15 +1332,20 @@ export class ShareManager {
                                         classData.students.forEach((student) => {
                                             if (student && student.gender === shareData.studentGender) {
                                                 const record = student.records?.[categoryId];
-                                                if (record !== undefined && record !== null &&
+                                                // strength 카테고리의 일반 종목(팔굽혀펴기, 윗몸말아올리기)은 양수만 허용
+                                                const isValidRecord = record !== undefined && record !== null &&
                                                     typeof record === 'number' && !isNaN(record) &&
-                                                    isFinite(record) && record !== 0) {
-                                                    const studentId = Number(student.id || student.studentId);
-                                                    recordsWithNames.push({
-                                                        record,
-                                                        name: student.name || '',
-                                                        studentId: isNaN(studentId) || studentId <= 0 ? undefined : studentId
-                                                    });
+                                                    isFinite(record);
+                                                if (isValidRecord) {
+                                                    const isRecordValid = record > 0;
+                                                    if (isRecordValid) {
+                                                        const studentId = Number(student.id || student.studentId);
+                                                        recordsWithNames.push({
+                                                            record,
+                                                            name: student.name || '',
+                                                            studentId: isNaN(studentId) || studentId <= 0 ? undefined : studentId
+                                                        });
+                                                    }
                                                 }
                                             }
                                         });
@@ -1431,12 +1436,17 @@ export class ShareManager {
                                     if (student && student.gender === shareData.studentGender) {
                                         const record = student.records?.[categoryId];
                                         // papsManager.ts와 동일하게 유효한 숫자인지 더 엄격하게 검증
-                                        // 음수도 유효한 기록일 수 있음 (예: 앉아윗몸앞으로굽히기)
-                                        if (record !== undefined && record !== null &&
+                                        // papsManager.ts는 record > 0 조건을 사용하지만, flexibility는 음수도 가능하므로
+                                        // flexibility의 경우 record !== 0, 나머지는 record > 0 조건 사용
+                                        const isValidRecord = record !== undefined && record !== null &&
                                             typeof record === 'number' && !isNaN(record) &&
-                                            isFinite(record)) {
-                                            // 0보다 큰 값만 필터링 (음수는 허용, 0은 제외)
-                                            if (record !== 0) {
+                                            isFinite(record);
+                                        if (isValidRecord) {
+                                            // flexibility는 음수도 허용, 나머지는 양수만 허용
+                                            const isRecordValid = categoryId === 'flexibility'
+                                                ? record !== 0
+                                                : record > 0;
+                                            if (isRecordValid) {
                                                 const studentId = Number(student.id || student.studentId);
                                                 recordsWithNames.push({
                                                     record,
