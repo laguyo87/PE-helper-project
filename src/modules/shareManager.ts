@@ -1370,8 +1370,8 @@ export class ShareManager {
               });
             }
 
-            // 현재 학생이 목록에 있는지 확인하고, 실제 기록 가져오기 (studentId로 정확히 매칭)
-            const currentStudentInList = recordsWithNames.find(r => {
+            // 현재 학생이 목록에 있는지 확인 (studentId로 정확히 매칭)
+            const currentStudentIndex = recordsWithNames.findIndex(r => {
               if (r.studentId !== undefined) {
                 return r.studentId === currentStudentId;
               }
@@ -1379,12 +1379,15 @@ export class ShareManager {
               return r.name === shareData.studentName;
             });
 
-            // 현재 학생의 실제 기록 (클래스 데이터에 있으면 그것을 사용, 없으면 shareData 사용)
+            // shareData의 기록이 최신이므로 이를 우선적으로 사용
+            // 클래스 데이터의 기록과 다를 수 있으므로 shareData의 기록으로 교체
             let actualLeftRecord = leftRecord;
-            if (currentStudentInList) {
-              // 클래스 데이터에 현재 학생이 있으면 그 기록을 사용
-              actualLeftRecord = currentStudentInList.record;
-              console.log(`[학년 랭킹] ${categoryId}_left: 현재 학생이 목록에 있음, 클래스 데이터의 기록 사용 - ${actualLeftRecord} (shareData: ${leftRecord})`);
+            if (currentStudentIndex >= 0) {
+              // 현재 학생이 목록에 있으면, shareData의 기록으로 교체
+              const oldRecord = recordsWithNames[currentStudentIndex].record;
+              recordsWithNames[currentStudentIndex].record = leftRecord;
+              console.log(`[학년 랭킹] ${categoryId}_left: 현재 학생이 목록에 있음, shareData 기록으로 교체 - ${leftRecord} (클래스 데이터: ${oldRecord})`);
+              actualLeftRecord = leftRecord;
             } else if (leftRecord > 0) {
               // 현재 학생이 목록에 없고, 기록이 있으면 추가
               recordsWithNames.push({
@@ -1450,8 +1453,8 @@ export class ShareManager {
               });
             }
 
-            // 현재 학생이 목록에 있는지 확인하고, 실제 기록 가져오기 (studentId로 정확히 매칭)
-            const currentStudentInList = recordsWithNames.find(r => {
+            // 현재 학생이 목록에 있는지 확인 (studentId로 정확히 매칭)
+            const currentStudentIndex = recordsWithNames.findIndex(r => {
               if (r.studentId !== undefined) {
                 return r.studentId === currentStudentId;
               }
@@ -1459,12 +1462,15 @@ export class ShareManager {
               return r.name === shareData.studentName;
             });
 
-            // 현재 학생의 실제 기록 (클래스 데이터에 있으면 그것을 사용, 없으면 shareData 사용)
+            // shareData의 기록이 최신이므로 이를 우선적으로 사용
+            // 클래스 데이터의 기록과 다를 수 있으므로 shareData의 기록으로 교체
             let actualRightRecord = rightRecord;
-            if (currentStudentInList) {
-              // 클래스 데이터에 현재 학생이 있으면 그 기록을 사용
-              actualRightRecord = currentStudentInList.record;
-              console.log(`[학년 랭킹] ${categoryId}_right: 현재 학생이 목록에 있음, 클래스 데이터의 기록 사용 - ${actualRightRecord} (shareData: ${rightRecord})`);
+            if (currentStudentIndex >= 0) {
+              // 현재 학생이 목록에 있으면, shareData의 기록으로 교체
+              const oldRecord = recordsWithNames[currentStudentIndex].record;
+              recordsWithNames[currentStudentIndex].record = rightRecord;
+              console.log(`[학년 랭킹] ${categoryId}_right: 현재 학생이 목록에 있음, shareData 기록으로 교체 - ${rightRecord} (클래스 데이터: ${oldRecord})`);
+              actualRightRecord = rightRecord;
             } else if (rightRecord > 0) {
               // 현재 학생이 목록에 없고, 기록이 있으면 추가
               recordsWithNames.push({
@@ -1546,8 +1552,8 @@ export class ShareManager {
             return;
           }
 
-          // 현재 학생이 목록에 있는지 확인하고, 실제 기록 가져오기 (studentId로 정확히 매칭)
-          const currentStudentInList = recordsWithNames.find(r => {
+          // 현재 학생이 목록에 있는지 확인 (studentId로 정확히 매칭)
+          const currentStudentIndex = recordsWithNames.findIndex(r => {
             if (r.studentId !== undefined) {
               return r.studentId === currentStudentId;
             }
@@ -1555,12 +1561,15 @@ export class ShareManager {
             return r.name === shareData.studentName;
           });
           
-          // 현재 학생의 실제 기록 (클래스 데이터에 있으면 그것을 사용, 없으면 shareData 사용)
+          // shareData의 기록이 최신이므로 이를 우선적으로 사용
+          // 클래스 데이터의 기록과 다를 수 있으므로 shareData의 기록으로 교체
           let actualStudentRecord = studentRecord;
-          if (currentStudentInList) {
-            // 클래스 데이터에 현재 학생이 있으면 그 기록을 사용
-            actualStudentRecord = currentStudentInList.record;
-            console.log(`[학년 랭킹] ${categoryId}: 현재 학생이 목록에 있음, 클래스 데이터의 기록 사용 - ${actualStudentRecord} (shareData: ${studentRecord})`);
+          if (currentStudentIndex >= 0) {
+            // 현재 학생이 목록에 있으면, shareData의 기록으로 교체
+            const oldRecord = recordsWithNames[currentStudentIndex].record;
+            recordsWithNames[currentStudentIndex].record = studentRecord;
+            console.log(`[학년 랭킹] ${categoryId}: 현재 학생이 목록에 있음, shareData 기록으로 교체 - ${studentRecord} (클래스 데이터: ${oldRecord})`);
+            actualStudentRecord = studentRecord;
           } else if (studentRecord > 0) {
             // 현재 학생이 목록에 없고, 기록이 있으면 추가
             recordsWithNames.push({
