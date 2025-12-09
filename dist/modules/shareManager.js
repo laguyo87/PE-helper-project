@@ -1158,6 +1158,7 @@ export class ShareManager {
                     const leftRecord = shareData.records[`${categoryId}_left`];
                     if (leftRecord !== undefined && leftRecord !== null && leftRecord !== 0) {
                         // papsManager.ts의 searchRanking과 동일하게 종목별로 기록이 있는 학생만 수집
+                        // studentId도 함께 저장하여 현재 학생을 정확히 식별
                         const recordsWithNames = [];
                         // 현재 학생이 속한 사용자의 클래스만 순회 (papsManager.ts와 동일)
                         if (targetUserData.paps && targetUserData.paps.classes && Array.isArray(targetUserData.paps.classes)) {
@@ -1172,22 +1173,41 @@ export class ShareManager {
                                             if (record !== undefined && record !== null &&
                                                 typeof record === 'number' && !isNaN(record) &&
                                                 isFinite(record) && record > 0) {
-                                                recordsWithNames.push({ record, name: student.name || '' });
+                                                const studentId = Number(student.id || student.studentId);
+                                                recordsWithNames.push({
+                                                    record,
+                                                    name: student.name || '',
+                                                    studentId: isNaN(studentId) || studentId <= 0 ? undefined : studentId
+                                                });
                                             }
                                         }
                                     });
                                 }
                             });
                         }
+                        // 현재 학생이 목록에 있는지 확인 (studentId로 정확히 매칭)
+                        const currentStudentInList = recordsWithNames.some(r => {
+                            if (r.studentId !== undefined) {
+                                return r.studentId === currentStudentId;
+                            }
+                            // studentId가 없는 경우 이름과 기록으로 매칭 (하위 호환성)
+                            return r.name === shareData.studentName && r.record === leftRecord;
+                        });
                         // 현재 학생의 기록이 목록에 없고, 기록이 있으면 추가
-                        if (leftRecord > 0 && !recordsWithNames.some(r => r.record === leftRecord && r.name === shareData.studentName)) {
-                            recordsWithNames.push({ record: leftRecord, name: shareData.studentName || '' });
+                        if (leftRecord > 0 && !currentStudentInList) {
+                            recordsWithNames.push({
+                                record: leftRecord,
+                                name: shareData.studentName || '',
+                                studentId: currentStudentId
+                            });
                             console.log(`[학년 랭킹] ${categoryId}_left: 현재 학생 기록을 목록에 추가 - ${leftRecord}`);
                         }
                         if (recordsWithNames.length > 0) {
-                            recordsWithNames.sort((a, b) => b.record - a.record);
-                            const rank = leftRecord > 0 ? findRankForRecord(recordsWithNames, leftRecord) : 0;
-                            const total = recordsWithNames.length;
+                            // findRankForRecord를 위해 {record, name} 형태로 변환
+                            const recordsForRanking = recordsWithNames.map(r => ({ record: r.record, name: r.name }));
+                            recordsForRanking.sort((a, b) => b.record - a.record);
+                            const rank = leftRecord > 0 ? findRankForRecord(recordsForRanking, leftRecord) : 0;
+                            const total = recordsForRanking.length;
                             if (rank === 0) {
                                 console.warn(`[학년 랭킹] ${categoryId}_left: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
                             }
@@ -1207,6 +1227,7 @@ export class ShareManager {
                     const rightRecord = shareData.records[`${categoryId}_right`];
                     if (rightRecord !== undefined && rightRecord !== null && rightRecord !== 0) {
                         // papsManager.ts의 searchRanking과 동일하게 종목별로 기록이 있는 학생만 수집
+                        // studentId도 함께 저장하여 현재 학생을 정확히 식별
                         const recordsWithNames = [];
                         // 현재 학생이 속한 사용자의 클래스만 순회 (papsManager.ts와 동일)
                         if (targetUserData.paps && targetUserData.paps.classes && Array.isArray(targetUserData.paps.classes)) {
@@ -1221,22 +1242,41 @@ export class ShareManager {
                                             if (record !== undefined && record !== null &&
                                                 typeof record === 'number' && !isNaN(record) &&
                                                 isFinite(record) && record > 0) {
-                                                recordsWithNames.push({ record, name: student.name || '' });
+                                                const studentId = Number(student.id || student.studentId);
+                                                recordsWithNames.push({
+                                                    record,
+                                                    name: student.name || '',
+                                                    studentId: isNaN(studentId) || studentId <= 0 ? undefined : studentId
+                                                });
                                             }
                                         }
                                     });
                                 }
                             });
                         }
+                        // 현재 학생이 목록에 있는지 확인 (studentId로 정확히 매칭)
+                        const currentStudentInList = recordsWithNames.some(r => {
+                            if (r.studentId !== undefined) {
+                                return r.studentId === currentStudentId;
+                            }
+                            // studentId가 없는 경우 이름과 기록으로 매칭 (하위 호환성)
+                            return r.name === shareData.studentName && r.record === rightRecord;
+                        });
                         // 현재 학생의 기록이 목록에 없고, 기록이 있으면 추가
-                        if (rightRecord > 0 && !recordsWithNames.some(r => r.record === rightRecord && r.name === shareData.studentName)) {
-                            recordsWithNames.push({ record: rightRecord, name: shareData.studentName || '' });
+                        if (rightRecord > 0 && !currentStudentInList) {
+                            recordsWithNames.push({
+                                record: rightRecord,
+                                name: shareData.studentName || '',
+                                studentId: currentStudentId
+                            });
                             console.log(`[학년 랭킹] ${categoryId}_right: 현재 학생 기록을 목록에 추가 - ${rightRecord}`);
                         }
                         if (recordsWithNames.length > 0) {
-                            recordsWithNames.sort((a, b) => b.record - a.record);
-                            const rank = rightRecord > 0 ? findRankForRecord(recordsWithNames, rightRecord) : 0;
-                            const total = recordsWithNames.length;
+                            // findRankForRecord를 위해 {record, name} 형태로 변환
+                            const recordsForRanking = recordsWithNames.map(r => ({ record: r.record, name: r.name }));
+                            recordsForRanking.sort((a, b) => b.record - a.record);
+                            const rank = rightRecord > 0 ? findRankForRecord(recordsForRanking, rightRecord) : 0;
+                            const total = recordsForRanking.length;
                             if (rank === 0) {
                                 console.warn(`[학년 랭킹] ${categoryId}_right: 현재 학생을 찾을 수 없음. studentId: ${shareData.studentId}, 총 학생 수: ${total}`);
                             }
@@ -1262,6 +1302,7 @@ export class ShareManager {
                         return;
                     }
                     // papsManager.ts의 searchRanking과 동일하게 종목별로 기록이 있는 학생만 수집
+                    // studentId도 함께 저장하여 현재 학생을 정확히 식별
                     const recordsWithNames = [];
                     // 현재 학생이 속한 사용자의 클래스만 순회 (papsManager.ts와 동일)
                     if (targetUserData.paps && targetUserData.paps.classes && Array.isArray(targetUserData.paps.classes)) {
@@ -1280,7 +1321,12 @@ export class ShareManager {
                                         if (record !== undefined && record !== null &&
                                             typeof record === 'number' && !isNaN(record) &&
                                             isFinite(record) && record > 0) {
-                                            recordsWithNames.push({ record, name: student.name || '' });
+                                            const studentId = Number(student.id || student.studentId);
+                                            recordsWithNames.push({
+                                                record,
+                                                name: student.name || '',
+                                                studentId: isNaN(studentId) || studentId <= 0 ? undefined : studentId
+                                            });
                                         }
                                     }
                                 });
@@ -1292,26 +1338,35 @@ export class ShareManager {
                         rankings[categoryId] = '-';
                         return;
                     }
-                    // 현재 학생의 기록이 목록에 없으면 추가 (papsManager.ts는 학생 이름으로 찾지만, shareManager는 studentId로 찾으므로)
+                    // 현재 학생이 목록에 있는지 확인 (studentId로 정확히 매칭)
                     const currentStudentInList = recordsWithNames.some(r => {
-                        // 현재 학생을 찾기 위해 studentId로 매칭해야 하지만, recordsWithNames에는 studentId가 없음
-                        // 따라서 현재 학생의 기록이 목록에 없으면 추가
-                        return false; // 항상 false로 처리하여 아래에서 추가
+                        if (r.studentId !== undefined) {
+                            return r.studentId === currentStudentId;
+                        }
+                        // studentId가 없는 경우 이름과 기록으로 매칭 (하위 호환성)
+                        return r.name === shareData.studentName && r.record === studentRecord;
                     });
                     // 현재 학생의 기록이 목록에 없고, 기록이 있으면 추가
-                    if (studentRecord > 0 && !recordsWithNames.some(r => r.record === studentRecord && r.name === shareData.studentName)) {
-                        recordsWithNames.push({ record: studentRecord, name: shareData.studentName || '' });
+                    if (studentRecord > 0 && !currentStudentInList) {
+                        recordsWithNames.push({
+                            record: studentRecord,
+                            name: shareData.studentName || '',
+                            studentId: currentStudentId
+                        });
                         console.log(`[학년 랭킹] ${categoryId}: 현재 학생 기록을 목록에 추가 - ${studentRecord}`);
                     }
                     // papsManager.ts의 searchRanking과 동일하게 내림차순 정렬 (높은 기록이 좋은 경우)
-                    recordsWithNames.sort((a, b) => b.record - a.record);
+                    // findRankForRecord를 위해 {record, name} 형태로 변환
+                    const recordsForRanking = recordsWithNames.map(r => ({ record: r.record, name: r.name }));
+                    recordsForRanking.sort((a, b) => b.record - a.record);
                     // 디버깅: 현재 학생의 기록과 수집된 기록 확인
                     console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록:`, studentRecord);
-                    console.log(`[학년 랭킹] ${categoryId} - 수집된 기록 목록 (처음 10개):`, recordsWithNames.slice(0, 10).map(r => r.record));
-                    console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록이 목록에 있는지:`, recordsWithNames.some(r => r.record === studentRecord));
+                    console.log(`[학년 랭킹] ${categoryId} - 수집된 기록 목록 (처음 10개):`, recordsForRanking.slice(0, 10).map(r => r.record));
+                    console.log(`[학년 랭킹] ${categoryId} - 현재 학생 기록이 목록에 있는지:`, recordsForRanking.some(r => r.record === studentRecord));
+                    console.log(`[학년 랭킹] ${categoryId} - 현재 학생이 목록에 포함되어 있는지:`, currentStudentInList);
                     // papsManager.ts와 동일하게 findRankForRecord 사용
-                    const rank = studentRecord > 0 ? findRankForRecord(recordsWithNames, studentRecord) : 0;
-                    const total = recordsWithNames.length;
+                    const rank = studentRecord > 0 ? findRankForRecord(recordsForRanking, studentRecord) : 0;
+                    const total = recordsForRanking.length;
                     if (rank === 0) {
                         console.warn(`[학년 랭킹] ${categoryId}: 현재 학생을 찾을 수 없음.`, {
                             studentId: shareData.studentId,
