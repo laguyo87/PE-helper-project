@@ -58,6 +58,7 @@ export interface ShareManagerOptions {
 export declare class ShareManager {
     private firebaseDb;
     private $;
+    private realtimeUnsubscribers;
     /**
      * Firebase DB 인스턴스를 가져옵니다.
      */

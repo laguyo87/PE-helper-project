@@ -27,6 +27,7 @@ export class ShareManager {
      * @param options ShareManager 옵션
      */
     constructor(options = {}) {
+        this.realtimeUnsubscribers = new Map(); // shareId별 실시간 리스너 정리 함수
         // Firebase DB 접근 (window.firebase 사용)
         this.firebaseDb = options.firebaseDb || (typeof window !== 'undefined' && window.firebase?.db);
         this.$ = options.$ || ((selector) => document.querySelector(selector));
@@ -964,6 +965,15 @@ export class ShareManager {
         }
         // 모달 닫기 함수
         const removeModal = () => {
+            // 실시간 리스너 정리
+            if (shareId) {
+                const unsubscribe = this.realtimeUnsubscribers.get(shareId);
+                if (unsubscribe) {
+                    unsubscribe();
+                    this.realtimeUnsubscribers.delete(shareId);
+                    console.log('[ShareManager] 실시간 리스너 정리 완료:', shareId);
+                }
+            }
             if (document.body.contains(modal)) {
                 // beforeinstallprompt 이벤트 리스너는 전역으로 등록되어 있으므로 제거하지 않음
                 document.body.removeChild(modal);
@@ -1011,9 +1021,70 @@ export class ShareManager {
         }
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
-                document.body.removeChild(modal);
+                removeModal();
             }
         });
+        // 실시간 업데이트 리스너 설정 (shareId가 있을 때만)
+        if (shareId) {
+            try {
+                const { doc, onSnapshot, db } = window.firebase || {};
+                if (db && doc && onSnapshot) {
+                    const shareDocRef = doc(db, 'sharedPapsStudents', shareId);
+                    // 기존 리스너가 있으면 정리
+                    const existingUnsubscribe = this.realtimeUnsubscribers.get(shareId);
+                    if (existingUnsubscribe) {
+                        existingUnsubscribe();
+                    }
+                    // 실시간 리스너 등록
+                    const unsubscribe = onSnapshot(shareDocRef, async (snapshot) => {
+                        if (!snapshot.exists()) {
+                            console.log('[ShareManager] 공유 데이터가 삭제되었습니다:', shareId);
+                            return;
+                        }
+                        const updatedData = snapshot.data();
+                        console.log('[ShareManager] 실시간 업데이트 감지:', {
+                            shareId,
+                            studentName: updatedData.studentName,
+                            lastUpdated: updatedData.lastUpdated
+                        });
+                        // 유효 기간 확인
+                        if (updatedData.expiresAt) {
+                            const expiresAt = new Date(updatedData.expiresAt);
+                            if (new Date() > expiresAt) {
+                                console.warn('[ShareManager] QR 코드가 만료되었습니다:', expiresAt);
+                                this.showErrorModal('이 QR 코드는 만료되었습니다.');
+                                removeModal();
+                                return;
+                            }
+                        }
+                        // 모달이 여전히 열려있는지 확인
+                        const existingModal = document.getElementById('paps-student-record-modal');
+                        if (existingModal && document.body.contains(existingModal)) {
+                            // 기존 모달 제거 (실시간 리스너는 유지)
+                            const existingUnsubscribe = this.realtimeUnsubscribers.get(shareId);
+                            this.realtimeUnsubscribers.delete(shareId);
+                            // 모달 제거
+                            document.body.removeChild(existingModal);
+                            // 새 데이터로 모달 다시 생성 (실시간 리스너는 자동으로 다시 등록됨)
+                            await this.showPapsStudentRecord(updatedData, shareId);
+                        }
+                    }, (error) => {
+                        logError('실시간 업데이트 리스너 오류:', error);
+                        // 오류가 발생해도 계속 진행 (조용히 실패)
+                    });
+                    // 리스너 정리 함수 저장
+                    this.realtimeUnsubscribers.set(shareId, unsubscribe);
+                    console.log('[ShareManager] 실시간 업데이트 리스너 등록 완료:', shareId);
+                }
+                else {
+                    console.warn('[ShareManager] Firebase onSnapshot을 사용할 수 없습니다. 실시간 업데이트가 비활성화됩니다.');
+                }
+            }
+            catch (error) {
+                logError('실시간 업데이트 리스너 설정 실패:', error);
+                // 오류가 발생해도 계속 진행 (조용히 실패)
+            }
+        }
     }
     /**
      * 학년 랭킹을 계산합니다.
