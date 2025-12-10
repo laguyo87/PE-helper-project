@@ -74,6 +74,8 @@ export class ShareManager {
   private firebaseDb: any;
   private $: (selector: string) => HTMLElement | null;
   private realtimeUnsubscribers: Map<string, () => void> = new Map(); // shareId별 실시간 리스너 정리 함수
+  private lastUpdatedData: Map<string, SharedPapsStudentData> = new Map(); // shareId별 마지막 업데이트된 데이터
+  private updateTimeouts: Map<string, NodeJS.Timeout> = new Map(); // shareId별 디바운스 타이머
   
   /**
    * Firebase DB 인스턴스를 가져옵니다.
@@ -1127,6 +1129,16 @@ export class ShareManager {
           this.realtimeUnsubscribers.delete(shareId);
           console.log('[ShareManager] 실시간 리스너 정리 완료:', shareId);
         }
+        
+        // 디바운스 타이머 정리
+        const timeout = this.updateTimeouts.get(shareId);
+        if (timeout) {
+          clearTimeout(timeout);
+          this.updateTimeouts.delete(shareId);
+        }
+        
+        // 마지막 업데이트된 데이터 정리
+        this.lastUpdatedData.delete(shareId);
       }
       
       if (document.body.contains(modal)) {
@@ -1186,6 +1198,11 @@ export class ShareManager {
       }
     });
 
+    // 초기 데이터 저장 (실시간 업데이트 비교용)
+    if (shareId) {
+      this.lastUpdatedData.set(shareId, shareData);
+    }
+
     // 실시간 업데이트 리스너 설정 (shareId가 있을 때만)
     if (shareId) {
       try {
@@ -1200,6 +1217,13 @@ export class ShareManager {
             existingUnsubscribe();
           }
           
+          // 기존 디바운스 타이머 정리
+          const existingTimeout = this.updateTimeouts.get(shareId);
+          if (existingTimeout) {
+            clearTimeout(existingTimeout);
+            this.updateTimeouts.delete(shareId);
+          }
+          
           // 실시간 리스너 등록
           const unsubscribe = onSnapshot(shareDocRef, async (snapshot: any) => {
             if (!snapshot.exists()) {
@@ -1208,6 +1232,20 @@ export class ShareManager {
             }
 
             const updatedData = snapshot.data() as SharedPapsStudentData;
+            
+            // 마지막 업데이트된 데이터와 비교하여 실제로 변경되었는지 확인
+            const lastData = this.lastUpdatedData.get(shareId);
+            if (lastData) {
+              // records를 비교하여 실제로 변경되었는지 확인
+              const recordsChanged = JSON.stringify(lastData.records) !== JSON.stringify(updatedData.records);
+              const nameChanged = lastData.studentName !== updatedData.studentName;
+              
+              if (!recordsChanged && !nameChanged) {
+                console.log('[ShareManager] 데이터 변경 없음, 업데이트 건너뜀:', shareId);
+                return;
+              }
+            }
+
             console.log('[ShareManager] 실시간 업데이트 감지:', {
               shareId,
               studentName: updatedData.studentName,
@@ -1225,19 +1263,35 @@ export class ShareManager {
               }
             }
 
-            // 모달이 여전히 열려있는지 확인
-            const existingModal = document.getElementById('paps-student-record-modal');
-            if (existingModal && document.body.contains(existingModal)) {
-              // 기존 모달 제거 (실시간 리스너는 유지)
-              const existingUnsubscribe = this.realtimeUnsubscribers.get(shareId);
-              this.realtimeUnsubscribers.delete(shareId);
-              
-              // 모달 제거
-              document.body.removeChild(existingModal);
-              
-              // 새 데이터로 모달 다시 생성 (실시간 리스너는 자동으로 다시 등록됨)
-              await this.showPapsStudentRecord(updatedData, shareId);
+            // 디바운싱: 기존 타이머가 있으면 취소
+            const existingTimeout = this.updateTimeouts.get(shareId);
+            if (existingTimeout) {
+              clearTimeout(existingTimeout);
             }
+
+            // 500ms 후에 업데이트 실행 (디바운싱)
+            const timeout = setTimeout(async () => {
+              this.updateTimeouts.delete(shareId);
+              
+              // 마지막 업데이트된 데이터 저장
+              this.lastUpdatedData.set(shareId, updatedData);
+
+              // 모달이 여전히 열려있는지 확인
+              const existingModal = document.getElementById('paps-student-record-modal');
+              if (existingModal && document.body.contains(existingModal)) {
+                // 기존 모달 제거 (실시간 리스너는 유지)
+                const existingUnsubscribe = this.realtimeUnsubscribers.get(shareId);
+                this.realtimeUnsubscribers.delete(shareId);
+                
+                // 모달 제거
+                document.body.removeChild(existingModal);
+                
+                // 새 데이터로 모달 다시 생성 (실시간 리스너는 자동으로 다시 등록됨)
+                await this.showPapsStudentRecord(updatedData, shareId);
+              }
+            }, 500);
+
+            this.updateTimeouts.set(shareId, timeout);
           }, (error: any) => {
             logError('실시간 업데이트 리스너 오류:', error);
             // 오류가 발생해도 계속 진행 (조용히 실패)
