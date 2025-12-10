@@ -414,15 +414,90 @@ export class ShareManager {
      */
     async fetchLatestShareData(shareId) {
         try {
-            const { doc, getDoc, db } = window.firebase || {};
-            if (!db || !doc || !getDoc) {
+            const { doc, getDoc, collection, getDocs, db } = window.firebase || {};
+            if (!db || !doc || !getDoc || !collection || !getDocs) {
                 throw new Error('Firebase가 초기화되지 않았습니다.');
             }
+            // 1. shareId로 공유 데이터 가져오기
             const shareDoc = await getDoc(doc(db, 'sharedPapsStudents', shareId));
             if (!shareDoc.exists()) {
                 return null;
             }
-            return shareDoc.data();
+            const shareData = shareDoc.data();
+            const classId = Number(shareData.classId);
+            const studentId = Number(shareData.studentId);
+            if (!classId || !studentId) {
+                console.warn('[ShareManager] classId 또는 studentId가 없습니다.');
+                return shareData;
+            }
+            // 2. 실제 클래스 데이터에서 최신 학생 기록 가져오기
+            const usersSnapshot = await getDocs(collection(db, 'users'));
+            let latestStudentData = null;
+            // 현재 로그인한 사용자 또는 classId로 사용자 찾기
+            const firebase = window.firebase;
+            const currentUser = firebase?.auth?.currentUser;
+            if (currentUser) {
+                // 로그인한 경우, 현재 사용자의 데이터에서 찾기
+                const currentUserDoc = usersSnapshot.docs.find((doc) => doc.id === currentUser.uid);
+                if (currentUserDoc) {
+                    const userData = currentUserDoc.data();
+                    if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes)) {
+                        const matchingClass = userData.paps.classes.find((classData) => {
+                            return classData && typeof classData === 'object' &&
+                                'id' in classData && Number(classData.id) === classId;
+                        });
+                        if (matchingClass && matchingClass.students && Array.isArray(matchingClass.students)) {
+                            latestStudentData = matchingClass.students.find((student) => {
+                                return student && (Number(student.id) === studentId || Number(student.studentId) === studentId);
+                            });
+                        }
+                    }
+                }
+            }
+            // 로그인하지 않았거나 찾지 못한 경우, 모든 사용자에서 찾기
+            if (!latestStudentData) {
+                usersSnapshot.forEach((userDoc) => {
+                    const userData = userDoc.data();
+                    if (userData.paps && userData.paps.classes && Array.isArray(userData.paps.classes)) {
+                        const matchingClass = userData.paps.classes.find((classData) => {
+                            return classData && typeof classData === 'object' &&
+                                'id' in classData && Number(classData.id) === classId;
+                        });
+                        if (matchingClass && matchingClass.students && Array.isArray(matchingClass.students)) {
+                            const student = matchingClass.students.find((student) => {
+                                return student && (Number(student.id) === studentId || Number(student.studentId) === studentId);
+                            });
+                            if (student) {
+                                latestStudentData = student;
+                            }
+                        }
+                    }
+                });
+            }
+            // 3. 최신 학생 데이터가 있으면 공유 데이터 업데이트
+            if (latestStudentData) {
+                console.log('[ShareManager] 최신 학생 데이터 찾음, 공유 데이터 업데이트:', {
+                    studentName: latestStudentData.name,
+                    recordsCount: Object.keys(latestStudentData.records || {}).length
+                });
+                // 최신 기록으로 공유 데이터 업데이트
+                const updatedShareData = {
+                    ...shareData,
+                    studentName: latestStudentData.name || shareData.studentName,
+                    studentGender: latestStudentData.gender || shareData.studentGender,
+                    records: latestStudentData.records || shareData.records,
+                    lastUpdated: new Date()
+                };
+                // 공유 데이터를 Firestore에 저장 (비동기, 실패해도 계속 진행)
+                this.saveSharedPapsStudent(updatedShareData).catch(error => {
+                    logError('공유 데이터 업데이트 저장 실패:', error);
+                });
+                return updatedShareData;
+            }
+            else {
+                console.warn('[ShareManager] 최신 학생 데이터를 찾을 수 없습니다. 기존 공유 데이터 반환');
+                return shareData;
+            }
         }
         catch (error) {
             logError('최신 데이터 가져오기 실패:', error);
