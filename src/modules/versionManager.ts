@@ -123,14 +123,29 @@ const getLocalStorage = (key: string): string | null => {
  * ```
  */
 export const checkVersion = (): void => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'versionManager.ts:125',message:'checkVersion 시작',data:{currentUrl:window.location.href,scriptTags:Array.from(document.querySelectorAll('script[src]')).map(s=>(s as HTMLScriptElement).src)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const storedVersion = getLocalStorage(VERSION_KEY);
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'versionManager.ts:129',message:'버전 정보 확인',data:{storedVersion,appVersion:APP_VERSION,versionMatch:storedVersion===APP_VERSION},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   
   // 항상 캐시 무효화를 위한 타임스탬프 업데이트 (최신 버전 보장)
   const timestamp = Date.now().toString();
   setLocalStorage(CACHE_BUSTER_KEY, timestamp);
   
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'versionManager.ts:133',message:'캐시 버스터 설정',data:{timestamp,cacheBusterKey:CACHE_BUSTER_KEY},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+  
   if (storedVersion !== APP_VERSION) {
     logger.debug(`새 버전 감지: ${APP_VERSION} (이전: ${storedVersion})`);
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'versionManager.ts:137',message:'새 버전 감지됨',data:{storedVersion,appVersion:APP_VERSION},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     
     // 새 버전 저장
     setLocalStorage(VERSION_KEY, APP_VERSION);
@@ -139,14 +154,24 @@ export const checkVersion = (): void => {
     // 알림 없이 바로 새로고침하여 항상 최신 버전을 사용하도록 함
     if (storedVersion) {
       logger.debug('버전이 변경되었습니다. 최신 버전으로 자동 새로고침합니다.');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'versionManager.ts:145',message:'자동 새로고침 예약',data:{timestamp,currentUrl:window.location.href},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       // 약간의 지연 후 새로고침 (데이터 저장 완료 대기)
       setTimeout(() => {
         // 캐시를 완전히 무시하고 새로고침 (쿼리 파라미터 추가)
         const url = new URL(window.location.href);
         url.searchParams.set('_t', timestamp);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'versionManager.ts:148',message:'새로고침 실행',data:{newUrl:url.toString(),timestamp},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         window.location.href = url.toString();
       }, 100);
     }
+  } else {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'versionManager.ts:151',message:'버전 변경 없음',data:{storedVersion,appVersion:APP_VERSION},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
   }
 };
 

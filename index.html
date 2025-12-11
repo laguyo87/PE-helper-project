@@ -104,6 +104,45 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   
+  <!-- 강제 최신 버전 보장: 페이지 로드 시마다 서버에서 최신 파일 확인 -->
+  <script>
+    (function() {
+      // 페이지 로드 시마다 서버에서 최신 버전 확인
+      // HTML 파일 자체의 마지막 수정 시간을 확인하여 캐시 무효화
+      var lastCheck = sessionStorage.getItem('last_version_check');
+      var now = Date.now();
+      
+      // 5분마다 한 번씩 서버에서 HTML 파일의 최신 여부 확인
+      if (!lastCheck || (now - parseInt(lastCheck)) > 5 * 60 * 1000) {
+        sessionStorage.setItem('last_version_check', now.toString());
+        
+        // HTML 파일의 마지막 수정 시간 확인 (HEAD 요청)
+        fetch(window.location.href, {
+          method: 'HEAD',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        }).then(function(response) {
+          var serverLastModified = response.headers.get('Last-Modified');
+          var clientLastModified = sessionStorage.getItem('html_last_modified');
+          
+          // 서버의 파일이 더 최신이면 강제 새로고침
+          if (serverLastModified && clientLastModified && serverLastModified !== clientLastModified) {
+            sessionStorage.setItem('html_last_modified', serverLastModified);
+            // 캐시를 완전히 무시하고 새로고침
+            window.location.reload(true);
+          } else if (serverLastModified) {
+            sessionStorage.setItem('html_last_modified', serverLastModified);
+          }
+        }).catch(function() {
+          // 에러 발생 시 무시 (오프라인 등)
+        });
+      }
+    })();
+  </script>
+  
   <!-- 환경 변수 설정 (로깅 시스템을 위한) -->
   <!-- 프로덕션 환경에서는 이 스크립트를 수정하여 window.NODE_ENV와 window.LOG_LEVEL을 설정하세요 -->
   <script>
@@ -416,7 +455,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2025-11-27-0831">
+  <link rel="stylesheet" href="styles.css" id="main-stylesheet">
 </head>
 <body>
   <a href="#content-wrapper" id="skip-to-main" class="skip-link">본문으로 건너뛰기</a>
@@ -1049,4 +1088,34 @@
     }, 500);
   </script>
   
-  <script type="module" src="main.js?v=2025-11-27-0831"></script>
+  <script type="module">
+    // 동적 캐시 버스터: 매 페이지 로드 시마다 타임스탬프를 생성하여 최신 버전 보장
+    (function() {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1052',message:'스크립트 로드 시작 - 동적 캐시 버스터',data:{currentUrl:window.location.href,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(function(){});
+      // #endregion
+      
+      // CSS 파일에도 캐시 버스터 추가
+      var stylesheet = document.getElementById('main-stylesheet');
+      if (stylesheet) {
+        var cssUrl = stylesheet.href.split('?')[0];
+        var timestamp = Date.now();
+        stylesheet.href = cssUrl + '?v=' + timestamp;
+      }
+      
+      // main.js를 동적으로 로드 (캐시 버스터 포함)
+      var timestamp = Date.now();
+      var mainJsUrl = './main.js?v=' + timestamp;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1052',message:'동적 스크립트 로드',data:{mainJsUrl:mainJsUrl,timestamp:timestamp},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(function(){});
+      // #endregion
+      
+      import(mainJsUrl).catch(function(err){
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1052',message:'스크립트 로드 실패',data:{error:err.message,stack:err.stack,mainJsUrl:mainJsUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(function(){});
+        // #endregion
+        console.error('main.js 로드 실패:',err);
+      });
+    })();
+  </script>

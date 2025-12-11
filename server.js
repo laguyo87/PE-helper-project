@@ -60,29 +60,64 @@ const server = http.createServer((req, res) => {
     'Content-Type': contentType
   };
   
-  // JavaScript 파일의 경우 CORS 및 모듈 지원 헤더 추가
-  if (extname === '.js') {
+  // JavaScript 및 CSS 파일의 경우 캐시 무효화 헤더 추가
+  if (extname === '.js' || extname === '.css') {
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0';
+    headers['Pragma'] = 'no-cache';
+    headers['Expires'] = '0';
     headers['Access-Control-Allow-Origin'] = '*';
+  }
+  
+  // HTML 파일의 경우도 캐시 무효화
+  if (extname === '.html') {
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0';
+    headers['Pragma'] = 'no-cache';
+    headers['Expires'] = '0';
   }
 
   // 디버깅 로그
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} -> ${filePath}`);
 
-  fs.readFile(filePath, (error, content) => {
-    if (error) {
-      if (error.code === 'ENOENT') {
+  fs.stat(filePath, (statError, stats) => {
+    if (statError) {
+      if (statError.code === 'ENOENT') {
         console.error(`404 Not Found: ${req.url} -> ${filePath}`);
         res.writeHead(404, { 'Content-Type': 'text/html' });
         res.end(`<h1>404 Not Found</h1><p>File: ${filePath}</p>`, 'utf-8');
       } else {
+        console.error(`Server Error: ${statError.code} for ${filePath}`);
+        res.writeHead(500);
+        res.end(`Server Error: ${statError.code}`);
+      }
+      return;
+    }
+    
+    // Last-Modified 헤더 추가 (캐시 무효화를 위해)
+    const lastModified = stats.mtime.toUTCString();
+    headers['Last-Modified'] = lastModified;
+    
+    // ETag 추가 (파일 크기 + 수정 시간 기반)
+    const etag = `"${stats.size}-${stats.mtime.getTime()}"`;
+    headers['ETag'] = etag;
+    
+    // If-None-Match 헤더 확인 (캐시 검증)
+    const ifNoneMatch = req.headers['if-none-match'];
+    if (ifNoneMatch === etag) {
+      res.writeHead(304, headers);
+      res.end();
+      return;
+    }
+    
+    fs.readFile(filePath, (error, content) => {
+      if (error) {
         console.error(`Server Error: ${error.code} for ${filePath}`);
         res.writeHead(500);
         res.end(`Server Error: ${error.code}`);
+      } else {
+        res.writeHead(200, headers);
+        res.end(content, 'utf-8');
       }
-    } else {
-      res.writeHead(200, headers);
-      res.end(content, 'utf-8');
-    }
+    });
   });
 });
 
