@@ -20,6 +20,20 @@ const indexPath = path.join(__dirname, '..', 'index.html');
 try {
     let html = fs.readFileSync(indexPath, 'utf8');
     
+    // app-version 메타 태그 업데이트 (가장 중요: HTML 버전 체크용)
+    if (html.includes('name="app-version"')) {
+        html = html.replace(
+            /<meta\s+name=["']app-version["']\s+content=["'][^"']*["']/i,
+            `<meta name="app-version" content="${version}"`
+        );
+    } else {
+        // app-version 메타 태그가 없으면 naver-site-verification 다음에 추가
+        html = html.replace(
+            /(<meta\s+name=["']naver-site-verification["'][^>]*>)/i,
+            `$1\n  <meta name="app-version" content="${version}" />`
+        );
+    }
+    
     // styles.css 버전 업데이트
     html = html.replace(
         /href="styles\.css\?v=[^"]*"/,
