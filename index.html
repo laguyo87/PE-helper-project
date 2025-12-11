@@ -1166,10 +1166,6 @@
   <script type="module">
     // 동적 캐시 버스터: 매 페이지 로드 시마다 타임스탬프를 생성하여 최신 버전 보장
     (function() {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1052',message:'스크립트 로드 시작 - 동적 캐시 버스터',data:{currentUrl:window.location.href,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(function(){});
-      // #endregion
-      
       // CSS 파일에도 캐시 버스터 추가
       var stylesheet = document.getElementById('main-stylesheet');
       if (stylesheet) {
@@ -1182,14 +1178,7 @@
       var timestamp = Date.now();
       var mainJsUrl = './main.js?v=' + timestamp;
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1052',message:'동적 스크립트 로드',data:{mainJsUrl:mainJsUrl,timestamp:timestamp},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(function(){});
-      // #endregion
-      
       import(mainJsUrl).catch(function(err){
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/42fb2a3b-b7b1-4fcb-8de1-91535b111b83',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:1052',message:'스크립트 로드 실패',data:{error:err.message,stack:err.stack,mainJsUrl:mainJsUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(function(){});
-        // #endregion
         console.error('main.js 로드 실패:',err);
       });
     })();
