@@ -347,9 +347,11 @@ async function waitForFirebase(timeout = 10000) {
         window.addEventListener('firebaseReady', handler, { once: true });
     });
 }
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[main] DOMContentLoaded 이벤트 발생');
+// DOMContentLoaded 이벤트 핸들러 (이미 발생했으면 즉시 실행)
+async function initMain() {
+    console.log('[main] 앱 초기화 시작');
     console.log('[main] 현재 URL:', window.location.href);
+    console.log('[main] DOM 상태:', document.readyState);
     const urlParams = new URLSearchParams(window.location.search);
     const shareId = urlParams.get('share');
     const papsShareId = urlParams.get('paps');
@@ -412,5 +414,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('[main] 일반 앱 초기화 시작');
         await initialize_app();
     }
-});
+}
+// DOMContentLoaded가 이미 발생했는지 확인하고 적절히 실행
+if (document.readyState === 'loading') {
+    // 아직 로딩 중이면 이벤트 리스너 등록
+    document.addEventListener('DOMContentLoaded', initMain);
+}
+else {
+    // 이미 로드되었으면 즉시 실행
+    initMain();
+}
 //# sourceMappingURL=main.js.map
